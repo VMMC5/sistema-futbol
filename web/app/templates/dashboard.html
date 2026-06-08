@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid cols-3">
+  <div class="card">
+    <div class="label">Torneos registrados</div>
+    <div class="big">{{ total_torneos }}</div>
+    <div class="sub">en el sistema</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Estado de la API</div>
+    <div style="margin-top:14px;">
+      {% if salud.api == 'ok' %}
+        <span class="status-pill">API en línea</span>
+      {% else %}
+        <span class="status-pill bad">API sin conexión</span>
+      {% endif %}
+    </div>
+    <div style="margin-top:10px;">
+      {% if salud.base_de_datos == 'ok' %}
+        <span class="status-pill">Base de datos OK</span>
+      {% else %}
+        <span class="status-pill bad">BD con problemas</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Acciones rápidas</div>
+    <div style="margin-top:16px; display:flex; flex-direction:column; gap:10px;">
+      <a href="{{ url_for('torneo_nuevo') }}" class="btn">+ Nuevo torneo</a>
+      <a href="{{ url_for('torneos') }}" class="btn ghost">Ver torneos</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set active = 'sedes' %}
+{% block title %}Sedes{% endblock %}
+{% block heading %}Sedes{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h2>Listado</h2>
+  <a href="{{ url_for('sede_nueva') }}" class="btn">+ Nueva sede</a>
+</div>
+
+{% if sedes %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Ciudad</th>
+        <th>Dirección</th>
+        <th>Teléfono</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sedes %}
+      <tr>
+        <td><strong>{{ s.nombre }}</strong></td>
+        <td>{{ s.ciudad or '—' }}</td>
+        <td>{{ s.direccion or '—' }}</td>
+        <td>{{ s.telefono or '—' }}</td>
+        <td style="text-align:right; white-space:nowrap;">
+          <a href="{{ url_for('sede_editar', sede_id=s.id) }}" class="btn ghost" style="padding:7px 14px;">Editar</a>
+          <form method="post" action="{{ url_for('sede_eliminar', sede_id=s.id) }}" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar la sede “{{ s.nombre }}”? Esta acción no se puede deshacer.');">
+            <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--danger);">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay sedes todavía. Crea la primera con “Nueva sede”.</div></div>
+{% endif %}
+{% endblock %}

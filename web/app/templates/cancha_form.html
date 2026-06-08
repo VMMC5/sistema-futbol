@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% set active = 'canchas' %}
+{% block title %}{{ accion }}{% endblock %}
+{% block heading %}{{ accion }}{% endblock %}
+
+{% block content %}
+<div class="card form-card">
+  <form method="post">
+    <div class="field">
+      <label for="nombre">Nombre</label>
+      <input type="text" id="nombre" name="nombre" value="{{ cancha.nombre if cancha else '' }}" placeholder="Cancha 1" required>
+    </div>
+
+    <div class="field">
+      <label for="sede_id">Sede</label>
+      {% if sedes %}
+      <select id="sede_id" name="sede_id" required>
+        {% for s in sedes %}
+        <option value="{{ s.id }}" {{ 'selected' if cancha and cancha.sede_id == s.id }}>
+          {{ s.nombre }}{% if s.ciudad %} — {{ s.ciudad }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <input type="number" id="sede_id" name="sede_id" value="1" min="1" required>
+      <div class="hint">No se encontraron sedes. Crea una primero.</div>
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label for="tipo">Tipo</label>
+      <select id="tipo" name="tipo">
+        <option value="">— Sin especificar —</option>
+        {% for t in tipos %}
+        <option value="{{ t }}" {{ 'selected' if cancha and cancha.tipo == t }}>{{ t | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="precio_hora">Precio por hora (opcional)</label>
+      <input type="number" id="precio_hora" name="precio_hora" step="0.01" min="0"
+             value="{{ cancha.precio_hora if cancha and cancha.precio_hora is not none else '' }}" placeholder="500.00">
+    </div>
+
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+        <input type="checkbox" name="disponible" style="width:auto;"
+               {{ 'checked' if (cancha is none) or (cancha and cancha.disponible) }}>
+        Disponible para reservas y partidos
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">{{ accion }}</button>
+      <a href="{{ url_for('canchas') }}" class="btn ghost">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

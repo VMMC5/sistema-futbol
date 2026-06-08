@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% set active = 'torneos' %}
+{% block title %}Tabla{% endblock %}
+{% block heading %}Tabla de posiciones{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h2>{{ torneo.nombre }}</h2>
+  <a href="{{ url_for('torneos') }}" class="btn ghost">← Volver</a>
+</div>
+
+{% if filas %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Equipo</th>
+        <th class="num">PJ</th>
+        <th class="num">G</th>
+        <th class="num">E</th>
+        <th class="num">P</th>
+        <th class="num">GF</th>
+        <th class="num">GC</th>
+        <th class="num">DG</th>
+        <th class="num">Pts</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td class="rank {{ 'top' if loop.index == 1 }}">{{ loop.index }}</td>
+        <td><strong>{{ f.equipo }}</strong></td>
+        <td class="num">{{ f.pj }}</td>
+        <td class="num">{{ f.pg }}</td>
+        <td class="num">{{ f.pe }}</td>
+        <td class="num">{{ f.pp }}</td>
+        <td class="num">{{ f.gf }}</td>
+        <td class="num">{{ f.gc }}</td>
+        <td class="num">{{ '%+d' | format(f.dg) }}</td>
+        <td class="num pts">{{ f.puntos }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">Aún no hay partidos finalizados en este torneo.</div></div>
+{% endif %}
+{% endblock %}

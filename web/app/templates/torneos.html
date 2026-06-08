@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% set active = 'torneos' %}
+{% block title %}Torneos{% endblock %}
+{% block heading %}Torneos{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h2>Listado</h2>
+  <a href="{{ url_for('torneo_nuevo') }}" class="btn">+ Nuevo torneo</a>
+</div>
+
+{% if torneos %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Estado</th>
+        <th>Sede</th>
+        <th class="num">Cupo</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in torneos %}
+      <tr>
+        <td><strong>{{ t.nombre }}</strong></td>
+        <td><span class="estado-tag {{ t.estado }}">{{ t.estado | replace('_', ' ') }}</span></td>
+        <td>{{ t.sede_nombre or ('Sede #' ~ t.sede_id) }}</td>
+        <td class="num">{{ t.cupo_maximo if t.cupo_maximo else '—' }}</td>
+        <td style="text-align:right;">
+          <a href="{{ url_for('tabla', torneo_id=t.id) }}" class="btn ghost" style="padding:7px 14px;">Tabla</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay torneos todavía. Crea el primero con “Nuevo torneo”.</div></div>
+{% endif %}
+{% endblock %}

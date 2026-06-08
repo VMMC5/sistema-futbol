@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% set active = 'sedes' %}
+{% block title %}{{ accion }}{% endblock %}
+{% block heading %}{{ accion }}{% endblock %}
+
+{% block content %}
+<div class="card form-card">
+  <form method="post">
+    <div class="field">
+      <label for="nombre">Nombre</label>
+      <input type="text" id="nombre" name="nombre" value="{{ sede.nombre if sede else '' }}" placeholder="Sede Central" required>
+    </div>
+    <div class="field">
+      <label for="ciudad">Ciudad</label>
+      <input type="text" id="ciudad" name="ciudad" value="{{ sede.ciudad if sede and sede.ciudad else '' }}" placeholder="Pachuca">
+    </div>
+    <div class="field">
+      <label for="direccion">Dirección</label>
+      <input type="text" id="direccion" name="direccion" value="{{ sede.direccion if sede and sede.direccion else '' }}" placeholder="Av. Principal 100">
+    </div>
+    <div class="field">
+      <label for="telefono">Teléfono</label>
+      <input type="text" id="telefono" name="telefono" value="{{ sede.telefono if sede and sede.telefono else '' }}" placeholder="771 000 0000">
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">{{ accion }}</button>
+      <a href="{{ url_for('sedes') }}" class="btn ghost">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

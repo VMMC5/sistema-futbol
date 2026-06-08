@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set active = 'torneos' %}
+{% block title %}Nuevo torneo{% endblock %}
+{% block heading %}Nuevo torneo{% endblock %}
+
+{% block content %}
+<div class="card form-card">
+  <form method="post">
+    <div class="field">
+      <label for="nombre">Nombre del torneo</label>
+      <input type="text" id="nombre" name="nombre" placeholder="Copa de Verano" required>
+    </div>
+
+    <div class="field">
+      <label for="sede_id">Sede</label>
+      {% if sedes %}
+      <select id="sede_id" name="sede_id" required>
+        {% for s in sedes %}
+        <option value="{{ s.id }}">{{ s.nombre }}{% if s.ciudad %} — {{ s.ciudad }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <input type="number" id="sede_id" name="sede_id" value="1" min="1" required>
+      <div class="hint">No se encontraron sedes. Crea una primero (o corre el seed).</div>
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label for="estado">Estado</label>
+      <select id="estado" name="estado">
+        <option value="programado">Programado</option>
+        <option value="en_curso">En curso</option>
+        <option value="finalizado">Finalizado</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="cupo_maximo">Cupo máximo de equipos (opcional)</label>
+      <input type="number" id="cupo_maximo" name="cupo_maximo" min="1" placeholder="Ej. 16">
+    </div>
+
+    <div class="field">
+      <label for="descripcion">Descripción (opcional)</label>
+      <textarea id="descripcion" name="descripcion" rows="3" placeholder="Detalles del torneo..."></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">Crear torneo</button>
+      <a href="{{ url_for('torneos') }}" class="btn ghost">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

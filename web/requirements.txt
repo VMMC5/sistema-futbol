@@ -1,14 +1,11 @@
 # --- Panel web admin (Flask) ---
 flask==3.1.0
 
-# Base de datos
-psycopg2-binary==2.9.10
-
-# Configuración / variables de entorno
-python-dotenv==1.0.1
-
-# Para consumir la API desde el panel
+# Para consumir la API
 requests==2.32.3
 
-# Servidor para producción (en desarrollo se usa `flask run`):
+# Variables de entorno
+python-dotenv==1.0.1
+
+# Servidor para produccion (en desarrollo se usa `flask run`):
 #   gunicorn==23.0.0

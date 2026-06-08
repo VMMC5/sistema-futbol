@@ -6,11 +6,20 @@ uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 
-# Configuración / variables de entorno
+# Configuracion / variables de entorno
 pydantic-settings==2.7.1
 python-dotenv==1.0.1
+email-validator==2.2.0          # requerido por EmailStr en los esquemas
 
-# Autenticación (JWT + hashing de contraseñas) — para cuando implementen login
-passlib[bcrypt]==1.7.4
+# Autenticacion (JWT + hashing de contrasenas)
+passlib==1.7.4
+bcrypt==4.0.1                   # fijado: passlib 1.7.4 falla con bcrypt >= 4.1
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.20
+
+# Migraciones de base de datos
+alembic==1.14.0
+
+# --- Solo para desarrollo / pruebas ---
+pytest==8.3.4
+httpx==0.28.1

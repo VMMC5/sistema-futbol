@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% set active = 'usuarios' %}
+{% block title %}{{ accion }}{% endblock %}
+{% block heading %}{{ accion }}{% endblock %}
+
+{% block content %}
+<div class="card form-card">
+  <form method="post">
+    <div class="field">
+      <label for="nombre">Nombre</label>
+      <input type="text" id="nombre" name="nombre" value="{{ usuario.nombre if usuario else '' }}" placeholder="Nombre completo" required>
+    </div>
+
+    <div class="field">
+      <label for="correo">Correo</label>
+      {% if usuario %}
+      <input type="email" id="correo" value="{{ usuario.correo }}" disabled>
+      <div class="hint">El correo no se puede cambiar.</div>
+      {% else %}
+      <input type="email" id="correo" name="correo" placeholder="persona@correo.com" required>
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label for="rol">Rol</label>
+      <select id="rol" name="rol" required>
+        {% for r in roles %}
+        <option value="{{ r }}" {{ 'selected' if usuario and usuario.rol == r }}>{{ r | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="telefono">Teléfono (opcional)</label>
+      <input type="text" id="telefono" name="telefono" value="{{ usuario.telefono if usuario and usuario.telefono else '' }}" placeholder="771 000 0000">
+    </div>
+
+    <div class="field">
+      <label for="password">{{ 'Nueva contraseña (dejar vacío para no cambiar)' if usuario else 'Contraseña' }}</label>
+      <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres"
+             {{ 'required' if not usuario }} minlength="8">
+    </div>
+
+    {% if usuario %}
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+        <input type="checkbox" name="activo" style="width:auto;" {{ 'checked' if usuario.activo }}>
+        Cuenta activa
+      </label>
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+      <button type="submit" class="btn">{{ accion }}</button>
+      <a href="{{ url_for('usuarios') }}" class="btn ghost">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

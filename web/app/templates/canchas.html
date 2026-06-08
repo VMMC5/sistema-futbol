@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% set active = 'canchas' %}
+{% block title %}Canchas{% endblock %}
+{% block heading %}Canchas{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h2>Listado</h2>
+  <a href="{{ url_for('cancha_nueva') }}" class="btn">+ Nueva cancha</a>
+</div>
+
+{% if canchas %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Sede</th>
+        <th>Tipo</th>
+        <th class="num">Precio/hora</th>
+        <th>Disponible</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in canchas %}
+      <tr>
+        <td><strong>{{ c.nombre }}</strong></td>
+        <td>{{ c.sede_nombre or ('Sede #' ~ c.sede_id) }}</td>
+        <td>{{ c.tipo or '—' }}</td>
+        <td class="num">{{ '$%.2f' | format(c.precio_hora) if c.precio_hora is not none else '—' }}</td>
+        <td>
+          {% if c.disponible %}
+            <span class="estado-tag en_curso">Sí</span>
+          {% else %}
+            <span class="estado-tag finalizado">No</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right; white-space:nowrap;">
+          <a href="{{ url_for('cancha_editar', cancha_id=c.id) }}" class="btn ghost" style="padding:7px 14px;">Editar</a>
+          <form method="post" action="{{ url_for('cancha_eliminar', cancha_id=c.id) }}" style="display:inline;"
+                onsubmit="return confirm('¿Eliminar la cancha “{{ c.nombre }}”?');">
+            <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--danger);">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay canchas todavía. Crea la primera con “Nueva cancha”.</div></div>
+{% endif %}
+{% endblock %}

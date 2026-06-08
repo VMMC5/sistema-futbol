@@ -1,6 +1,18 @@
+# Levanta todo el backend del proyecto con un solo comando:
+#   docker compose up --build
+#
+# Servicios:
+#   db   -> PostgreSQL 16 (base de datos)
+#   api  -> FastAPI       (http://localhost:8000  | docs en /docs)
+#   web  -> Flask         (http://localhost:5000  | panel admin)
+#
+# La app móvil (Expo) NO va aquí: se corre localmente con `npx expo start`.
+
 services:
   db:
     image: postgres:16
+    container_name: torneos_db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -8,22 +20,32 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data   # los datos sobreviven a reinicios
+      - pgdata:/var/lib/postgresql/data   # los datos sobreviven a `down`/reinicios
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build: ./api
+    container_name: torneos_api
+    restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./api:/code          # código local se refleja dentro del contenedor
+      - ./api:/code            # tu código local se refleja dentro del contenedor (hot reload)
     ports:
       - "8000:8000"
     env_file: .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   web:
     build: ./web
-    command: flask run --host 0.0.0.0 --port 5000 --debug
+    container_name: torneos_web
+    restart: unless-stopped
+    command: flask --app app.app run --host 0.0.0.0 --port 5000 --debug
     volumes:
       - ./web:/code
     ports:

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar sesión · Torneos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="brand">
+        <div class="ball">⚽</div>
+        <div class="name">TORNEOS<small>PANEL ADMIN</small></div>
+      </div>
+      <h1>Bienvenido</h1>
+      <p class="tagline">Acceso al panel de administración</p>
+
+      {% with mensajes = get_flashed_messages(with_categories=true) %}
+        {% if mensajes %}
+          <div class="flashes">
+            {% for categoria, texto in mensajes %}
+              <div class="flash {{ categoria }}">{{ texto }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post">
+        <div class="field">
+          <label for="correo">Correo</label>
+          <input type="email" id="correo" name="correo" placeholder="superadmin@demo.com" required autofocus>
+        </div>
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn">Entrar</button>
+      </form>
+
+      <p class="login-hint">
+        Usuario de prueba (tras correr el seed):<br>
+        <code>superadmin@demo.com</code> / <code>admin1234</code>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

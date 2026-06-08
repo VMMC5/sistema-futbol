@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set active = 'usuarios' %}
+{% block title %}Usuarios{% endblock %}
+{% block heading %}Usuarios{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h2>Listado</h2>
+  <a href="{{ url_for('usuario_nuevo') }}" class="btn">+ Nuevo usuario</a>
+</div>
+
+{% if usuarios %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Correo</th>
+        <th>Rol</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in usuarios %}
+      <tr>
+        <td><strong>{{ u.nombre }}</strong></td>
+        <td>{{ u.correo }}</td>
+        <td><span class="rol-tag {{ u.rol }}">{{ u.rol }}</span></td>
+        <td>
+          {% if u.activo %}
+            <span class="estado-tag en_curso">Activo</span>
+          {% else %}
+            <span class="estado-tag finalizado">Inactivo</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right; white-space:nowrap;">
+          <a href="{{ url_for('usuario_editar', usuario_id=u.id) }}" class="btn ghost" style="padding:7px 14px;">Editar</a>
+          {% if u.id != yo_id %}
+          <form method="post" action="{{ url_for('usuario_estado', usuario_id=u.id) }}" style="display:inline;">
+            <input type="hidden" name="activar" value="{{ '0' if u.activo else '1' }}">
+            <button type="submit" class="btn ghost" style="padding:7px 14px; {{ 'color:var(--danger);' if u.activo }}">
+              {{ 'Desactivar' if u.activo else 'Activar' }}
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay usuarios para mostrar.</div></div>
+{% endif %}
+{% endblock %}

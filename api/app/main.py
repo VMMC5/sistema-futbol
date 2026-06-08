@@ -1,48 +1,43 @@
 """
 Punto de entrada de la API (FastAPI).
 
-Esto es un esqueleto mínimo y funcional: arranca, responde un saludo,
-expone un /health que comprueba la conexión con PostgreSQL, y deja
-listo el lugar donde irán sus routers (jugadores, torneos, partidos, etc.).
-
-La documentación interactiva queda en  http://localhost:8000/docs
+Usa la configuracion central de base de datos (app/database.py) y los
+modelos (app/models.py). La documentacion interactiva queda en /docs.
 """
-import os
+from fastapi import Depends, FastAPI
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from fastapi import FastAPI
-from sqlalchemy import create_engine, text
+from app.database import get_db
+from app import models  # noqa: F401  -> registra los modelos en la metadata
+from app.routers import auth, torneos, reservas, partidos, estadisticas, sedes, canchas, usuarios
 
 app = FastAPI(
-    title="API - Sistema Integral de Canchas y Torneos de Fútbol",
+    title="API - Sistema Integral de Canchas y Torneos de Futbol",
     version="0.1.0",
 )
 
-# Cadena de conexión construida desde las variables de entorno (.env).
-# OJO: el host es "db", que es el nombre del servicio en docker-compose.
-DATABASE_URL = (
-    f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
-    f"@{os.getenv('DB_HOST', 'db')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}"
-)
-
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Routers por modulo
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(usuarios.router, prefix="/usuarios", tags=["usuarios"])
+app.include_router(sedes.router, prefix="/sedes", tags=["sedes"])
+app.include_router(canchas.router, prefix="/canchas", tags=["canchas"])
+app.include_router(torneos.router, prefix="/torneos", tags=["torneos"])
+app.include_router(reservas.router, prefix="/reservas", tags=["reservas"])
+app.include_router(partidos.router, prefix="/partidos", tags=["partidos"])
+app.include_router(estadisticas.router, prefix="/estadisticas", tags=["estadisticas"])
 
 
 @app.get("/")
 def raiz():
-    return {"mensaje": "API del sistema de torneos funcionando 🟢"}
+    return {"mensaje": "API del sistema de torneos funcionando"}
 
 
 @app.get("/health")
-def health():
+def health(db: Session = Depends(get_db)):
     """Comprueba que la API puede hablar con la base de datos."""
     try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
+        db.execute(text("SELECT 1"))
         return {"api": "ok", "base_de_datos": "ok"}
     except Exception as e:  # noqa: BLE001
         return {"api": "ok", "base_de_datos": "error", "detalle": str(e)}
-
-
-# A partir de aquí irán sus routers, por ejemplo:
-# from app.routers import jugadores, torneos, partidos
-# app.include_router(jugadores.router, prefix="/jugadores", tags=["jugadores"])

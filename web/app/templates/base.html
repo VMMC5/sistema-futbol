@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Panel{% endblock %} · Torneos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="ball">⚽</div>
+        <div class="name">TORNEOS<small>PANEL ADMIN</small></div>
+      </div>
+      <nav class="nav">
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active == 'dashboard' }}"><span class="dot"></span> Dashboard</a>
+        <a href="{{ url_for('torneos') }}" class="{{ 'active' if active == 'torneos' }}"><span class="dot"></span> Torneos</a>
+        <a href="{{ url_for('sedes') }}" class="{{ 'active' if active == 'sedes' }}"><span class="dot"></span> Sedes</a>
+        <a href="{{ url_for('canchas') }}" class="{{ 'active' if active == 'canchas' }}"><span class="dot"></span> Canchas</a>
+        <a href="{{ url_for('usuarios') }}" class="{{ 'active' if active == 'usuarios' }}"><span class="dot"></span> Usuarios</a>
+      </nav>
+      <div class="foot">Sistema Integral de<br>Canchas y Torneos</div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <h1 class="page-title">{% block heading %}{% endblock %}</h1>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div class="user-chip">
+            <div class="who">{{ session.usuario.nombre if session.usuario else 'Admin' }}
+              <small>{{ session.usuario.correo if session.usuario else '' }}</small>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Salir</a>
+          </div>
+        </div>
+      </div>
+
+      {% with mensajes = get_flashed_messages(with_categories=true) %}
+        {% if mensajes %}
+          <div class="flashes">
+            {% for categoria, texto in mensajes %}
+              <div class="flash {{ categoria }}">{{ texto }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>
