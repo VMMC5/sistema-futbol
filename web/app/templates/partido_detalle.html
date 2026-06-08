@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% set active = 'partidos' %}
+{% block title %}Partido{% endblock %}
+{% block heading %}Detalle del partido{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('partidos') }}" class="btn ghost" style="margin-bottom:18px;">← Volver a partidos</a>
+
+<!-- Marcador -->
+<div class="card" style="margin-bottom:22px;">
+  <div class="scoreboard">
+    <div class="team"><div class="team-name">{{ partido.equipo_local_nombre or '?' }}</div><div class="team-tag">Local</div></div>
+    <div class="score">
+      <span class="score-num">{{ partido.goles_local }}</span>
+      <span class="score-sep">:</span>
+      <span class="score-num">{{ partido.goles_visitante }}</span>
+    </div>
+    <div class="team"><div class="team-name">{{ partido.equipo_visitante_nombre or '?' }}</div><div class="team-tag">Visitante</div></div>
+  </div>
+  <div class="scoreboard-meta">
+    <span class="estado-tag {{ partido.estado }}">{{ partido.estado | replace('_', ' ') }}</span>
+    <span>{{ partido.torneo_nombre or '—' }}</span>
+    {% if partido.cancha_nombre %}<span>· {{ partido.cancha_nombre }}</span>{% endif %}
+    {% if partido.arbitro_nombre %}<span>· Árbitro: {{ partido.arbitro_nombre }}</span>{% endif %}
+    {% if partido.fecha_hora %}<span>· {{ partido.fecha_hora.replace('T', ' ')[:16] }}</span>{% endif %}
+  </div>
+
+  <div class="form-actions" style="margin-top:18px;">
+    {% if partido.estado == 'programado' %}
+    <form method="post" action="{{ url_for('partido_accion', partido_id=partido.id, accion='iniciar') }}">
+      <button type="submit" class="btn">▶ Iniciar partido</button>
+    </form>
+    {% elif partido.estado == 'en_juego' %}
+    <form method="post" action="{{ url_for('partido_accion', partido_id=partido.id, accion='finalizar') }}">
+      <button type="submit" class="btn">⏹ Finalizar partido</button>
+    </form>
+    {% else %}
+    <span class="card-note">Partido finalizado.</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; align-items:start;">
+  <!-- Eventos -->
+  <div>
+    <div class="section-head"><h2>Eventos</h2></div>
+    {% if eventos %}
+    <div class="timeline">
+      {% for e in eventos %}
+      <div class="event">
+        <div class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</div>
+        <div class="event-icon {{ e.tipo }}">
+          {% if e.tipo == 'gol' %}⚽{% elif e.tipo == 'tarjeta_amarilla' %}🟨{% elif e.tipo == 'tarjeta_roja' %}🟥{% else %}🔁{% endif %}
+        </div>
+        <div class="event-body">
+          <div class="event-type">{{ e.tipo | replace('_', ' ') }}</div>
+          <div class="event-sub">{{ e.jugador_nombre or 'Sin jugador' }} · {{ e.equipo_nombre or '—' }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="panel-table"><div class="empty">Sin eventos registrados.</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Alineación -->
+  <div>
+    <div class="section-head"><h2>Alineación</h2></div>
+    {% if alineacion %}
+    <div class="panel-table">
+      <table>
+        <thead><tr><th>Jugador</th><th>Equipo</th><th>Posición</th><th>Titular</th></tr></thead>
+        <tbody>
+          {% for a in alineacion %}
+          <tr>
+            <td><strong>{{ a.jugador_nombre or ('#' ~ a.jugador_id) }}</strong></td>
+            <td>{{ a.equipo_nombre or '—' }}</td>
+            <td>{{ a.posicion or '—' }}</td>
+            <td>{{ 'Sí' if a.titular else 'No' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="panel-table"><div class="empty">Sin alineación registrada.</div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

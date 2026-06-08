@@ -110,7 +110,9 @@ class ReservaCreate(BaseModel):
 class ReservaOut(BaseModel):
     id: int
     usuario_id: int
+    usuario_nombre: str | None = None
     cancha_id: int
+    cancha_nombre: str | None = None
     fecha: date
     hora_inicio: time
     hora_fin: time
@@ -156,10 +158,15 @@ class PartidoUpdate(BaseModel):
 class PartidoOut(BaseModel):
     id: int
     torneo_id: int
+    torneo_nombre: str | None = None
     cancha_id: int | None = None
+    cancha_nombre: str | None = None
     arbitro_id: int | None = None
+    arbitro_nombre: str | None = None
     equipo_local_id: int | None = None
+    equipo_local_nombre: str | None = None
     equipo_visitante_id: int | None = None
+    equipo_visitante_nombre: str | None = None
     fecha_hora: datetime | None = None
     goles_local: int
     goles_visitante: int
@@ -180,7 +187,9 @@ class EventoOut(BaseModel):
     id: int
     partido_id: int
     equipo_id: int | None = None
+    equipo_nombre: str | None = None
     jugador_id: int | None = None
+    jugador_nombre: str | None = None
     tipo: str
     minuto: int | None = None
     detalle: str | None = None
@@ -202,7 +211,9 @@ class AlineacionOut(BaseModel):
     id: int
     partido_id: int
     equipo_id: int
+    equipo_nombre: str | None = None
     jugador_id: int
+    jugador_nombre: str | None = None
     titular: bool
     posicion: str | None = None
 

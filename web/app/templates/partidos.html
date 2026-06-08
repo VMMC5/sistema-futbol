@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set active = 'partidos' %}
+{% block title %}Partidos{% endblock %}
+{% block heading %}Partidos{% endblock %}
+
+{% block content %}
+<div class="section-head"><h2>Listado</h2></div>
+
+{% if partidos %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Torneo</th>
+        <th>Encuentro</th>
+        <th class="num">Marcador</th>
+        <th>Estado</th>
+        <th>Fecha</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in partidos %}
+      <tr>
+        <td>{{ p.torneo_nombre or ('Torneo #' ~ p.torneo_id) }}</td>
+        <td><strong>{{ p.equipo_local_nombre or '?' }}</strong> vs <strong>{{ p.equipo_visitante_nombre or '?' }}</strong></td>
+        <td class="num pts">{{ p.goles_local }} – {{ p.goles_visitante }}</td>
+        <td><span class="estado-tag {{ p.estado }}">{{ p.estado | replace('_', ' ') }}</span></td>
+        <td>{{ p.fecha_hora.replace('T', ' ')[:16] if p.fecha_hora else '—' }}</td>
+        <td style="text-align:right;">
+          <a href="{{ url_for('partido_detalle', partido_id=p.id) }}" class="btn ghost" style="padding:7px 14px;">Ver</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay partidos programados.</div></div>
+{% endif %}
+{% endblock %}

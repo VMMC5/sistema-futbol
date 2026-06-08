@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set active = 'reservas' %}
+{% block title %}Reservas{% endblock %}
+{% block heading %}Reservas{% endblock %}
+
+{% block content %}
+<div class="section-head"><h2>Todas las reservas</h2></div>
+
+{% if reservas %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>Cancha</th>
+        <th>Fecha</th>
+        <th>Horario</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reservas %}
+      <tr>
+        <td><strong>{{ r.usuario_nombre or ('#' ~ r.usuario_id) }}</strong></td>
+        <td>{{ r.cancha_nombre or ('Cancha #' ~ r.cancha_id) }}</td>
+        <td>{{ r.fecha }}</td>
+        <td>{{ r.hora_inicio[:5] }} – {{ r.hora_fin[:5] }}</td>
+        <td>
+          {% if r.estado == 'confirmada' %}<span class="estado-tag en_curso">confirmada</span>
+          {% elif r.estado == 'cancelada' %}<span class="estado-tag finalizado">cancelada</span>
+          {% else %}<span class="estado-tag programado">pendiente</span>{% endif %}
+        </td>
+        <td style="text-align:right; white-space:nowrap;">
+          {% if r.estado == 'pendiente' %}
+          <form method="post" action="{{ url_for('reserva_accion', reserva_id=r.id, accion='confirmar') }}" style="display:inline;">
+            <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--lime);">Confirmar</button>
+          </form>
+          {% endif %}
+          {% if r.estado != 'cancelada' %}
+          <form method="post" action="{{ url_for('reserva_accion', reserva_id=r.id, accion='cancelar') }}" style="display:inline;"
+                onsubmit="return confirm('¿Cancelar esta reserva?');">
+            <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--danger);">Cancelar</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay reservas registradas.</div></div>
+{% endif %}
+{% endblock %}

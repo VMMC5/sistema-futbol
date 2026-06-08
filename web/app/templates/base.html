@@ -18,6 +18,9 @@
       </div>
       <nav class="nav">
         <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active == 'dashboard' }}"><span class="dot"></span> Dashboard</a>
+        <a href="{{ url_for('partidos') }}" class="{{ 'active' if active == 'partidos' }}"><span class="dot"></span> Partidos</a>
+        <a href="{{ url_for('reservas') }}" class="{{ 'active' if active == 'reservas' }}"><span class="dot"></span> Reservas</a>
+        <a href="{{ url_for('estadisticas') }}" class="{{ 'active' if active == 'estadisticas' }}"><span class="dot"></span> Estadísticas</a>
         <a href="{{ url_for('torneos') }}" class="{{ 'active' if active == 'torneos' }}"><span class="dot"></span> Torneos</a>
         <a href="{{ url_for('sedes') }}" class="{{ 'active' if active == 'sedes' }}"><span class="dot"></span> Sedes</a>
         <a href="{{ url_for('canchas') }}" class="{{ 'active' if active == 'canchas' }}"><span class="dot"></span> Canchas</a>

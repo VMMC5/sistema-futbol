@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set active = 'estadisticas' %}
+{% block title %}Estadísticas{% endblock %}
+{% block heading %}Estadísticas{% endblock %}
+
+{% block content %}
+<!-- Filtro por torneo -->
+<form method="get" class="filter-bar">
+  <label for="torneo_id">Torneo:</label>
+  <select id="torneo_id" name="torneo_id" onchange="this.form.submit()">
+    <option value="">Todos</option>
+    {% for t in torneos %}
+    <option value="{{ t.id }}" {{ 'selected' if torneo_id == t.id }}>{{ t.nombre }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit" class="btn ghost" style="padding:7px 14px;">Filtrar</button></noscript>
+</form>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; align-items:start;">
+  <!-- Goleadores -->
+  <div>
+    <div class="section-head"><h2>Goleadores</h2></div>
+    {% if goleadores %}
+    <div class="panel-table">
+      <table>
+        <thead><tr><th>#</th><th>Jugador</th><th class="num">Goles</th></tr></thead>
+        <tbody>
+          {% for g in goleadores %}
+          <tr>
+            <td class="rank {{ 'top' if loop.index == 1 }}">{{ loop.index }}</td>
+            <td><strong>{{ g.nombre }}</strong></td>
+            <td class="num pts">{{ g.goles }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="panel-table"><div class="empty">Aún no hay goles registrados.</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Tarjetas -->
+  <div>
+    <div class="section-head"><h2>Tarjetas</h2></div>
+    {% if tarjetas %}
+    <div class="panel-table">
+      <table>
+        <thead><tr><th>Jugador</th><th class="num">🟨</th><th class="num">🟥</th></tr></thead>
+        <tbody>
+          {% for t in tarjetas %}
+          <tr>
+            <td><strong>{{ t.nombre }}</strong></td>
+            <td class="num">{{ t.amarillas }}</td>
+            <td class="num">{{ t.rojas }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="panel-table"><div class="empty">Aún no hay tarjetas registradas.</div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

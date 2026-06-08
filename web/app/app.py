@@ -450,6 +450,107 @@ def _listar_roles():
 
 
 # ----------------------------------------------------------------------
+# Partidos (operativo)
+# ----------------------------------------------------------------------
+@app.route("/partidos")
+@login_required
+def partidos():
+    r = api_get("/partidos")
+    if r.status_code == 401:
+        return _sesion_expirada()
+    return render_template("partidos.html", partidos=r.json() if r.status_code == 200 else [])
+
+
+@app.route("/partidos/<int:partido_id>")
+@login_required
+def partido_detalle(partido_id):
+    rp = api_get(f"/partidos/{partido_id}")
+    if rp.status_code == 401:
+        return _sesion_expirada()
+    if rp.status_code != 200:
+        flash("Partido no encontrado.", "error")
+        return redirect(url_for("partidos"))
+
+    eventos = api_get(f"/partidos/{partido_id}/eventos")
+    alineacion = api_get(f"/partidos/{partido_id}/alineacion")
+    return render_template(
+        "partido_detalle.html",
+        partido=rp.json(),
+        eventos=eventos.json() if eventos.status_code == 200 else [],
+        alineacion=alineacion.json() if alineacion.status_code == 200 else [],
+    )
+
+
+@app.route("/partidos/<int:partido_id>/<accion>", methods=["POST"])
+@login_required
+def partido_accion(partido_id, accion):
+    if accion not in ("iniciar", "finalizar"):
+        flash("Acción no válida.", "error")
+        return redirect(url_for("partido_detalle", partido_id=partido_id))
+    r = api_post(f"/partidos/{partido_id}/{accion}", {})
+    if r.status_code == 401:
+        return _sesion_expirada()
+    if r.status_code == 200:
+        flash(f"Partido {'iniciado' if accion == 'iniciar' else 'finalizado'}.", "ok")
+    else:
+        flash(_detalle_error(r, "No se pudo completar la acción."), "error")
+    return redirect(url_for("partido_detalle", partido_id=partido_id))
+
+
+# ----------------------------------------------------------------------
+# Reservas (operativo)
+# ----------------------------------------------------------------------
+@app.route("/reservas")
+@login_required
+def reservas():
+    r = api_get("/reservas")
+    if r.status_code == 401:
+        return _sesion_expirada()
+    return render_template("reservas.html", reservas=r.json() if r.status_code == 200 else [])
+
+
+@app.route("/reservas/<int:reserva_id>/<accion>", methods=["POST"])
+@login_required
+def reserva_accion(reserva_id, accion):
+    if accion not in ("confirmar", "cancelar"):
+        flash("Acción no válida.", "error")
+        return redirect(url_for("reservas"))
+    r = api_post(f"/reservas/{reserva_id}/{accion}", {})
+    if r.status_code == 401:
+        return _sesion_expirada()
+    if r.status_code == 200:
+        flash(f"Reserva {'confirmada' if accion == 'confirmar' else 'cancelada'}.", "ok")
+    else:
+        flash(_detalle_error(r, "No se pudo completar la acción."), "error")
+    return redirect(url_for("reservas"))
+
+
+# ----------------------------------------------------------------------
+# Estadísticas
+# ----------------------------------------------------------------------
+@app.route("/estadisticas")
+@login_required
+def estadisticas():
+    torneo_id = request.args.get("torneo_id", type=int)
+    sufijo = f"?torneo_id={torneo_id}" if torneo_id else ""
+
+    rt = api_get("/torneos")
+    if rt.status_code == 401:
+        return _sesion_expirada()
+    lista_torneos = rt.json() if rt.status_code == 200 else []
+
+    rg = api_get(f"/estadisticas/goleadores{sufijo}")
+    rc = api_get(f"/estadisticas/tarjetas{sufijo}")
+    return render_template(
+        "estadisticas.html",
+        torneos=lista_torneos,
+        torneo_id=torneo_id,
+        goleadores=rg.json() if rg.status_code == 200 else [],
+        tarjetas=rc.json() if rc.status_code == 200 else [],
+    )
+
+
+# ----------------------------------------------------------------------
 def _sesion_expirada():
     session.clear()
     flash("Tu sesión expiró. Inicia sesión de nuevo.", "error")

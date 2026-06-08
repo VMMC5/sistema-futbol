@@ -158,6 +158,14 @@ class Reserva(Base):
     cancha = relationship("Cancha", back_populates="reservas")
     pago = relationship("Pago", back_populates="reserva")
 
+    @property
+    def usuario_nombre(self):
+        return self.usuario.nombre if self.usuario else None
+
+    @property
+    def cancha_nombre(self):
+        return self.cancha.nombre if self.cancha else None
+
 
 # ----------------------------------------------------------------------
 # 7. equipos  (FK entrenador_id -> usuarios)
@@ -204,6 +212,26 @@ class Partido(Base):
     alineaciones = relationship("Alineacion", back_populates="partido")
     eventos = relationship("EventoPartido", back_populates="partido")
 
+    @property
+    def torneo_nombre(self):
+        return self.torneo.nombre if self.torneo else None
+
+    @property
+    def cancha_nombre(self):
+        return self.cancha.nombre if self.cancha else None
+
+    @property
+    def arbitro_nombre(self):
+        return self.arbitro.nombre if self.arbitro else None
+
+    @property
+    def equipo_local_nombre(self):
+        return self.equipo_local.nombre if self.equipo_local else None
+
+    @property
+    def equipo_visitante_nombre(self):
+        return self.equipo_visitante.nombre if self.equipo_visitante else None
+
 
 # ----------------------------------------------------------------------
 # 9. alineaciones  (PK id; FK partido_id, equipo_id, jugador_id; titular, posicion)
@@ -224,6 +252,16 @@ class Alineacion(Base):
     )
 
     partido = relationship("Partido", back_populates="alineaciones")
+    equipo = relationship("Equipo", foreign_keys=[equipo_id])
+    jugador = relationship("Usuario", foreign_keys=[jugador_id])
+
+    @property
+    def equipo_nombre(self):
+        return self.equipo.nombre if self.equipo else None
+
+    @property
+    def jugador_nombre(self):
+        return self.jugador.nombre if self.jugador else None
 
 
 # ----------------------------------------------------------------------
@@ -242,6 +280,16 @@ class EventoPartido(Base):
     detalle = Column(String(120))
 
     partido = relationship("Partido", back_populates="eventos")
+    equipo = relationship("Equipo", foreign_keys=[equipo_id])
+    jugador = relationship("Usuario", foreign_keys=[jugador_id])
+
+    @property
+    def equipo_nombre(self):
+        return self.equipo.nombre if self.equipo else None
+
+    @property
+    def jugador_nombre(self):
+        return self.jugador.nombre if self.jugador else None
 
 
 # ----------------------------------------------------------------------
