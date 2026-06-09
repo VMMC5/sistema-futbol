@@ -61,3 +61,13 @@ export async function apiPostForm(path, formData) {
   const res = await fetch(`${API_URL}${path}`, { method: "POST", body: formData });
   return _manejar(res);
 }
+
+export async function apiDelete(path, conAuth = true) {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "DELETE",
+    headers: await _headers(conAuth),
+  });
+  // 204 sin cuerpo
+  if (res.status === 204) return true;
+  return _manejar(res);
+}

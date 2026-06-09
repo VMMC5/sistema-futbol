@@ -123,10 +123,14 @@ def eliminar_partido(
 def listar_partidos(
     torneo_id: int | None = None,
     estado: str | None = None,
+    mios: bool = False,
     db: Session = Depends(get_db),
-    _usuario: models.Usuario = Depends(get_current_user),
+    usuario: models.Usuario = Depends(get_current_user),
 ):
     consulta = db.query(models.Partido)
+    if mios:
+        # Partidos asignados al árbitro autenticado (para el modo árbitro)
+        consulta = consulta.filter(models.Partido.arbitro_id == usuario.id)
     if torneo_id:
         consulta = consulta.filter(models.Partido.torneo_id == torneo_id)
     if estado:

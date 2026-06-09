@@ -47,6 +47,15 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.cardSub}>{MENSAJE_ROL[rol] || ""}</Text>
       </View>
 
+      {(rol === "arbitro" || rol === "superadmin") && (
+        <TouchableOpacity
+          style={[styles.btn, { marginBottom: 8 }]}
+          onPress={() => navigation.navigate("RefereeMatches")}
+        >
+          <Text style={styles.btnText}>🟢 Modo árbitro (partidos en vivo)</Text>
+        </TouchableOpacity>
+      )}
+
       <Text style={styles.h2}>Próximos partidos</Text>
       {cargando ? (
         <ActivityIndicator color={colors.lime} />

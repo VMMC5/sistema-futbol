@@ -108,3 +108,13 @@ def test_listar_eventos_ordenados(client, auth_admin, auth_arbitro, arbitro_id, 
 
     eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_admin).json()
     assert [e["minuto"] for e in eventos] == [10, 40]
+
+
+def test_filtro_mios_arbitro(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    # Un partido asignado al árbitro y otro sin asignar
+    _crear_partido(client, auth_admin, torneo_id, arbitro_id)
+    _crear_partido(client, auth_admin, torneo_id)  # sin árbitro
+
+    mios = client.get("/partidos?mios=true", headers=auth_arbitro).json()
+    assert len(mios) == 1  # solo el asignado a este árbitro
+    assert mios[0]["arbitro_id"] == arbitro_id

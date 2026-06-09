@@ -13,6 +13,8 @@ import RegisterPlayerScreen from "./src/screens/RegisterPlayerScreen";
 import RegisterStaffScreen from "./src/screens/RegisterStaffScreen";
 import ChangePasswordScreen from "./src/screens/ChangePasswordScreen";
 import HomeScreen from "./src/screens/HomeScreen";
+import RefereeMatchesScreen from "./src/screens/RefereeMatchesScreen";
+import RefereeLiveScreen from "./src/screens/RefereeLiveScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -47,6 +49,8 @@ export default function App() {
           <Stack.Screen name="RegisterStaff" component={RegisterStaffScreen} options={{ ...headerStyle, title: "Entrenador / Árbitro" }} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ ...headerStyle, title: "Cambiar contraseña", headerBackVisible: false, gestureEnabled: false }} />
           <Stack.Screen name="Home" component={HomeScreen} options={{ ...headerStyle, title: "Mi panel", headerBackVisible: false }} />
+          <Stack.Screen name="RefereeMatches" component={RefereeMatchesScreen} options={{ ...headerStyle, title: "Mis partidos" }} />
+          <Stack.Screen name="RefereeLive" component={RefereeLiveScreen} options={{ ...headerStyle, title: "Partido en vivo" }} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

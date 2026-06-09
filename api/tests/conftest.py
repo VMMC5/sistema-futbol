@@ -17,6 +17,8 @@ os.environ.setdefault("DB_USER", "test")
 os.environ.setdefault("DB_PASSWORD", "test")
 os.environ.setdefault("DB_NAME", "test")
 os.environ.setdefault("SECRET_KEY", "secret_de_pruebas")
+os.environ.setdefault("UPLOAD_DIR", "/tmp/uploads_test")
+os.environ.setdefault("UPLOAD_DIR", "/tmp/test_uploads_torneos")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
