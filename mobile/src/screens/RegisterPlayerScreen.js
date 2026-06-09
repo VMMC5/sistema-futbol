@@ -25,7 +25,7 @@ export default function RegisterPlayerScreen({ navigation }) {
         },
         false
       );
-      navigation.reset({ index: 1, routes: [{ name: "Landing" }, { name: "Login" }] });
+      navigation.reset({ index: 1, routes: [{ name: "Public" }, { name: "Login" }] });
     } catch (e) {
       setError(e.message || "No se pudo crear la cuenta");
     } finally {

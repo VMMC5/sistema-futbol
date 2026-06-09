@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 
 // La URL de la API se lee de app.json (extra.apiUrl). CAMBIALA por la IP de tu PC.
 export const API_URL =
-  Constants.expoConfig?.extra?.apiUrl || "http://192.168.1.50:8000";
+  Constants.expoConfig?.extra?.apiUrl || "http://192.168.100.9:8000";
 
 const TOKEN_KEY = "token";
 

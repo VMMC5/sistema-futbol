@@ -41,7 +41,7 @@ class Token(BaseModel):
 # ======================================================================
 #  TORNEOS  (plantilla de CRUD para replicar en otros modulos)
 # ======================================================================
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import model_validator
 
 _ESTADOS_TORNEO = "^(programado|en_curso|finalizado)$"
@@ -51,8 +51,12 @@ class TorneoBase(BaseModel):
     nombre: str = Field(min_length=2, max_length=100)
     sede_id: int
     descripcion: str | None = None
+    tipo: str | None = Field(default=None, max_length=40)
     fecha_inicio: datetime | None = None
     fecha_fin: datetime | None = None
+    fecha_cierre_inscripciones: date | None = None
+    cuota_inscripcion: float | None = Field(default=None, ge=0)
+    premio: str | None = Field(default=None, max_length=200)
     cupo_maximo: int | None = Field(default=None, gt=0)
 
 
@@ -71,8 +75,12 @@ class TorneoUpdate(BaseModel):
     nombre: str | None = Field(default=None, min_length=2, max_length=100)
     sede_id: int | None = None
     descripcion: str | None = None
+    tipo: str | None = Field(default=None, max_length=40)
     fecha_inicio: datetime | None = None
     fecha_fin: datetime | None = None
+    fecha_cierre_inscripciones: date | None = None
+    cuota_inscripcion: float | None = Field(default=None, ge=0)
+    premio: str | None = Field(default=None, max_length=200)
     cupo_maximo: int | None = Field(default=None, gt=0)
     estado: str | None = Field(default=None, pattern=_ESTADOS_TORNEO)
 

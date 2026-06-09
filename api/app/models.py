@@ -124,8 +124,12 @@ class Torneo(Base):
 
     nombre = Column(String(100), nullable=False)
     descripcion = Column(Text)
+    tipo = Column(String(40))                              # liga, eliminacion directa, etc.
     fecha_inicio = Column(DateTime(timezone=True))
     fecha_fin = Column(DateTime(timezone=True))
+    fecha_cierre_inscripciones = Column(Date)              # cierre de inscripciones
+    cuota_inscripcion = Column(Numeric(10, 2))             # cuota para entrar
+    premio = Column(String(200))                           # premio al equipo ganador
     estado = Column(String(20), default="programado")  # programado, en_curso, finalizado
     cupo_maximo = Column(Integer)
 

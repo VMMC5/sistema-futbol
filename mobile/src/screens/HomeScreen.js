@@ -31,7 +31,7 @@ export default function HomeScreen({ navigation }) {
 
   async function salir() {
     await logout();
-    navigation.reset({ index: 0, routes: [{ name: "Landing" }] });
+    navigation.reset({ index: 0, routes: [{ name: "Public" }] });
   }
 
   const rol = usuario?.rol || "jugador";

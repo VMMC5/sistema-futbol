@@ -1,22 +1,46 @@
 """
-Endpoints públicos (sin autenticación) para la pantalla principal de la app.
+Endpoints públicos (sin autenticación) para la app de cara al público.
 
-Muestra la información más relevante del sistema a cualquier visitante:
-próximos partidos y torneos activos con un pequeño resumen estadístico.
+- /publico/inicio                      -> próximos partidos + resumen
+- /publico/torneos                     -> torneos activos y próximos
+- /publico/torneos/{id}                -> detalle de un torneo
+- /publico/torneos/{id}/tabla          -> tabla de posiciones
+- /publico/torneos/{id}/partidos       -> partidos del torneo
+- /publico/torneos/{id}/goleadores     -> goleadores del torneo
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models
-from app.schemas import GoleadorOut, PartidoOut, TorneoOut
+from app import models, stats
+from app.schemas import FilaTabla, GoleadorOut, PartidoOut
 
 router = APIRouter()
 
 
+def _resumen_torneo(db: Session, t: models.Torneo) -> dict:
+    conteos = stats.equipos_y_partidos(db, t.id)
+    return {
+        "id": t.id,
+        "nombre": t.nombre,
+        "tipo": t.tipo,
+        "estado": t.estado,
+        "sede_nombre": t.sede.nombre if t.sede else None,
+        "descripcion": t.descripcion,
+        "fecha_inicio": t.fecha_inicio.isoformat() if t.fecha_inicio else None,
+        "fecha_fin": t.fecha_fin.isoformat() if t.fecha_fin else None,
+        "fecha_cierre_inscripciones": (
+            t.fecha_cierre_inscripciones.isoformat() if t.fecha_cierre_inscripciones else None
+        ),
+        "cuota_inscripcion": float(t.cuota_inscripcion) if t.cuota_inscripcion is not None else None,
+        "premio": t.premio,
+        "cupo_maximo": t.cupo_maximo,
+        **conteos,
+    }
+
+
 @router.get("/inicio")
 def inicio(db: Session = Depends(get_db)):
-    # Próximos partidos (programados o en juego), por fecha
     proximos = (
         db.query(models.Partido)
         .filter(models.Partido.estado.in_(["programado", "en_juego"]))
@@ -24,32 +48,61 @@ def inicio(db: Session = Depends(get_db)):
         .limit(5)
         .all()
     )
-
-    # Torneos activos con un resumen (partidos jugados y goles)
-    torneos_activos = []
-    for t in db.query(models.Torneo).filter(models.Torneo.estado == "en_curso").all():
-        finalizados = [p for p in t.partidos if p.estado == "finalizado"]
-        goles = sum((p.goles_local + p.goles_visitante) for p in finalizados)
-        datos = TorneoOut.model_validate(t).model_dump()
-        datos["partidos_jugados"] = len(finalizados)
-        datos["goles_totales"] = goles
-        torneos_activos.append(datos)
-
-    # Top 5 goleadores global
-    from sqlalchemy import func
-    filas = (
-        db.query(models.Usuario.id, models.Usuario.nombre, func.count(models.EventoPartido.id).label("g"))
-        .join(models.EventoPartido, models.EventoPartido.jugador_id == models.Usuario.id)
-        .filter(models.EventoPartido.tipo == "gol")
-        .group_by(models.Usuario.id, models.Usuario.nombre)
-        .order_by(func.count(models.EventoPartido.id).desc())
-        .limit(5)
-        .all()
-    )
-    goleadores = [GoleadorOut(jugador_id=f.id, nombre=f.nombre, goles=int(f.g)) for f in filas]
-
+    torneos_activos = [
+        _resumen_torneo(db, t)
+        for t in db.query(models.Torneo).filter(models.Torneo.estado == "en_curso").all()
+    ]
     return {
         "proximos_partidos": [PartidoOut.model_validate(p) for p in proximos],
         "torneos_activos": torneos_activos,
-        "goleadores_top": goleadores,
+        "goleadores_top": [GoleadorOut(**g) for g in stats.goleadores(db, limit=5)],
     }
+
+
+@router.get("/torneos")
+def listar_torneos(db: Session = Depends(get_db)):
+    activos, proximos = [], []
+    orden = db.query(models.Torneo).order_by(
+        models.Torneo.fecha_inicio.is_(None), models.Torneo.fecha_inicio
+    ).all()
+    for t in orden:
+        resumen = _resumen_torneo(db, t)
+        if t.estado == "en_curso":
+            activos.append(resumen)
+        elif t.estado == "programado":
+            proximos.append(resumen)
+    return {"activos": activos, "proximos": proximos}
+
+
+@router.get("/torneos/{torneo_id}")
+def ver_torneo(torneo_id: int, db: Session = Depends(get_db)):
+    t = db.get(models.Torneo, torneo_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+    return _resumen_torneo(db, t)
+
+
+@router.get("/torneos/{torneo_id}/tabla", response_model=list[FilaTabla])
+def tabla(torneo_id: int, db: Session = Depends(get_db)):
+    if db.get(models.Torneo, torneo_id) is None:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+    return stats.calcular_tabla(db, torneo_id)
+
+
+@router.get("/torneos/{torneo_id}/partidos", response_model=list[PartidoOut])
+def partidos_torneo(torneo_id: int, db: Session = Depends(get_db)):
+    if db.get(models.Torneo, torneo_id) is None:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+    return (
+        db.query(models.Partido)
+        .filter(models.Partido.torneo_id == torneo_id)
+        .order_by(models.Partido.fecha_hora.is_(None), models.Partido.fecha_hora, models.Partido.id)
+        .all()
+    )
+
+
+@router.get("/torneos/{torneo_id}/goleadores", response_model=list[GoleadorOut])
+def goleadores_torneo(torneo_id: int, db: Session = Depends(get_db)):
+    if db.get(models.Torneo, torneo_id) is None:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+    return [GoleadorOut(**g) for g in stats.goleadores(db, torneo_id=torneo_id, limit=20)]

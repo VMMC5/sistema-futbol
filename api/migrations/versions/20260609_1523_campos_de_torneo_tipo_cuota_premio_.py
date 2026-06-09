@@ -1,8 +1,8 @@
-"""esquema completo
+"""campos de torneo: tipo, cuota, premio, cierre
 
-Revision ID: 845f7d8ce5c0
+Revision ID: b795b045476a
 Revises: 
-Create Date: 2026-06-09 00:10:00.314536
+Create Date: 2026-06-09 15:23:26.795491
 """
 from typing import Sequence, Union
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # Identificadores de la revisión, usados por Alembic.
-revision: str = '845f7d8ce5c0'
+revision: str = 'b795b045476a'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -61,8 +61,12 @@ def upgrade() -> None:
     sa.Column('sede_id', sa.Integer(), nullable=False),
     sa.Column('nombre', sa.String(length=100), nullable=False),
     sa.Column('descripcion', sa.Text(), nullable=True),
+    sa.Column('tipo', sa.String(length=40), nullable=True),
     sa.Column('fecha_inicio', sa.DateTime(timezone=True), nullable=True),
     sa.Column('fecha_fin', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('fecha_cierre_inscripciones', sa.Date(), nullable=True),
+    sa.Column('cuota_inscripcion', sa.Numeric(precision=10, scale=2), nullable=True),
+    sa.Column('premio', sa.String(length=200), nullable=True),
     sa.Column('estado', sa.String(length=20), nullable=True),
     sa.Column('cupo_maximo', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['sede_id'], ['sedes.id'], ),

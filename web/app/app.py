@@ -160,11 +160,18 @@ def torneo_nuevo():
             "nombre": request.form.get("nombre", "").strip(),
             "sede_id": int(request.form.get("sede_id", 1)),
             "descripcion": request.form.get("descripcion", "").strip() or None,
+            "tipo": request.form.get("tipo", "").strip() or None,
+            "premio": request.form.get("premio", "").strip() or None,
+            "fecha_inicio": request.form.get("fecha_inicio", "").strip() or None,
+            "fecha_cierre_inscripciones": request.form.get("fecha_cierre_inscripciones", "").strip() or None,
             "estado": request.form.get("estado", "programado"),
         }
         cupo = request.form.get("cupo_maximo", "").strip()
         if cupo:
             payload["cupo_maximo"] = int(cupo)
+        cuota = request.form.get("cuota_inscripcion", "").strip()
+        if cuota:
+            payload["cuota_inscripcion"] = float(cuota)
 
         r = api_post("/torneos", payload)
         if r.status_code == 401:
