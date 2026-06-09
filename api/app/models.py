@@ -62,6 +62,7 @@ class Usuario(Base):
     password_hash = Column(String(255), nullable=False)  # NUNCA la contraseña en texto plano
     telefono = Column(String(20))
     activo = Column(Boolean, default=True, nullable=False)
+    debe_cambiar_password = Column(Boolean, default=False, nullable=False)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     rol = relationship("Rol", back_populates="usuarios")
@@ -371,3 +372,20 @@ class Notificacion(Base):
     creada_en = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("Usuario", back_populates="notificaciones")
+
+
+# ----------------------------------------------------------------------
+# 15. solicitudes_registro  (altas de entrenador/arbitro pendientes de aprobacion)
+# ----------------------------------------------------------------------
+class SolicitudRegistro(Base):
+    __tablename__ = "solicitudes_registro"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(80), nullable=False)
+    correo = Column(String(120), nullable=False, index=True)
+    telefono = Column(String(20))
+    rol_solicitado = Column(String(20), nullable=False)   # entrenador | arbitro
+    documento_nombre = Column(String(255))                # archivo guardado (pdf o imagen)
+    estado = Column(String(20), default="pendiente", nullable=False)  # pendiente | aceptada | rechazada
+    motivo = Column(String(255))                          # motivo de rechazo, opcional
+    creada_en = Column(DateTime(timezone=True), server_default=func.now())

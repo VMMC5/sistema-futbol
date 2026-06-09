@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% set active = 'solicitudes' %}
+{% block title %}Solicitudes{% endblock %}
+{% block heading %}Solicitudes{% endblock %}
+
+{% block content %}
+<form method="get" class="filter-bar">
+  <label for="estado">Estado:</label>
+  <select id="estado" name="estado" onchange="this.form.submit()">
+    {% for op in ['pendiente', 'aceptada', 'rechazada'] %}
+    <option value="{{ op }}" {{ 'selected' if estado == op }}>{{ op | capitalize }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if solicitudes %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Correo</th>
+        <th>Rol solicitado</th>
+        <th>Documento</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in solicitudes %}
+      <tr>
+        <td><strong>{{ s.nombre }}</strong>{% if s.telefono %}<br><span class="cardSub" style="color:var(--muted); font-size:12px;">{{ s.telefono }}</span>{% endif %}</td>
+        <td>{{ s.correo }}</td>
+        <td><span class="rol-tag {{ s.rol_solicitado }}">{{ s.rol_solicitado }}</span></td>
+        <td>
+          {% if s.documento_nombre %}
+          <a href="{{ url_for('solicitud_documento', solicitud_id=s.id) }}" target="_blank" class="btn ghost" style="padding:6px 12px;">Ver documento</a>
+          {% else %}—{% endif %}
+        </td>
+        <td style="text-align:right; white-space:nowrap;">
+          {% if estado == 'pendiente' %}
+          <form method="post" action="{{ url_for('solicitud_aceptar', solicitud_id=s.id) }}" style="display:inline;"
+                onsubmit="return confirm('¿Aceptar a {{ s.nombre }} como {{ s.rol_solicitado }}? Se creará su cuenta y se le enviará un correo.');">
+            <button type="submit" class="btn" style="padding:7px 14px;">Aceptar</button>
+          </form>
+          <form method="post" action="{{ url_for('solicitud_rechazar', solicitud_id=s.id) }}" style="display:inline-flex; gap:6px; align-items:center; margin-left:6px;">
+            <input type="text" name="motivo" placeholder="Motivo (opcional)" style="width:150px; padding:7px 10px; background:var(--pitch-900); border:1px solid var(--line); border-radius:8px; color:var(--chalk); font-size:13px;">
+            <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--danger);">Rechazar</button>
+          </form>
+          {% else %}
+          <span class="estado-tag {{ 'en_curso' if estado == 'aceptada' else 'finalizado' }}">{{ estado }}</span>
+          {% if s.motivo %}<div style="color:var(--muted); font-size:12px; margin-top:4px;">{{ s.motivo }}</div>{% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay solicitudes {{ estado }}s.</div></div>
+{% endif %}
+{% endblock %}

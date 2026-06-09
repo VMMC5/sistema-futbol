@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models
 from app.deps import get_current_user, require_roles
-from app.schemas import LoginRequest, RegistroUsuario, Token, UsuarioOut
+from app.schemas import CambioPassword, LoginRequest, RegistroUsuario, Token, UsuarioOut
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter()
@@ -65,7 +65,7 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="La cuenta está desactivada")
 
     token = create_access_token(usuario_id=usuario.id, rol=usuario.rol.nombre)
-    return Token(access_token=token)
+    return Token(access_token=token, debe_cambiar_password=usuario.debe_cambiar_password)
 
 
 @router.get("/me", response_model=UsuarioOut)
@@ -74,6 +74,22 @@ def yo(usuario: models.Usuario = Depends(get_current_user)):
         id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
         rol=usuario.rol.nombre, activo=usuario.activo,
     )
+
+
+@router.post("/cambiar-password")
+def cambiar_password(
+    datos: CambioPassword,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    """Cambia la contraseña del usuario autenticado y limpia la marca de cambio obligatorio."""
+    if not verify_password(datos.password_actual, usuario.password_hash):
+        raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+
+    usuario.password_hash = hash_password(datos.password_nueva)
+    usuario.debe_cambiar_password = False
+    db.commit()
+    return {"mensaje": "Contraseña actualizada"}
 
 
 @router.get("/admin-test")

@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models  # noqa: F401  -> registra los modelos en la metadata
-from app.routers import auth, torneos, reservas, partidos, estadisticas, sedes, canchas, usuarios
+from app.routers import (
+    auth, torneos, reservas, partidos, estadisticas,
+    sedes, canchas, usuarios, publico, solicitudes,
+)
 
 app = FastAPI(
     title="API - Sistema Integral de Canchas y Torneos de Futbol",
@@ -18,7 +21,9 @@ app = FastAPI(
 )
 
 # Routers por modulo
+app.include_router(publico.router, prefix="/publico", tags=["publico"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(solicitudes.router, prefix="/solicitudes", tags=["solicitudes"])
 app.include_router(usuarios.router, prefix="/usuarios", tags=["usuarios"])
 app.include_router(sedes.router, prefix="/sedes", tags=["sedes"])
 app.include_router(canchas.router, prefix="/canchas", tags=["canchas"])

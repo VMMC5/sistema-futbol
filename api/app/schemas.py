@@ -35,6 +35,7 @@ class UsuarioOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    debe_cambiar_password: bool = False
 
 
 # ======================================================================
@@ -336,3 +337,28 @@ class UsuarioAdminOut(BaseModel):
     rol: str
     telefono: str | None = None
     activo: bool
+
+
+# ======================================================================
+#  SOLICITUDES DE REGISTRO (entrenador / arbitro) y cambio de contrasena
+# ======================================================================
+class SolicitudOut(BaseModel):
+    id: int
+    nombre: str
+    correo: EmailStr
+    telefono: str | None = None
+    rol_solicitado: str
+    documento_nombre: str | None = None
+    estado: str
+    motivo: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class RechazoSolicitud(BaseModel):
+    motivo: str | None = Field(default=None, max_length=255)
+
+
+class CambioPassword(BaseModel):
+    password_actual: str
+    password_nueva: str = Field(min_length=8, max_length=128)

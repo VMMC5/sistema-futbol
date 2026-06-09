@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Torneos",
+    "slug": "torneos-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#07140d",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true },
+    "android": {
+      "package": "com.torneos.mobile"
+    },
+    "extra": {
+      "//": "IMPORTANTE: cambia esta IP por la de la maquina que corre la API.",
+      "//2": "Desde un telefono fisico NO sirve 'localhost'. Usa la IP local de tu PC, p.ej. http://192.168.1.50:8000",
+      "apiUrl": "http://192.168.100.9:8000"
+    }
+  }
+}

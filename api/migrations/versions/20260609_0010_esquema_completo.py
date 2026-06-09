@@ -1,8 +1,8 @@
-"""tablas iniciales
+"""esquema completo
 
-Revision ID: 34a4cc083f55
+Revision ID: 845f7d8ce5c0
 Revises: 
-Create Date: 2026-06-07 03:59:35.255529
+Create Date: 2026-06-09 00:10:00.314536
 """
 from typing import Sequence, Union
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # Identificadores de la revisión, usados por Alembic.
-revision: str = '34a4cc083f55'
+revision: str = '845f7d8ce5c0'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,6 +33,19 @@ def upgrade() -> None:
     sa.Column('telefono', sa.String(length=20), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('solicitudes_registro',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nombre', sa.String(length=80), nullable=False),
+    sa.Column('correo', sa.String(length=120), nullable=False),
+    sa.Column('telefono', sa.String(length=20), nullable=True),
+    sa.Column('rol_solicitado', sa.String(length=20), nullable=False),
+    sa.Column('documento_nombre', sa.String(length=255), nullable=True),
+    sa.Column('estado', sa.String(length=20), nullable=False),
+    sa.Column('motivo', sa.String(length=255), nullable=True),
+    sa.Column('creada_en', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_solicitudes_registro_correo'), 'solicitudes_registro', ['correo'], unique=False)
     op.create_table('canchas',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('sede_id', sa.Integer(), nullable=False),
@@ -63,6 +76,7 @@ def upgrade() -> None:
     sa.Column('password_hash', sa.String(length=255), nullable=False),
     sa.Column('telefono', sa.String(length=20), nullable=True),
     sa.Column('activo', sa.Boolean(), nullable=False),
+    sa.Column('debe_cambiar_password', sa.Boolean(), nullable=False),
     sa.Column('creado_en', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['rol_id'], ['roles.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -146,7 +160,7 @@ def upgrade() -> None:
     sa.Column('usuario_id', sa.Integer(), nullable=False),
     sa.Column('cancha_id', sa.Integer(), nullable=False),
     sa.Column('pago_id', sa.Integer(), nullable=True),
-    sa.Column('fecha', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('fecha', sa.Date(), nullable=False),
     sa.Column('hora_inicio', sa.Time(), nullable=False),
     sa.Column('hora_fin', sa.Time(), nullable=False),
     sa.Column('estado', sa.String(length=20), nullable=True),
@@ -166,7 +180,8 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['equipo_id'], ['equipos.id'], ),
     sa.ForeignKeyConstraint(['jugador_id'], ['usuarios.id'], ),
     sa.ForeignKeyConstraint(['partido_id'], ['partidos.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('partido_id', 'jugador_id', name='uq_alineacion_partido_jugador')
     )
     op.create_table('eventos_partido',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -199,6 +214,8 @@ def downgrade() -> None:
     op.drop_table('usuarios')
     op.drop_table('torneos')
     op.drop_table('canchas')
+    op.drop_index(op.f('ix_solicitudes_registro_correo'), table_name='solicitudes_registro')
+    op.drop_table('solicitudes_registro')
     op.drop_table('sedes')
     op.drop_table('roles')
     # ### end Alembic commands ###

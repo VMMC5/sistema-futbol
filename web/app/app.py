@@ -11,6 +11,7 @@ from functools import wraps
 import requests
 from flask import (
     Flask,
+    Response,
     flash,
     redirect,
     render_template,
@@ -548,6 +549,65 @@ def estadisticas():
         goleadores=rg.json() if rg.status_code == 200 else [],
         tarjetas=rc.json() if rc.status_code == 200 else [],
     )
+
+
+# ----------------------------------------------------------------------
+# Solicitudes de entrenador/árbitro (revisión del admin)
+# ----------------------------------------------------------------------
+@app.route("/solicitudes")
+@login_required
+def solicitudes():
+    r = api_get("/solicitudes", estado=request.args.get("estado", "pendiente"))
+    if r.status_code == 401:
+        return _sesion_expirada()
+    return render_template(
+        "solicitudes.html",
+        solicitudes=r.json() if r.status_code == 200 else [],
+        estado=request.args.get("estado", "pendiente"),
+    )
+
+
+@app.route("/solicitudes/<int:solicitud_id>/documento")
+@login_required
+def solicitud_documento(solicitud_id):
+    # El documento está protegido por token; el panel lo descarga con la sesión
+    # del admin y lo reenvía al navegador.
+    resp = requests.get(
+        f"{API_URL}/solicitudes/{solicitud_id}/documento",
+        headers=_headers(), timeout=TIMEOUT,
+    )
+    if resp.status_code == 401:
+        return _sesion_expirada()
+    if resp.status_code != 200:
+        flash("No se pudo abrir el documento.", "error")
+        return redirect(url_for("solicitudes"))
+    return Response(resp.content, content_type=resp.headers.get("Content-Type", "application/octet-stream"))
+
+
+@app.route("/solicitudes/<int:solicitud_id>/aceptar", methods=["POST"])
+@login_required
+def solicitud_aceptar(solicitud_id):
+    r = api_post(f"/solicitudes/{solicitud_id}/aceptar", {})
+    if r.status_code == 401:
+        return _sesion_expirada()
+    if r.status_code == 200:
+        flash("Solicitud aceptada. Se envió un correo con la contraseña temporal.", "ok")
+    else:
+        flash(_detalle_error(r, "No se pudo aceptar la solicitud."), "error")
+    return redirect(url_for("solicitudes"))
+
+
+@app.route("/solicitudes/<int:solicitud_id>/rechazar", methods=["POST"])
+@login_required
+def solicitud_rechazar(solicitud_id):
+    r = api_post(f"/solicitudes/{solicitud_id}/rechazar", {"motivo": request.form.get("motivo", "").strip() or None})
+    if r.status_code == 401:
+        return _sesion_expirada()
+    if r.status_code == 200:
+        flash("Solicitud rechazada.", "ok")
+    else:
+        flash(_detalle_error(r, "No se pudo rechazar la solicitud."), "error")
+    return redirect(url_for("solicitudes"))
 
 
 # ----------------------------------------------------------------------
