@@ -24,7 +24,7 @@ export default function RefereeLiveScreen({ route }) {
   const { partidoId } = route.params;
   const [partido, setPartido] = useState(null);
   const [eventos, setEventos] = useState([]);
-  const [alineacion, setAlineacion] = useState([]);
+  const [planes, setPlanes] = useState({}); // { equipoId: [ {jugador_id, nombre, dorsal} ] }
   const [cargando, setCargando] = useState(true);
   const [ocupado, setOcupado] = useState(false);
 
@@ -35,15 +35,26 @@ export default function RefereeLiveScreen({ route }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [p, ev, al] = await Promise.all([
+      const [p, ev] = await Promise.all([
         apiGet(`/partidos/${partidoId}`),
         apiGet(`/partidos/${partidoId}/eventos`),
-        apiGet(`/partidos/${partidoId}/alineacion`),
       ]);
       setPartido(p);
       setEventos(ev);
-      setAlineacion(al);
       setEquipoSel((actual) => actual || p.equipo_local_id);
+
+      // Alineación que armó el entrenador para cada equipo (unificación)
+      const nuevos = {};
+      for (const eqId of [p.equipo_local_id, p.equipo_visitante_id]) {
+        if (!eqId) continue;
+        try {
+          const plan = await apiGet(`/partidos/${partidoId}/plan?equipo_id=${eqId}`);
+          nuevos[eqId] = (plan.jugadores || []).filter((j) => j.jugador_id != null);
+        } catch (_) {
+          nuevos[eqId] = [];
+        }
+      }
+      setPlanes(nuevos);
     } catch (e) {
       Alert.alert("Error", e.message || "No se pudo cargar el partido");
     } finally {
@@ -108,7 +119,7 @@ export default function RefereeLiveScreen({ route }) {
   }
 
   const enJuego = partido.estado === "en_juego";
-  const jugadoresEquipo = alineacion.filter((a) => a.equipo_id === equipoSel);
+  const jugadoresEquipo = planes[equipoSel] || [];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -167,22 +178,22 @@ export default function RefereeLiveScreen({ route }) {
             onChangeText={setMinuto}
           />
 
-          {/* Jugador (de la alineación de ese equipo, si la hay) */}
+          {/* Jugador (de la alineación que armó el entrenador) */}
           <Text style={styles.label}>Jugador (opcional)</Text>
           {jugadoresEquipo.length === 0 ? (
             <Text style={[styles.muted, { marginBottom: 12 }]}>
-              Sin alineación cargada para este equipo. Puedes registrar el evento sin jugador.
+              El entrenador no ha cargado la alineación de este equipo. Puedes registrar el evento sin jugador.
             </Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {jugadoresEquipo.map((j) => (
                 <TouchableOpacity
-                  key={j.id}
+                  key={j.jugador_id}
                   onPress={() => setJugadorSel(jugadorSel === j.jugador_id ? null : j.jugador_id)}
                   style={[live.chip, jugadorSel === j.jugador_id && { backgroundColor: colors.lime, borderColor: colors.lime }]}
                 >
                   <Text style={[live.chipText, jugadorSel === j.jugador_id && { color: colors.pitch900 }]}>
-                    {j.jugador_nombre || `#${j.jugador_id}`}
+                    {j.dorsal != null ? `#${j.dorsal} ` : ""}{j.nombre || `Jugador ${j.jugador_id}`}
                   </Text>
                 </TouchableOpacity>
               ))}

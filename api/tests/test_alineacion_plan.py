@@ -6,17 +6,6 @@ def _partido(client, auth_admin, torneo_id):
                        json={"torneo_id": torneo_id, "equipo_local_id": 1, "equipo_visitante_id": 2}).json()["id"]
 
 
-def _roster(client, auth_entrenador, equipo_id=1):
-    # Reemplaza la plantilla del equipo y devuelve los jugadores creados (con id)
-    r = client.put(f"/equipos/{equipo_id}", headers=auth_entrenador, json={
-        "nombre": "Equipo A", "jugadores": [
-            {"nombre": "Portero", "posicion": "POR", "dorsal": 1},
-            {"nombre": "Delantero", "posicion": "DEL", "dorsal": 9},
-        ],
-    })
-    return r.json()["jugadores"]
-
-
 def test_plan_por_defecto_vacio(client, auth_admin, auth_entrenador, torneo_id):
     pid = _partido(client, auth_admin, torneo_id)
     r = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_entrenador)
@@ -24,49 +13,47 @@ def test_plan_por_defecto_vacio(client, auth_admin, auth_entrenador, torneo_id):
     assert r.json()["formacion"] == "4-4-2" and r.json()["jugadores"] == []
 
 
-def test_guardar_y_leer_plan(client, auth_admin, auth_entrenador, torneo_id):
+def test_guardar_y_leer_plan(client, auth_admin, auth_entrenador, torneo_id, agregar_miembro):
     pid = _partido(client, auth_admin, torneo_id)
-    jug = _roster(client, auth_entrenador)
+    por = agregar_miembro(auth_entrenador, 1, "Portero P", "portero@demo.com")
+    del_ = agregar_miembro(auth_entrenador, 1, "Delantero D", "delantero@demo.com")
+
     cuerpo = {
         "equipo_id": 1, "formacion": "4-3-3",
         "jugadores": [
-            {"jugador_equipo_id": jug[0]["id"], "posicion": "POR", "orden": 0},
-            {"jugador_equipo_id": jug[1]["id"], "posicion": "DEL", "orden": 9},
+            {"jugador_equipo_id": por["je_id"], "posicion": "POR", "orden": 0},
+            {"jugador_equipo_id": del_["je_id"], "posicion": "DEL", "orden": 9},
         ],
     }
     r = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json=cuerpo)
     assert r.status_code == 200
     d = r.json()
     assert d["formacion"] == "4-3-3" and len(d["jugadores"]) == 2
-    # Toma el snapshot de nombre y dorsal de la plantilla
-    porteros = [j for j in d["jugadores"] if j["posicion"] == "POR"]
-    assert porteros[0]["nombre"] == "Portero" and porteros[0]["dorsal"] == 1
+    portero = next(j for j in d["jugadores"] if j["posicion"] == "POR")
+    # snapshot del nombre (del usuario) y del jugador_id (para el árbitro)
+    assert portero["nombre"] == "Portero P" and portero["jugador_id"] == por["jugador_id"]
 
-    # Persistió
     r2 = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_entrenador)
     assert r2.json()["formacion"] == "4-3-3" and len(r2.json()["jugadores"]) == 2
 
 
-def test_jugador_de_otro_equipo_rechazado(client, auth_admin, auth_entrenador, torneo_id):
+def test_jugador_de_otro_equipo_rechazado(client, auth_admin, auth_entrenador, torneo_id, agregar_miembro):
     pid = _partido(client, auth_admin, torneo_id)
-    jug = _roster(client, auth_entrenador)
-    # Plantilla del equipo 2
-    otro = client.put("/equipos/2", headers=auth_entrenador, json={
-        "nombre": "Equipo B", "jugadores": [{"nombre": "Ajeno"}]}).json()["jugadores"][0]
+    ajeno = agregar_miembro(auth_entrenador, 2, "Ajeno", "ajeno@demo.com")  # en equipo 2
     r = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
         "equipo_id": 1, "formacion": "4-4-2",
-        "jugadores": [{"jugador_equipo_id": otro["id"], "posicion": "POR", "orden": 0}]})
+        "jugadores": [{"jugador_equipo_id": ajeno["je_id"], "posicion": "POR", "orden": 0}]})
     assert r.status_code == 400
 
 
-def test_jugador_repetido_rechazado(client, auth_admin, auth_entrenador, torneo_id):
+def test_jugador_repetido_rechazado(client, auth_admin, auth_entrenador, torneo_id, agregar_miembro):
     pid = _partido(client, auth_admin, torneo_id)
-    jug = _roster(client, auth_entrenador)
+    m = agregar_miembro(auth_entrenador, 1, "Uno", "uno@demo.com")
     r = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
         "equipo_id": 1, "formacion": "4-4-2",
         "jugadores": [
-            {"jugador_equipo_id": jug[0]["id"], "posicion": "POR", "orden": 0},
-            {"jugador_equipo_id": jug[0]["id"], "posicion": "DEF", "orden": 1},
+            {"jugador_equipo_id": m["je_id"], "posicion": "POR", "orden": 0},
+            {"jugador_equipo_id": m["je_id"], "posicion": "DEF", "orden": 1},
         ]})
     assert r.status_code == 400
 
@@ -81,10 +68,25 @@ def test_equipo_no_juega_el_partido(client, auth_admin, auth_entrenador, torneo_
 
 def test_no_se_edita_si_ya_inicio(client, auth_admin, auth_entrenador, torneo_id):
     pid = _partido(client, auth_admin, torneo_id)
-    client.post(f"/partidos/{pid}/iniciar", headers=auth_admin)  # admin puede iniciar
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_admin)
     r = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
         "equipo_id": 1, "formacion": "4-4-2", "jugadores": []})
     assert r.status_code == 409
+
+
+def test_arbitro_puede_ver_plan(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id, torneo_id, agregar_miembro):
+    # Partido con árbitro asignado
+    pid = client.post("/partidos", headers=auth_admin, json={
+        "torneo_id": torneo_id, "equipo_local_id": 1, "equipo_visitante_id": 2, "arbitro_id": arbitro_id,
+    }).json()["id"]
+    m = agregar_miembro(auth_entrenador, 1, "Titular", "titular@demo.com")
+    client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
+        "equipo_id": 1, "formacion": "4-4-2",
+        "jugadores": [{"jugador_equipo_id": m["je_id"], "posicion": "POR", "orden": 0}]})
+    # El árbitro asignado puede leer el plan del equipo local
+    r = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_arbitro)
+    assert r.status_code == 200 and len(r.json()["jugadores"]) == 1
+    assert r.json()["jugadores"][0]["jugador_id"] == m["jugador_id"]
 
 
 def test_mis_partidos_entrenador(client, auth_admin, auth_entrenador, torneo_id):

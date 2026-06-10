@@ -359,6 +359,8 @@ class JugadorEquipo(Base):
 
     __table_args__ = (
         UniqueConstraint("equipo_id", "jugador_id", name="uq_jugador_en_equipo"),
+        # Un jugador registrado pertenece a un solo equipo (los NULL no chocan)
+        UniqueConstraint("jugador_id", name="uq_jugador_un_solo_equipo"),
     )
 
     equipo = relationship("Equipo", back_populates="jugadores")
@@ -424,3 +426,32 @@ class AlineacionPlan(Base):
     __table_args__ = (
         UniqueConstraint("partido_id", "equipo_id", name="uq_plan_partido_equipo"),
     )
+
+
+# ----------------------------------------------------------------------
+# 17. invitaciones_equipo  (invitación interna del entrenador a un jugador)
+# ----------------------------------------------------------------------
+class InvitacionEquipo(Base):
+    __tablename__ = "invitaciones_equipo"
+
+    id = Column(Integer, primary_key=True)
+    equipo_id = Column(Integer, ForeignKey("equipos.id"), nullable=False)
+    jugador_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+
+    estado = Column(String(20), default="pendiente", nullable=False)  # pendiente|aceptada|rechazada
+    creada_en = Column(DateTime(timezone=True), server_default=func.now())
+
+    equipo = relationship("Equipo", foreign_keys=[equipo_id])
+    jugador = relationship("Usuario", foreign_keys=[jugador_id])
+
+    @property
+    def equipo_nombre(self):
+        return self.equipo.nombre if self.equipo else None
+
+    @property
+    def entrenador_nombre(self):
+        return self.equipo.entrenador.nombre if self.equipo and self.equipo.entrenador else None
+
+    @property
+    def jugador_nombre(self):
+        return self.jugador.nombre if self.jugador else None

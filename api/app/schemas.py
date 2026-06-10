@@ -410,7 +410,6 @@ class EquipoCreate(BaseModel):
     color: str | None = Field(default=None, max_length=40)
     categoria: str | None = Field(default=None, max_length=40)
     escudo_url: str | None = Field(default=None, max_length=255)
-    jugadores: list[JugadorEquipoIn] | None = None
 
 
 class EquipoUpdate(BaseModel):
@@ -418,7 +417,6 @@ class EquipoUpdate(BaseModel):
     color: str | None = Field(default=None, max_length=40)
     categoria: str | None = Field(default=None, max_length=40)
     escudo_url: str | None = Field(default=None, max_length=255)
-    jugadores: list[JugadorEquipoIn] | None = None  # si viene, reemplaza la plantilla
 
 
 class EquipoOut(BaseModel):
@@ -451,6 +449,7 @@ class PlanIn(BaseModel):
 
 class PlanItemOut(BaseModel):
     jugador_equipo_id: int
+    jugador_id: int | None = None   # usuario registrado (para el árbitro)
     nombre: str | None = None
     dorsal: int | None = None
     posicion: str | None = None
@@ -462,3 +461,35 @@ class PlanOut(BaseModel):
     equipo_id: int
     formacion: str
     jugadores: list[PlanItemOut] = []
+
+
+# ======================================================================
+#  INVITACIONES A EQUIPO (jugadores registrados)
+# ======================================================================
+class JugadorDisponibleOut(BaseModel):
+    id: int            # id del usuario
+    nombre: str
+    correo: EmailStr
+
+    model_config = {"from_attributes": True}
+
+
+class InvitacionCrear(BaseModel):
+    jugador_id: int
+
+
+class InvitacionOut(BaseModel):
+    id: int
+    equipo_id: int
+    equipo_nombre: str | None = None
+    entrenador_nombre: str | None = None
+    jugador_id: int
+    jugador_nombre: str | None = None
+    estado: str
+
+    model_config = {"from_attributes": True}
+
+
+class JugadorEquipoUpdate(BaseModel):
+    dorsal: int | None = Field(default=None, ge=0, le=999)
+    posicion: str | None = Field(default=None, max_length=30)

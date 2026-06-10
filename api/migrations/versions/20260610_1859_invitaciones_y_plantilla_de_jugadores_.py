@@ -1,8 +1,8 @@
-"""plan de alineacion + demo de partido
+"""invitaciones y plantilla de jugadores registrados
 
-Revision ID: fb1185aa3358
+Revision ID: 3cab6ca294b2
 Revises: 
-Create Date: 2026-06-10 06:59:04.973312
+Create Date: 2026-06-10 18:59:36.603962
 """
 from typing import Sequence, Union
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # Identificadores de la revisión, usados por Alembic.
-revision: str = 'fb1185aa3358'
+revision: str = '3cab6ca294b2'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -132,6 +132,16 @@ def upgrade() -> None:
     sa.UniqueConstraint('pago_id'),
     sa.UniqueConstraint('torneo_id', 'equipo_id', name='uq_inscripcion_torneo_equipo')
     )
+    op.create_table('invitaciones_equipo',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('equipo_id', sa.Integer(), nullable=False),
+    sa.Column('jugador_id', sa.Integer(), nullable=False),
+    sa.Column('estado', sa.String(length=20), nullable=False),
+    sa.Column('creada_en', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['equipo_id'], ['equipos.id'], ),
+    sa.ForeignKeyConstraint(['jugador_id'], ['usuarios.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('jugadores_equipo',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('equipo_id', sa.Integer(), nullable=False),
@@ -142,7 +152,8 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['equipo_id'], ['equipos.id'], ),
     sa.ForeignKeyConstraint(['jugador_id'], ['usuarios.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('equipo_id', 'jugador_id', name='uq_jugador_en_equipo')
+    sa.UniqueConstraint('equipo_id', 'jugador_id', name='uq_jugador_en_equipo'),
+    sa.UniqueConstraint('jugador_id', name='uq_jugador_un_solo_equipo')
     )
     op.create_table('partidos',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -226,6 +237,7 @@ def downgrade() -> None:
     op.drop_table('reservas')
     op.drop_table('partidos')
     op.drop_table('jugadores_equipo')
+    op.drop_table('invitaciones_equipo')
     op.drop_table('inscripciones')
     op.drop_table('pagos')
     op.drop_table('notificaciones')

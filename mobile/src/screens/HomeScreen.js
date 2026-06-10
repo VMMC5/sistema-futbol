@@ -56,6 +56,15 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
+      {rol === "jugador" && (
+        <TouchableOpacity
+          style={[styles.btn, { marginBottom: 8 }]}
+          onPress={() => navigation.navigate("Invitations")}
+        >
+          <Text style={styles.btnText}>📨 Mis invitaciones a equipos</Text>
+        </TouchableOpacity>
+      )}
+
       <Text style={styles.h2}>Próximos partidos</Text>
       {cargando ? (
         <ActivityIndicator color={colors.lime} />

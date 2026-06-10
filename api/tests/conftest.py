@@ -135,3 +135,20 @@ def miembro_id(client):
     r = client.post("/auth/login", json={"correo": "miembro@demo.com", "password": "miembropass123"})
     tok = r.json()["access_token"]
     return client.get("/auth/me", headers={"Authorization": f"Bearer {tok}"}).json()["id"]
+
+
+@pytest.fixture
+def agregar_miembro(client):
+    """Incorpora un jugador a un equipo vía el flujo de invitación (registrar,
+    invitar, aceptar) y devuelve sus ids/credenciales."""
+    def _add(auth_entrenador, equipo_id, nombre, correo, password="clave12345"):
+        client.post("/auth/register", json={"nombre": nombre, "correo": correo, "password": password})
+        tok = client.post("/auth/login", json={"correo": correo, "password": password}).json()["access_token"]
+        headers = {"Authorization": f"Bearer {tok}"}
+        jid = client.get("/auth/me", headers=headers).json()["id"]
+        inv = client.post(f"/equipos/{equipo_id}/invitaciones", headers=auth_entrenador, json={"jugador_id": jid}).json()
+        client.post(f"/invitaciones/{inv['id']}/aceptar", headers=headers)
+        eq = client.get(f"/equipos/{equipo_id}", headers=auth_entrenador).json()
+        je = next(j for j in eq["jugadores"] if j["jugador_id"] == jid)
+        return {"jugador_id": jid, "je_id": je["id"], "token": tok, "headers": headers}
+    return _add

@@ -61,37 +61,72 @@ def run():
 
         db.commit()
 
-        # Un equipo de ejemplo para el entrenador demo (con plantilla)
+        # ---- Datos demo (equipos con jugadores registrados, invitación, partido) ----
         entrenador = db.query(models.Usuario).filter_by(correo="entrenador@demo.com").first()
-        if entrenador and not db.query(models.Equipo).filter_by(entrenador_id=entrenador.id).first():
-            eq = models.Equipo(
-                entrenador_id=entrenador.id, nombre="Halcones FC",
-                color="Rojo / Blanco", categoria="Liga A",
-            )
-            db.add(eq)
-            db.flush()
-            plantilla = [
-                ("J. Ramírez", "Delantero", 9),
-                ("L. González", "Portero", 1),
-                ("M. Torres", "Defensa", 4),
-                ("D. Soto", "Medio", 8),
-            ]
-            for nombre, posicion, dorsal in plantilla:
-                db.add(models.JugadorEquipo(equipo_id=eq.id, nombre=nombre, posicion=posicion, dorsal=dorsal))
-            db.commit()
+        admin = db.query(models.Usuario).filter_by(correo="superadmin@demo.com").first()
+        arbitro = db.query(models.Usuario).filter_by(correo="arbitro@demo.com").first()
+        rol_jugador = roles_por_nombre["jugador"]
+        sede = db.query(models.Sede).first()
 
-            # Torneo activo + equipo rival + partido programado (demo para árbitro/entrenador)
-            admin = db.query(models.Usuario).filter_by(correo="superadmin@demo.com").first()
-            arbitro = db.query(models.Usuario).filter_by(correo="arbitro@demo.com").first()
-            sede = db.query(models.Sede).first()
-            if admin and not db.query(models.Torneo).filter_by(nombre="Liga Municipal A").first():
+        def jugador_demo(nombre, correo):
+            u = db.query(models.Usuario).filter_by(correo=correo).first()
+            if not u:
+                u = models.Usuario(
+                    rol_id=rol_jugador.id, nombre=nombre, correo=correo,
+                    password_hash=hash_password("demo1234"),
+                )
+                db.add(u)
+                db.flush()
+            return u
+
+        if entrenador and not db.query(models.Equipo).filter_by(entrenador_id=entrenador.id).first():
+            eq = models.Equipo(entrenador_id=entrenador.id, nombre="Halcones FC",
+                               color="Rojo / Blanco", categoria="Liga A")
+            rival = models.Equipo(entrenador_id=admin.id, nombre="Tigres FC", categoria="Liga A")
+            db.add_all([eq, rival])
+            db.flush()
+
+            # Plantilla de Halcones (jugadores registrados)
+            halcones = [
+                ("Juan Ramírez", "juan@demo.com", "Delantero", 9),
+                ("Luis González", "luis@demo.com", "Portero", 1),
+                ("Mario Torres", "mario@demo.com", "Defensa", 4),
+                ("Diego Soto", "diego@demo.com", "Medio", 8),
+            ]
+            for nombre, correo, posicion, dorsal in halcones:
+                u = jugador_demo(nombre, correo)
+                db.add(models.JugadorEquipo(equipo_id=eq.id, jugador_id=u.id, posicion=posicion, dorsal=dorsal))
+
+            # Plantilla de Tigres
+            tigres = [
+                ("Pedro Vargas", "pedro@demo.com", "Delantero", 11),
+                ("Raúl Mena", "raul@demo.com", "Portero", 12),
+                ("Saúl Díaz", "saul@demo.com", "Defensa", 3),
+            ]
+            for nombre, correo, posicion, dorsal in tigres:
+                u = jugador_demo(nombre, correo)
+                db.add(models.JugadorEquipo(equipo_id=rival.id, jugador_id=u.id, posicion=posicion, dorsal=dorsal))
+
+            # Jugadores disponibles (registrados, sin equipo) para probar la búsqueda
+            jugador_demo("Carlos Pérez", "carlos@demo.com")
+            jugador_demo("Erik Lara", "erik@demo.com")
+
+            # Invitación pendiente al jugador demo principal (jugador@demo.com)
+            jdemo = db.query(models.Usuario).filter_by(correo="jugador@demo.com").first()
+            if jdemo:
+                db.add(models.InvitacionEquipo(equipo_id=eq.id, jugador_id=jdemo.id))
+                db.add(models.Notificacion(
+                    usuario_id=jdemo.id, titulo="Invitación a equipo",
+                    mensaje="Halcones FC te invitó a unirte al equipo.",
+                ))
+
+            # Torneo activo + partido programado (demo para árbitro y entrenador)
+            if not db.query(models.Torneo).filter_by(nombre="Liga Municipal A").first():
                 torneo = models.Torneo(
                     nombre="Liga Municipal A", sede_id=sede.id if sede else None,
                     tipo="Liga", estado="en_curso", descripcion="Torneo de exhibición.",
                 )
                 db.add(torneo)
-                rival = models.Equipo(entrenador_id=admin.id, nombre="Tigres FC", categoria="Liga A")
-                db.add(rival)
                 db.flush()
                 from datetime import datetime, timedelta
                 db.add(models.Partido(
@@ -99,7 +134,7 @@ def run():
                     arbitro_id=arbitro.id if arbitro else None,
                     fecha_hora=datetime.now() + timedelta(days=2), estado="programado",
                 ))
-                db.commit()
+            db.commit()
 
         print("Seed completado.")
         print("  superadmin@demo.com / admin1234")

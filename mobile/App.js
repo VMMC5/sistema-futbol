@@ -24,6 +24,8 @@ import TeamStatsScreen from "./src/screens/coach/TeamStatsScreen";
 import PerfilScreen from "./src/screens/coach/PerfilScreen";
 import LineupMatchesScreen from "./src/screens/coach/LineupMatchesScreen";
 import LineupScreen from "./src/screens/coach/LineupScreen";
+import InvitePlayersScreen from "./src/screens/coach/InvitePlayersScreen";
+import InvitationsScreen from "./src/screens/InvitationsScreen";
 
 // Pantallas de cuenta / roles (tema oscuro)
 import LoginScreen from "./src/screens/LoginScreen";
@@ -136,6 +138,7 @@ export default function App() {
           <Stack.Screen name="TeamStats" component={TeamStatsScreen} options={{ ...goldHeader, title: "ESTADÍSTICAS" }} />
           <Stack.Screen name="LineupMatches" component={LineupMatchesScreen} options={{ ...goldHeader, title: "ALINEACIÓN" }} />
           <Stack.Screen name="Lineup" component={LineupScreen} options={{ ...goldHeader, title: "ALINEACIÓN" }} />
+          <Stack.Screen name="InvitePlayers" component={InvitePlayersScreen} options={{ ...goldHeader, title: "INVITAR" }} />
 
           {/* Cuenta / roles (tema oscuro) */}
           <Stack.Screen name="Login" component={LoginScreen} options={{ ...darkHeader, title: "Ingresar" }} />
@@ -143,6 +146,7 @@ export default function App() {
           <Stack.Screen name="RegisterStaff" component={RegisterStaffScreen} options={{ ...darkHeader, title: "Entrenador / Árbitro" }} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ ...darkHeader, title: "Cambiar contraseña" }} />
           <Stack.Screen name="Home" component={HomeScreen} options={{ ...darkHeader, title: "Mi panel" }} />
+          <Stack.Screen name="Invitations" component={InvitationsScreen} options={{ ...darkHeader, title: "Invitaciones" }} />
           <Stack.Screen name="RefereeMatches" component={RefereeMatchesScreen} options={{ ...darkHeader, title: "Mis partidos" }} />
           <Stack.Screen name="RefereeLive" component={RefereeLiveScreen} options={{ ...darkHeader, title: "Partido en vivo" }} />
         </Stack.Navigator>

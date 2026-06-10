@@ -407,7 +407,9 @@ def ver_plan(
         raise HTTPException(status_code=400, detail="El equipo no juega este partido")
 
     equipo = db.get(models.Equipo, equipo_id)
-    if not _puede_gestionar_alineacion(usuario, equipo):
+    # Puede ver el plan: el entrenador dueño, el admin, o el árbitro asignado al partido
+    es_arbitro = partido.arbitro_id == usuario.id
+    if not (_puede_gestionar_alineacion(usuario, equipo) or es_arbitro):
         raise HTTPException(status_code=403, detail="No puedes ver la alineación de este equipo")
 
     plan = (
@@ -450,6 +452,7 @@ def guardar_plan(
         vistos.add(je.id)
         items.append({
             "jugador_equipo_id": je.id,
+            "jugador_id": je.jugador_id,
             "nombre": je.nombre_jugador,
             "dorsal": je.dorsal,
             "posicion": it.posicion,
