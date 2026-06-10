@@ -182,6 +182,8 @@ class Equipo(Base):
     entrenador_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
 
     nombre = Column(String(80), nullable=False)
+    color = Column(String(40))                             # color / uniforme
+    categoria = Column(String(40))                         # Liga A, Sub-17, Liga F, etc.
     escudo_url = Column(String(255))
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -348,8 +350,9 @@ class JugadorEquipo(Base):
 
     id = Column(Integer, primary_key=True)
     equipo_id = Column(Integer, ForeignKey("equipos.id"), nullable=False)
-    jugador_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    jugador_id = Column(Integer, ForeignKey("usuarios.id"))  # opcional: jugador registrado
 
+    nombre = Column(String(80))   # nombre del jugador en la plantilla (texto libre)
     dorsal = Column(Integer)
     posicion = Column(String(30))
 
@@ -359,6 +362,11 @@ class JugadorEquipo(Base):
 
     equipo = relationship("Equipo", back_populates="jugadores")
     jugador = relationship("Usuario", back_populates="membresias")
+
+    @property
+    def nombre_jugador(self):
+        # Nombre tecleado por el entrenador o, si está vinculado, el del usuario
+        return self.nombre or (self.jugador.nombre if self.jugador else None)
 
 
 # ----------------------------------------------------------------------

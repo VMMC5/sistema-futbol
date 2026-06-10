@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
     await guardarToken(r.access_token);
     const me = await apiGet("/auth/me");
     setUsuario(me);
-    return { debeCambiar: r.debe_cambiar_password };
+    return { debeCambiar: r.debe_cambiar_password, usuario: me };
   }
 
   async function refrescar() {
@@ -53,4 +53,10 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+// Devuelve la ruta del panel según el rol del usuario.
+export function rutaPanel(usuario) {
+  if (usuario?.rol === "entrenador") return "Coach";
+  return "Home";
 }

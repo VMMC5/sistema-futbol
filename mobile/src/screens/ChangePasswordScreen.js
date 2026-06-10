@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { ScrollView, Text, TextInput, TouchableOpacity } from "react-native";
 import { apiPost } from "../api";
-import { useAuth } from "../auth";
+import { useAuth, rutaPanel } from "../auth";
 import { colors, styles } from "../theme";
 
 export default function ChangePasswordScreen({ navigation }) {
@@ -30,8 +30,8 @@ export default function ChangePasswordScreen({ navigation }) {
         password_actual: actual,
         password_nueva: nueva,
       });
-      await refrescar();
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      const me = await refrescar();
+      navigation.reset({ index: 0, routes: [{ name: rutaPanel(me) }] });
     } catch (e) {
       setError(e.message || "No se pudo cambiar la contraseña");
     } finally {

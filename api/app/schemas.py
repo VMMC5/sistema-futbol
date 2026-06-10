@@ -370,3 +370,65 @@ class RechazoSolicitud(BaseModel):
 class CambioPassword(BaseModel):
     password_actual: str
     password_nueva: str = Field(min_length=8, max_length=128)
+
+
+# ======================================================================
+#  EQUIPOS y PLANTILLA (panel del entrenador)
+# ======================================================================
+class JugadorEquipoIn(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    posicion: str | None = Field(default=None, max_length=30)
+    dorsal: int | None = Field(default=None, ge=0, le=999)
+
+
+class JugadorEquipoOut(BaseModel):
+    id: int
+    nombre: str | None = None
+    posicion: str | None = None
+    dorsal: int | None = None
+    jugador_id: int | None = None
+
+    model_config = {"from_attributes": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _nombre_efectivo(cls, obj):
+        # Permite construir desde el modelo usando nombre_jugador
+        if hasattr(obj, "nombre_jugador"):
+            return {
+                "id": obj.id,
+                "nombre": obj.nombre_jugador,
+                "posicion": obj.posicion,
+                "dorsal": obj.dorsal,
+                "jugador_id": obj.jugador_id,
+            }
+        return obj
+
+
+class EquipoCreate(BaseModel):
+    nombre: str = Field(min_length=2, max_length=80)
+    color: str | None = Field(default=None, max_length=40)
+    categoria: str | None = Field(default=None, max_length=40)
+    escudo_url: str | None = Field(default=None, max_length=255)
+    jugadores: list[JugadorEquipoIn] | None = None
+
+
+class EquipoUpdate(BaseModel):
+    nombre: str | None = Field(default=None, min_length=2, max_length=80)
+    color: str | None = Field(default=None, max_length=40)
+    categoria: str | None = Field(default=None, max_length=40)
+    escudo_url: str | None = Field(default=None, max_length=255)
+    jugadores: list[JugadorEquipoIn] | None = None  # si viene, reemplaza la plantilla
+
+
+class EquipoOut(BaseModel):
+    id: int
+    nombre: str
+    color: str | None = None
+    categoria: str | None = None
+    escudo_url: str | None = None
+    entrenador_id: int
+    jugadores: list[JugadorEquipoOut] = []
+    jugadores_count: int = 0
+
+    model_config = {"from_attributes": True}

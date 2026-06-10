@@ -6,7 +6,7 @@ import { NavigationContainer, DefaultTheme, useNavigation } from "@react-navigat
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
-import { AuthProvider, useAuth } from "./src/auth";
+import { AuthProvider, useAuth, rutaPanel } from "./src/auth";
 import { colors } from "./src/theme";
 import { lp, ls } from "./src/publicTheme";
 
@@ -15,6 +15,13 @@ import InicioScreen from "./src/screens/public/InicioScreen";
 import TorneosScreen from "./src/screens/public/TorneosScreen";
 import TorneoStatsScreen from "./src/screens/public/TorneoStatsScreen";
 import TorneoInfoScreen from "./src/screens/public/TorneoInfoScreen";
+
+// Panel del entrenador (tema claro, cabecera dorada)
+import CoachHomeScreen from "./src/screens/coach/CoachHomeScreen";
+import TeamListScreen from "./src/screens/coach/TeamListScreen";
+import TeamEditScreen from "./src/screens/coach/TeamEditScreen";
+import TeamStatsScreen from "./src/screens/coach/TeamStatsScreen";
+import PerfilScreen from "./src/screens/coach/PerfilScreen";
 
 // Pantallas de cuenta / roles (tema oscuro)
 import LoginScreen from "./src/screens/LoginScreen";
@@ -38,7 +45,7 @@ function LoginButton() {
   const { usuario } = useAuth();
   const navigation = useNavigation();
   return (
-    <TouchableOpacity style={ls.loginPill} onPress={() => navigation.navigate(usuario ? "Home" : "Login")}>
+    <TouchableOpacity style={ls.loginPill} onPress={() => navigation.navigate(usuario ? rutaPanel(usuario) : "Login")}>
       <Text style={ls.loginPillText}>{usuario ? "Mi panel" : "Ingresar"}</Text>
     </TouchableOpacity>
   );
@@ -81,6 +88,33 @@ const darkHeader = {
   headerTitleStyle: { color: colors.chalk },
 };
 
+// Cabecera dorada del panel del entrenador
+const goldHeader = {
+  headerStyle: { backgroundColor: lp.gold },
+  headerTintColor: lp.goldText,
+  headerTitleStyle: { color: lp.goldText, fontWeight: "800", letterSpacing: 1 },
+  headerShadowVisible: false,
+};
+
+function CoachTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        ...goldHeader,
+        tabBarActiveTintColor: lp.accent,
+        tabBarInactiveTintColor: lp.textMuted,
+        tabBarStyle: { backgroundColor: lp.bg, borderTopColor: lp.surfaceBorder },
+        tabBarIcon: ({ focused }) => <Punto focused={focused} />,
+      }}
+    >
+      <Tab.Screen name="Inicio" component={CoachHomeScreen} options={{ title: "INICIO" }} />
+      <Tab.Screen name="Equipos" component={TeamListScreen} options={{ title: "MIS EQUIPOS" }} />
+      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS" }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: "PERFIL" }} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -94,11 +128,16 @@ export default function App() {
           <Stack.Screen name="TorneoStats" component={TorneoStatsScreen} options={{ ...lightHeader, title: "TORNEO" }} />
           <Stack.Screen name="TorneoInfo" component={TorneoInfoScreen} options={{ ...lightHeader, title: "TORNEO" }} />
 
+          {/* Panel del entrenador (tema claro, cabecera dorada) */}
+          <Stack.Screen name="Coach" component={CoachTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="TeamEdit" component={TeamEditScreen} options={{ ...goldHeader, title: "EQUIPO" }} />
+          <Stack.Screen name="TeamStats" component={TeamStatsScreen} options={{ ...goldHeader, title: "ESTADÍSTICAS" }} />
+
           {/* Cuenta / roles (tema oscuro) */}
           <Stack.Screen name="Login" component={LoginScreen} options={{ ...darkHeader, title: "Ingresar" }} />
           <Stack.Screen name="RegisterPlayer" component={RegisterPlayerScreen} options={{ ...darkHeader, title: "Crear cuenta" }} />
           <Stack.Screen name="RegisterStaff" component={RegisterStaffScreen} options={{ ...darkHeader, title: "Entrenador / Árbitro" }} />
-          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ ...darkHeader, title: "Cambiar contraseña", headerBackVisible: false, gestureEnabled: false }} />
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ ...darkHeader, title: "Cambiar contraseña" }} />
           <Stack.Screen name="Home" component={HomeScreen} options={{ ...darkHeader, title: "Mi panel" }} />
           <Stack.Screen name="RefereeMatches" component={RefereeMatchesScreen} options={{ ...darkHeader, title: "Mis partidos" }} />
           <Stack.Screen name="RefereeLive" component={RefereeLiveScreen} options={{ ...darkHeader, title: "Partido en vivo" }} />

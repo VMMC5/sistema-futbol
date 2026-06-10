@@ -60,6 +60,26 @@ def run():
                 ))
 
         db.commit()
+
+        # Un equipo de ejemplo para el entrenador demo (con plantilla)
+        entrenador = db.query(models.Usuario).filter_by(correo="entrenador@demo.com").first()
+        if entrenador and not db.query(models.Equipo).filter_by(entrenador_id=entrenador.id).first():
+            eq = models.Equipo(
+                entrenador_id=entrenador.id, nombre="Halcones FC",
+                color="Rojo / Blanco", categoria="Liga A",
+            )
+            db.add(eq)
+            db.flush()
+            plantilla = [
+                ("J. Ramírez", "Delantero", 9),
+                ("L. González", "Portero", 1),
+                ("M. Torres", "Defensa", 4),
+                ("D. Soto", "Medio", 8),
+            ]
+            for nombre, posicion, dorsal in plantilla:
+                db.add(models.JugadorEquipo(equipo_id=eq.id, nombre=nombre, posicion=posicion, dorsal=dorsal))
+            db.commit()
+
         print("Seed completado.")
         print("  superadmin@demo.com / admin1234")
         print("  entrenador@demo.com / demo1234")

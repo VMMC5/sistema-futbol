@@ -1,8 +1,8 @@
-"""campos de torneo: tipo, cuota, premio, cierre
+"""equipos: color, categoria; plantilla por nombre
 
-Revision ID: b795b045476a
+Revision ID: 0f1aaffba6b7
 Revises: 
-Create Date: 2026-06-09 15:23:26.795491
+Create Date: 2026-06-10 06:10:49.897173
 """
 from typing import Sequence, Union
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # Identificadores de la revisión, usados por Alembic.
-revision: str = 'b795b045476a'
+revision: str = '0f1aaffba6b7'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -90,6 +90,8 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('entrenador_id', sa.Integer(), nullable=False),
     sa.Column('nombre', sa.String(length=80), nullable=False),
+    sa.Column('color', sa.String(length=40), nullable=True),
+    sa.Column('categoria', sa.String(length=40), nullable=True),
     sa.Column('escudo_url', sa.String(length=255), nullable=True),
     sa.Column('creado_en', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['entrenador_id'], ['usuarios.id'], ),
@@ -133,7 +135,8 @@ def upgrade() -> None:
     op.create_table('jugadores_equipo',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('equipo_id', sa.Integer(), nullable=False),
-    sa.Column('jugador_id', sa.Integer(), nullable=False),
+    sa.Column('jugador_id', sa.Integer(), nullable=True),
+    sa.Column('nombre', sa.String(length=80), nullable=True),
     sa.Column('dorsal', sa.Integer(), nullable=True),
     sa.Column('posicion', sa.String(length=30), nullable=True),
     sa.ForeignKeyConstraint(['equipo_id'], ['equipos.id'], ),

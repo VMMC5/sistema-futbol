@@ -1,7 +1,7 @@
 // Pantalla de inicio de sesión.
 import React, { useState } from "react";
 import { Text, TextInput, TouchableOpacity, View, ScrollView } from "react-native";
-import { useAuth } from "../auth";
+import { useAuth, rutaPanel } from "../auth";
 import { colors, styles } from "../theme";
 
 export default function LoginScreen({ navigation }) {
@@ -15,12 +15,12 @@ export default function LoginScreen({ navigation }) {
     setError("");
     setCargando(true);
     try {
-      const { debeCambiar } = await login(correo.trim(), password);
+      const { debeCambiar, usuario } = await login(correo.trim(), password);
       // Si el sistema exige cambio de contraseña (primer ingreso), va a esa pantalla.
       if (debeCambiar) {
         navigation.reset({ index: 0, routes: [{ name: "ChangePassword" }] });
       } else {
-        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+        navigation.reset({ index: 0, routes: [{ name: rutaPanel(usuario) }] });
       }
     } catch (e) {
       setError(e.message || "No se pudo iniciar sesión");
