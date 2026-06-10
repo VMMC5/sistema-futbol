@@ -211,6 +211,8 @@ class Partido(Base):
     goles_local = Column(Integer, default=0)
     goles_visitante = Column(Integer, default=0)
     estado = Column(String(20), default="programado")  # programado, en_juego, finalizado
+    acta_firmada = Column(Boolean, default=False, nullable=False)
+    acta_firmada_en = Column(DateTime(timezone=True))
 
     torneo = relationship("Torneo", back_populates="partidos")
     cancha = relationship("Cancha", back_populates="partidos")
@@ -281,15 +283,19 @@ class EventoPartido(Base):
     id = Column(Integer, primary_key=True)
     partido_id = Column(Integer, ForeignKey("partidos.id"), nullable=False)
     jugador_id = Column(Integer, ForeignKey("usuarios.id"))
+    # Asistente (en gol) o jugador que entra (en cambio)
+    jugador_secundario_id = Column(Integer, ForeignKey("usuarios.id"))
     equipo_id = Column(Integer, ForeignKey("equipos.id"))
 
     tipo = Column(String(20), nullable=False)  # gol, tarjeta_amarilla, tarjeta_roja, cambio
+    subtipo = Column(String(20))               # gol: normal | penal | autogol
     minuto = Column(Integer)
     detalle = Column(String(120))
 
     partido = relationship("Partido", back_populates="eventos")
     equipo = relationship("Equipo", foreign_keys=[equipo_id])
     jugador = relationship("Usuario", foreign_keys=[jugador_id])
+    jugador_secundario = relationship("Usuario", foreign_keys=[jugador_secundario_id])
 
     @property
     def equipo_nombre(self):
@@ -298,6 +304,10 @@ class EventoPartido(Base):
     @property
     def jugador_nombre(self):
         return self.jugador.nombre if self.jugador else None
+
+    @property
+    def jugador_secundario_nombre(self):
+        return self.jugador_secundario.nombre if self.jugador_secundario else None
 
 
 # ----------------------------------------------------------------------

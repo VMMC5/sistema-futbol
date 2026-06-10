@@ -33,8 +33,11 @@ import RegisterPlayerScreen from "./src/screens/RegisterPlayerScreen";
 import RegisterStaffScreen from "./src/screens/RegisterStaffScreen";
 import ChangePasswordScreen from "./src/screens/ChangePasswordScreen";
 import HomeScreen from "./src/screens/HomeScreen";
-import RefereeMatchesScreen from "./src/screens/RefereeMatchesScreen";
-import RefereeLiveScreen from "./src/screens/RefereeLiveScreen";
+import RefMatchesScreen from "./src/screens/referee/RefMatchesScreen";
+import RefLiveScreen from "./src/screens/referee/RefLiveScreen";
+import RefEventScreen from "./src/screens/referee/RefEventScreen";
+import RefSummaryScreen from "./src/screens/referee/RefSummaryScreen";
+import RefHistoryScreen from "./src/screens/referee/RefHistoryScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -119,6 +122,32 @@ function CoachTabs() {
   );
 }
 
+// Cabecera guinda del panel del árbitro
+const maroonHeader = {
+  headerStyle: { backgroundColor: lp.maroon },
+  headerTintColor: lp.white,
+  headerTitleStyle: { color: lp.white, fontWeight: "800", letterSpacing: 1 },
+  headerShadowVisible: false,
+};
+
+function RefereeTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        ...maroonHeader,
+        tabBarActiveTintColor: lp.accent,
+        tabBarInactiveTintColor: lp.textMuted,
+        tabBarStyle: { backgroundColor: lp.bg, borderTopColor: lp.surfaceBorder },
+        tabBarIcon: ({ focused }) => <Punto focused={focused} />,
+      }}
+    >
+      <Tab.Screen name="Partidos" component={RefMatchesScreen} options={{ title: "PARTIDOS ASIGNADOS" }} />
+      <Tab.Screen name="Historial" component={RefHistoryScreen} options={{ title: "HISTORIAL" }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: "PERFIL" }} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -147,8 +176,11 @@ export default function App() {
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ ...darkHeader, title: "Cambiar contraseña" }} />
           <Stack.Screen name="Home" component={HomeScreen} options={{ ...darkHeader, title: "Mi panel" }} />
           <Stack.Screen name="Invitations" component={InvitationsScreen} options={{ ...darkHeader, title: "Invitaciones" }} />
-          <Stack.Screen name="RefereeMatches" component={RefereeMatchesScreen} options={{ ...darkHeader, title: "Mis partidos" }} />
-          <Stack.Screen name="RefereeLive" component={RefereeLiveScreen} options={{ ...darkHeader, title: "Partido en vivo" }} />
+          {/* Panel del árbitro (tema claro, cabecera guinda) */}
+          <Stack.Screen name="Referee" component={RefereeTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="RefLive" component={RefLiveScreen} options={{ ...maroonHeader, title: "PARTIDO EN VIVO" }} />
+          <Stack.Screen name="RefEvent" component={RefEventScreen} options={{ ...maroonHeader, title: "EVENTO" }} />
+          <Stack.Screen name="RefSummary" component={RefSummaryScreen} options={{ ...maroonHeader, title: "RESUMEN DEL PARTIDO" }} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

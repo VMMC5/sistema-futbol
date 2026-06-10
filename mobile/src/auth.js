@@ -58,5 +58,6 @@ export function useAuth() {
 // Devuelve la ruta del panel según el rol del usuario.
 export function rutaPanel(usuario) {
   if (usuario?.rol === "entrenador") return "Coach";
+  if (usuario?.rol === "arbitro") return "Referee";
   return "Home";
 }

@@ -3,7 +3,7 @@ Cálculos de estadísticas reutilizables (los usan el router de estadísticas
 —privado— y el router público). Mantener la lógica en un solo lugar evita
 duplicarla y que se desincronicen.
 """
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app import models
@@ -19,6 +19,7 @@ def goleadores(db: Session, torneo_id: int | None = None, limit: int = 10) -> li
         .join(models.EventoPartido, models.EventoPartido.jugador_id == models.Usuario.id)
         .join(models.Partido, models.EventoPartido.partido_id == models.Partido.id)
         .filter(models.EventoPartido.tipo == "gol")
+        .filter(or_(models.EventoPartido.subtipo.is_(None), models.EventoPartido.subtipo != "autogol"))
     )
     if torneo_id:
         consulta = consulta.filter(models.Partido.torneo_id == torneo_id)

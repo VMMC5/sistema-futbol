@@ -132,6 +132,12 @@ def run():
                 db.add(models.Partido(
                     torneo_id=torneo.id, equipo_local_id=eq.id, equipo_visitante_id=rival.id,
                     arbitro_id=arbitro.id if arbitro else None,
+                    fecha_hora=datetime.now() - timedelta(minutes=5), estado="programado",
+                ))
+                # Un segundo partido en el futuro (su botón de iniciar estará bloqueado)
+                db.add(models.Partido(
+                    torneo_id=torneo.id, equipo_local_id=eq.id, equipo_visitante_id=rival.id,
+                    arbitro_id=arbitro.id if arbitro else None,
                     fecha_hora=datetime.now() + timedelta(days=2), estado="programado",
                 ))
             db.commit()

@@ -1,8 +1,8 @@
-"""invitaciones y plantilla de jugadores registrados
+"""eventos enriquecidos y acta del arbitro
 
-Revision ID: 3cab6ca294b2
+Revision ID: 5d95921182c8
 Revises: 
-Create Date: 2026-06-10 18:59:36.603962
+Create Date: 2026-06-10 23:46:50.719855
 """
 from typing import Sequence, Union
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # Identificadores de la revisión, usados por Alembic.
-revision: str = '3cab6ca294b2'
+revision: str = '5d95921182c8'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -166,6 +166,8 @@ def upgrade() -> None:
     sa.Column('goles_local', sa.Integer(), nullable=True),
     sa.Column('goles_visitante', sa.Integer(), nullable=True),
     sa.Column('estado', sa.String(length=20), nullable=True),
+    sa.Column('acta_firmada', sa.Boolean(), nullable=False),
+    sa.Column('acta_firmada_en', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['arbitro_id'], ['usuarios.id'], ),
     sa.ForeignKeyConstraint(['cancha_id'], ['canchas.id'], ),
     sa.ForeignKeyConstraint(['equipo_local_id'], ['equipos.id'], ),
@@ -217,12 +219,15 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('partido_id', sa.Integer(), nullable=False),
     sa.Column('jugador_id', sa.Integer(), nullable=True),
+    sa.Column('jugador_secundario_id', sa.Integer(), nullable=True),
     sa.Column('equipo_id', sa.Integer(), nullable=True),
     sa.Column('tipo', sa.String(length=20), nullable=False),
+    sa.Column('subtipo', sa.String(length=20), nullable=True),
     sa.Column('minuto', sa.Integer(), nullable=True),
     sa.Column('detalle', sa.String(length=120), nullable=True),
     sa.ForeignKeyConstraint(['equipo_id'], ['equipos.id'], ),
     sa.ForeignKeyConstraint(['jugador_id'], ['usuarios.id'], ),
+    sa.ForeignKeyConstraint(['jugador_secundario_id'], ['usuarios.id'], ),
     sa.ForeignKeyConstraint(['partido_id'], ['partidos.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

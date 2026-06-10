@@ -14,6 +14,8 @@ export const lp = {
   white: "#FFFFFF",
   danger: "#c0392b",
   gold: "#8A6D1E",       // cabecera y tarjeta del panel del entrenador
+  maroon: "#7C2B2B",     // cabecera del panel del árbitro
+  red: "#C0392B",        // botones principales del árbitro
   goldText: "#F7F1DF",
 };
 

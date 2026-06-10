@@ -180,6 +180,7 @@ class PartidoOut(BaseModel):
     goles_local: int
     goles_visitante: int
     estado: str
+    acta_firmada: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -188,6 +189,8 @@ class EventoCreate(BaseModel):
     tipo: str = Field(pattern=_TIPOS_EVENTO)
     equipo_id: int
     jugador_id: int | None = None
+    jugador_secundario_id: int | None = None     # asistente (gol) o quien entra (cambio)
+    subtipo: str | None = Field(default=None, pattern="^(normal|penal|autogol)$")
     minuto: int | None = Field(default=None, ge=0, le=130)
     detalle: str | None = Field(default=None, max_length=120)
 
@@ -199,7 +202,10 @@ class EventoOut(BaseModel):
     equipo_nombre: str | None = None
     jugador_id: int | None = None
     jugador_nombre: str | None = None
+    jugador_secundario_id: int | None = None
+    jugador_secundario_nombre: str | None = None
     tipo: str
+    subtipo: str | None = None
     minuto: int | None = None
     detalle: str | None = None
 
@@ -461,6 +467,7 @@ class PlanOut(BaseModel):
     equipo_id: int
     formacion: str
     jugadores: list[PlanItemOut] = []
+    suplentes: list[PlanItemOut] = []
 
 
 # ======================================================================

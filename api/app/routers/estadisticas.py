@@ -9,7 +9,7 @@ Estadísticas — calculadas a partir de los datos existentes (no hay tablas nue
 Todas son de solo lectura y accesibles para cualquier usuario autenticado.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import case, func
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -36,6 +36,7 @@ def goleadores(
         .join(models.EventoPartido, models.EventoPartido.jugador_id == models.Usuario.id)
         .join(models.Partido, models.EventoPartido.partido_id == models.Partido.id)
         .filter(models.EventoPartido.tipo == "gol")
+        .filter(or_(models.EventoPartido.subtipo.is_(None), models.EventoPartido.subtipo != "autogol"))
     )
     if torneo_id:
         consulta = consulta.filter(models.Partido.torneo_id == torneo_id)

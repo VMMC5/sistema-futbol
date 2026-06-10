@@ -203,6 +203,7 @@ def estadisticas_equipo(equipo_id: int, db: Session = Depends(get_db), usuario: 
         db.query(models.Usuario.id, models.Usuario.nombre, func.count(models.EventoPartido.id).label("g"))
         .join(models.EventoPartido, models.EventoPartido.jugador_id == models.Usuario.id)
         .filter(models.EventoPartido.equipo_id == equipo_id, models.EventoPartido.tipo == "gol")
+        .filter(or_(models.EventoPartido.subtipo.is_(None), models.EventoPartido.subtipo != "autogol"))
         .group_by(models.Usuario.id, models.Usuario.nombre)
         .order_by(func.count(models.EventoPartido.id).desc())
         .limit(10)

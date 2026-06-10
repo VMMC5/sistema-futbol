@@ -11,6 +11,8 @@ Reglas de negocio destacadas:
 
 Estados del partido:  programado -> en_juego -> finalizado
 """
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -30,6 +32,21 @@ from app.schemas import (
 )
 
 router = APIRouter()
+
+
+def _ya_es_hora(fecha_hora) -> bool:
+    """True si ya se llegó a la fecha/hora del partido (o si no tiene fecha)."""
+    if fecha_hora is None:
+        return True
+    ahora = datetime.now(fecha_hora.tzinfo) if fecha_hora.tzinfo else datetime.now()
+    return ahora >= fecha_hora
+
+
+def _equipo_que_anota(partido, equipo_id, subtipo):
+    """Equipo al que se le acredita un gol (un autogol cuenta para el rival)."""
+    if subtipo == "autogol":
+        return partido.equipo_visitante_id if equipo_id == partido.equipo_local_id else partido.equipo_local_id
+    return equipo_id
 
 
 # ---------- helpers ----------
@@ -162,6 +179,8 @@ def iniciar_partido(
     _exigir_arbitraje(usuario, partido)
     if partido.estado != "programado":
         raise HTTPException(status_code=409, detail="Solo se puede iniciar un partido programado")
+    if not _ya_es_hora(partido.fecha_hora):
+        raise HTTPException(status_code=409, detail="Aún no es la fecha y hora programadas del partido")
 
     partido.estado = "en_juego"
     db.commit()
@@ -181,6 +200,24 @@ def finalizar_partido(
         raise HTTPException(status_code=409, detail="Solo se puede finalizar un partido en juego")
 
     partido.estado = "finalizado"
+    db.commit()
+    db.refresh(partido)
+    return partido
+
+
+@router.post("/{partido_id}/acta", response_model=PartidoOut)
+def firmar_acta(
+    partido_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    """El árbitro firma digitalmente el acta y la envía al sistema."""
+    partido = _obtener_partido(db, partido_id)
+    _exigir_arbitraje(usuario, partido)
+    if partido.estado != "finalizado":
+        raise HTTPException(status_code=409, detail="El acta solo se firma cuando el partido ya finalizó")
+    partido.acta_firmada = True
+    partido.acta_firmada_en = datetime.now()
     db.commit()
     db.refresh(partido)
     return partido
@@ -225,15 +262,18 @@ def registrar_evento(
         partido_id=partido_id,
         equipo_id=datos.equipo_id,
         jugador_id=datos.jugador_id,
+        jugador_secundario_id=datos.jugador_secundario_id,
         tipo=datos.tipo,
+        subtipo=datos.subtipo if datos.tipo == "gol" else None,
         minuto=datos.minuto,
         detalle=datos.detalle,
     )
     db.add(evento)
 
-    # Si es gol, actualizar el marcador del equipo que anotó
+    # Si es gol, actualizar el marcador. Un autogol cuenta para el rival.
     if datos.tipo == "gol":
-        if datos.equipo_id == partido.equipo_local_id:
+        anota = _equipo_que_anota(partido, datos.equipo_id, datos.subtipo)
+        if anota == partido.equipo_local_id:
             partido.goles_local += 1
         else:
             partido.goles_visitante += 1
@@ -259,9 +299,10 @@ def eliminar_evento(
         raise HTTPException(status_code=404, detail="Evento no encontrado en este partido")
 
     if evento.tipo == "gol":
-        if evento.equipo_id == partido.equipo_local_id and partido.goles_local > 0:
+        anota = _equipo_que_anota(partido, evento.equipo_id, evento.subtipo)
+        if anota == partido.equipo_local_id and partido.goles_local > 0:
             partido.goles_local -= 1
-        elif evento.equipo_id == partido.equipo_visitante_id and partido.goles_visitante > 0:
+        elif anota == partido.equipo_visitante_id and partido.goles_visitante > 0:
             partido.goles_visitante -= 1
 
     db.delete(evento)
@@ -384,12 +425,29 @@ def quitar_de_alineacion(
 # ======================================================================
 #  PLAN DE ALINEACIÓN (formación del entrenador) — independiente del árbitro
 # ======================================================================
-def _plan_a_salida(partido_id: int, equipo_id: int, plan: models.AlineacionPlan | None) -> PlanOut:
+def _plan_a_salida(db: Session, partido_id: int, equipo_id: int, plan: models.AlineacionPlan | None) -> PlanOut:
+    titulares = plan.jugadores if plan else []
+    titulares_ids = {j.get("jugador_equipo_id") for j in titulares}
+    # Banca: jugadores de la plantilla que no están en la alineación titular
+    equipo = db.get(models.Equipo, equipo_id)
+    suplentes = []
+    if equipo:
+        for je in equipo.jugadores:
+            if je.id not in titulares_ids:
+                suplentes.append({
+                    "jugador_equipo_id": je.id,
+                    "jugador_id": je.jugador_id,
+                    "nombre": je.nombre_jugador,
+                    "dorsal": je.dorsal,
+                    "posicion": je.posicion,
+                    "orden": -1,
+                })
     return PlanOut(
         partido_id=partido_id,
         equipo_id=equipo_id,
         formacion=plan.formacion if plan else "4-4-2",
-        jugadores=plan.jugadores if plan else [],
+        jugadores=titulares,
+        suplentes=suplentes,
     )
 
 
@@ -417,7 +475,7 @@ def ver_plan(
         .filter_by(partido_id=partido_id, equipo_id=equipo_id)
         .first()
     )
-    return _plan_a_salida(partido_id, equipo_id, plan)
+    return _plan_a_salida(db, partido_id, equipo_id, plan)
 
 
 @router.put("/{partido_id}/plan", response_model=PlanOut)
@@ -471,4 +529,4 @@ def guardar_plan(
     plan.jugadores = items
     db.commit()
     db.refresh(plan)
-    return _plan_a_salida(partido_id, datos.equipo_id, plan)
+    return _plan_a_salida(db, partido_id, datos.equipo_id, plan)
