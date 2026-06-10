@@ -25,6 +25,8 @@ from app.schemas import (
     PartidoCreate,
     PartidoOut,
     PartidoUpdate,
+    PlanIn,
+    PlanOut,
 )
 
 router = APIRouter()
@@ -377,3 +379,93 @@ def quitar_de_alineacion(
 
     db.delete(alineacion)
     db.commit()
+
+
+# ======================================================================
+#  PLAN DE ALINEACIÓN (formación del entrenador) — independiente del árbitro
+# ======================================================================
+def _plan_a_salida(partido_id: int, equipo_id: int, plan: models.AlineacionPlan | None) -> PlanOut:
+    return PlanOut(
+        partido_id=partido_id,
+        equipo_id=equipo_id,
+        formacion=plan.formacion if plan else "4-4-2",
+        jugadores=plan.jugadores if plan else [],
+    )
+
+
+@router.get("/{partido_id}/plan", response_model=PlanOut)
+def ver_plan(
+    partido_id: int,
+    equipo_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    partido = db.get(models.Partido, partido_id)
+    if partido is None:
+        raise HTTPException(status_code=404, detail="Partido no encontrado")
+    if equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
+        raise HTTPException(status_code=400, detail="El equipo no juega este partido")
+
+    equipo = db.get(models.Equipo, equipo_id)
+    if not _puede_gestionar_alineacion(usuario, equipo):
+        raise HTTPException(status_code=403, detail="No puedes ver la alineación de este equipo")
+
+    plan = (
+        db.query(models.AlineacionPlan)
+        .filter_by(partido_id=partido_id, equipo_id=equipo_id)
+        .first()
+    )
+    return _plan_a_salida(partido_id, equipo_id, plan)
+
+
+@router.put("/{partido_id}/plan", response_model=PlanOut)
+def guardar_plan(
+    partido_id: int,
+    datos: PlanIn,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    partido = db.get(models.Partido, partido_id)
+    if partido is None:
+        raise HTTPException(status_code=404, detail="Partido no encontrado")
+    if datos.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
+        raise HTTPException(status_code=400, detail="El equipo no juega este partido")
+    if partido.estado != "programado":
+        raise HTTPException(status_code=409, detail="La alineación solo se edita antes de iniciar el partido")
+
+    equipo = db.get(models.Equipo, datos.equipo_id)
+    if not _puede_gestionar_alineacion(usuario, equipo):
+        raise HTTPException(status_code=403, detail="No es tu equipo")
+
+    # Resolver cada hueco contra la plantilla del equipo (y tomar nombre/dorsal)
+    plantilla = {j.id: j for j in equipo.jugadores}
+    items = []
+    vistos = set()
+    for it in datos.jugadores:
+        je = plantilla.get(it.jugador_equipo_id)
+        if je is None:
+            raise HTTPException(status_code=400, detail="Un jugador no pertenece a la plantilla del equipo")
+        if je.id in vistos:
+            raise HTTPException(status_code=400, detail="Un jugador está repetido en la alineación")
+        vistos.add(je.id)
+        items.append({
+            "jugador_equipo_id": je.id,
+            "nombre": je.nombre_jugador,
+            "dorsal": je.dorsal,
+            "posicion": it.posicion,
+            "orden": it.orden,
+        })
+
+    plan = (
+        db.query(models.AlineacionPlan)
+        .filter_by(partido_id=partido_id, equipo_id=datos.equipo_id)
+        .first()
+    )
+    if plan is None:
+        plan = models.AlineacionPlan(partido_id=partido_id, equipo_id=datos.equipo_id)
+        db.add(plan)
+    plan.formacion = datos.formacion
+    plan.jugadores = items
+    db.commit()
+    db.refresh(plan)
+    return _plan_a_salida(partido_id, datos.equipo_id, plan)

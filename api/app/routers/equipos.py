@@ -100,8 +100,42 @@ def resumen(db: Session = Depends(get_db), usuario: models.Usuario = Depends(get
     return {"equipos_count": len(equipos), "equipo_principal": principal, "proximo_partido": proximo}
 
 
+# ---------------------------------------------------------------- próximos partidos del entrenador
+@router.get("/mis-partidos")
+def mis_partidos(db: Session = Depends(get_db), usuario: models.Usuario = Depends(get_current_user)):
+    ids = [e.id for e in db.query(models.Equipo).filter(models.Equipo.entrenador_id == usuario.id).all()]
+    if not ids:
+        return []
+    partidos = (
+        db.query(models.Partido)
+        .filter(
+            or_(models.Partido.equipo_local_id.in_(ids), models.Partido.equipo_visitante_id.in_(ids)),
+            models.Partido.estado == "programado",
+        )
+        .order_by(models.Partido.fecha_hora.is_(None), models.Partido.fecha_hora)
+        .all()
+    )
+    salida = []
+    for p in partidos:
+        mi_local = p.equipo_local_id in ids
+        salida.append({
+            "id": p.id,
+            "mi_equipo_id": p.equipo_local_id if mi_local else p.equipo_visitante_id,
+            "mi_equipo_nombre": p.equipo_local_nombre if mi_local else p.equipo_visitante_nombre,
+            "rival_nombre": p.equipo_visitante_nombre if mi_local else p.equipo_local_nombre,
+            "torneo_nombre": p.torneo_nombre,
+            "fecha_hora": p.fecha_hora.isoformat() if p.fecha_hora else None,
+            "estado": p.estado,
+        })
+    return salida
+
+
 # ---------------------------------------------------------------- detalle
 @router.get("/{equipo_id}", response_model=EquipoOut)
+def ver_equipo(equipo_id: int, db: Session = Depends(get_db), usuario: models.Usuario = Depends(get_current_user)):
+    eq = _equipo_o_404(db, equipo_id)
+    _verificar_dueno(eq, usuario)
+    return _out(eq)
 def ver_equipo(equipo_id: int, db: Session = Depends(get_db), usuario: models.Usuario = Depends(get_current_user)):
     eq = _equipo_o_404(db, equipo_id)
     _verificar_dueno(eq, usuario)

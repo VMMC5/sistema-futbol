@@ -23,6 +23,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -401,3 +402,25 @@ class SolicitudRegistro(Base):
     estado = Column(String(20), default="pendiente", nullable=False)  # pendiente | aceptada | rechazada
     motivo = Column(String(255))                          # motivo de rechazo, opcional
     creada_en = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ----------------------------------------------------------------------
+# 16. alineacion_planes  (plan de alineación del entrenador: formación + huecos)
+#     Independiente de 'alineaciones' (que usa el árbitro). Guarda el plan
+#     como JSON para un (partido, equipo): formación y jugadores colocados.
+# ----------------------------------------------------------------------
+class AlineacionPlan(Base):
+    __tablename__ = "alineacion_planes"
+
+    id = Column(Integer, primary_key=True)
+    partido_id = Column(Integer, ForeignKey("partidos.id"), nullable=False)
+    equipo_id = Column(Integer, ForeignKey("equipos.id"), nullable=False)
+
+    formacion = Column(String(10), nullable=False, default="4-4-2")
+    # [{jugador_equipo_id, nombre, dorsal, posicion, orden}]
+    jugadores = Column(JSON, default=list)
+    actualizado_en = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("partido_id", "equipo_id", name="uq_plan_partido_equipo"),
+    )

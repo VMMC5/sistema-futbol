@@ -22,6 +22,8 @@ import TeamListScreen from "./src/screens/coach/TeamListScreen";
 import TeamEditScreen from "./src/screens/coach/TeamEditScreen";
 import TeamStatsScreen from "./src/screens/coach/TeamStatsScreen";
 import PerfilScreen from "./src/screens/coach/PerfilScreen";
+import LineupMatchesScreen from "./src/screens/coach/LineupMatchesScreen";
+import LineupScreen from "./src/screens/coach/LineupScreen";
 
 // Pantallas de cuenta / roles (tema oscuro)
 import LoginScreen from "./src/screens/LoginScreen";
@@ -132,6 +134,8 @@ export default function App() {
           <Stack.Screen name="Coach" component={CoachTabs} options={{ headerShown: false }} />
           <Stack.Screen name="TeamEdit" component={TeamEditScreen} options={{ ...goldHeader, title: "EQUIPO" }} />
           <Stack.Screen name="TeamStats" component={TeamStatsScreen} options={{ ...goldHeader, title: "ESTADÍSTICAS" }} />
+          <Stack.Screen name="LineupMatches" component={LineupMatchesScreen} options={{ ...goldHeader, title: "ALINEACIÓN" }} />
+          <Stack.Screen name="Lineup" component={LineupScreen} options={{ ...goldHeader, title: "ALINEACIÓN" }} />
 
           {/* Cuenta / roles (tema oscuro) */}
           <Stack.Screen name="Login" component={LoginScreen} options={{ ...darkHeader, title: "Ingresar" }} />

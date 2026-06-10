@@ -10,7 +10,7 @@ import { cs, lp, ls } from "../../publicTheme";
 const ACCIONES = [
   { icon: "👥", label: "Mis equipos", destino: "Equipos" },
   { icon: "📝", label: "Inscribir", proximamente: true },
-  { icon: "📋", label: "Alineación", proximamente: true },
+  { icon: "📋", label: "Alineación", destino: "LineupMatches" },
   { icon: "📅", label: "Reservar", proximamente: true },
 ];
 

@@ -80,6 +80,27 @@ def run():
                 db.add(models.JugadorEquipo(equipo_id=eq.id, nombre=nombre, posicion=posicion, dorsal=dorsal))
             db.commit()
 
+            # Torneo activo + equipo rival + partido programado (demo para árbitro/entrenador)
+            admin = db.query(models.Usuario).filter_by(correo="superadmin@demo.com").first()
+            arbitro = db.query(models.Usuario).filter_by(correo="arbitro@demo.com").first()
+            sede = db.query(models.Sede).first()
+            if admin and not db.query(models.Torneo).filter_by(nombre="Liga Municipal A").first():
+                torneo = models.Torneo(
+                    nombre="Liga Municipal A", sede_id=sede.id if sede else None,
+                    tipo="Liga", estado="en_curso", descripcion="Torneo de exhibición.",
+                )
+                db.add(torneo)
+                rival = models.Equipo(entrenador_id=admin.id, nombre="Tigres FC", categoria="Liga A")
+                db.add(rival)
+                db.flush()
+                from datetime import datetime, timedelta
+                db.add(models.Partido(
+                    torneo_id=torneo.id, equipo_local_id=eq.id, equipo_visitante_id=rival.id,
+                    arbitro_id=arbitro.id if arbitro else None,
+                    fecha_hora=datetime.now() + timedelta(days=2), estado="programado",
+                ))
+                db.commit()
+
         print("Seed completado.")
         print("  superadmin@demo.com / admin1234")
         print("  entrenador@demo.com / demo1234")

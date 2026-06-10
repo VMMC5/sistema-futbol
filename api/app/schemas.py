@@ -432,3 +432,33 @@ class EquipoOut(BaseModel):
     jugadores_count: int = 0
 
     model_config = {"from_attributes": True}
+
+
+# ======================================================================
+#  PLAN DE ALINEACIÓN (formación del entrenador)
+# ======================================================================
+class PlanItemIn(BaseModel):
+    jugador_equipo_id: int
+    posicion: str | None = Field(default=None, max_length=30)  # etiqueta del hueco
+    orden: int = 0                                             # índice del hueco en la formación
+
+
+class PlanIn(BaseModel):
+    equipo_id: int
+    formacion: str = Field(default="4-4-2", max_length=10)
+    jugadores: list[PlanItemIn] = []
+
+
+class PlanItemOut(BaseModel):
+    jugador_equipo_id: int
+    nombre: str | None = None
+    dorsal: int | None = None
+    posicion: str | None = None
+    orden: int = 0
+
+
+class PlanOut(BaseModel):
+    partido_id: int
+    equipo_id: int
+    formacion: str
+    jugadores: list[PlanItemOut] = []
