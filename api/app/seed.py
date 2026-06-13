@@ -44,9 +44,16 @@ def run():
                 db.flush()
             roles_por_nombre[nombre] = rol
 
-        # Una sede de ejemplo
+        # Una sede de ejemplo con canchas (para reservas)
         if not db.query(models.Sede).first():
-            db.add(models.Sede(nombre="Sede Central", ciudad="Pachuca", direccion="Av. Principal 100"))
+            sede_demo = models.Sede(nombre="Sede Central", ciudad="Pachuca", direccion="Av. Principal 100")
+            db.add(sede_demo)
+            db.flush()
+            db.add_all([
+                models.Cancha(sede_id=sede_demo.id, nombre="Cancha 1", tipo="futbol 5", precio_hora=200),
+                models.Cancha(sede_id=sede_demo.id, nombre="Cancha 2", tipo="futbol 7", precio_hora=250),
+                models.Cancha(sede_id=sede_demo.id, nombre="Cancha 3", tipo="futbol 7", precio_hora=250),
+            ])
 
         # Un usuario por rol con contrasena real (si aun no existen)
         for nombre_rol, rol in roles_por_nombre.items():
@@ -140,6 +147,40 @@ def run():
                     arbitro_id=arbitro.id if arbitro else None,
                     fecha_hora=datetime.now() + timedelta(days=2), estado="programado",
                 ))
+                db.flush()
+
+                # Un partido YA FINALIZADO con eventos, para mostrar estadísticas del jugador
+                juan = db.query(models.Usuario).filter_by(correo="juan@demo.com").first()
+                diego = db.query(models.Usuario).filter_by(correo="diego@demo.com").first()
+                pedro = db.query(models.Usuario).filter_by(correo="pedro@demo.com").first()
+                fin = models.Partido(
+                    torneo_id=torneo.id, equipo_local_id=eq.id, equipo_visitante_id=rival.id,
+                    arbitro_id=arbitro.id if arbitro else None,
+                    fecha_hora=datetime.now() - timedelta(days=3), estado="finalizado",
+                    goles_local=2, goles_visitante=1, acta_firmada=True, acta_firmada_en=datetime.now(),
+                )
+                db.add(fin)
+                db.flush()
+                if juan and diego and pedro:
+                    db.add_all([
+                        models.EventoPartido(partido_id=fin.id, equipo_id=eq.id, jugador_id=juan.id,
+                                             jugador_secundario_id=diego.id, tipo="gol", subtipo="normal", minuto=23),
+                        models.EventoPartido(partido_id=fin.id, equipo_id=eq.id, jugador_id=juan.id,
+                                             tipo="gol", subtipo="penal", minuto=58),
+                        models.EventoPartido(partido_id=fin.id, equipo_id=eq.id, jugador_id=juan.id,
+                                             tipo="tarjeta_amarilla", minuto=70),
+                        models.EventoPartido(partido_id=fin.id, equipo_id=rival.id, jugador_id=pedro.id,
+                                             tipo="gol", subtipo="normal", minuto=80),
+                    ])
+                    # Notificaciones demo para el jugador juan@demo.com
+                    db.add_all([
+                        models.Notificacion(usuario_id=juan.id, titulo="¡Gol registrado!",
+                                            mensaje="Tu equipo anotó al min. 23'."),
+                        models.Notificacion(usuario_id=juan.id, titulo="Nuevo torneo abierto",
+                                            mensaje="Liga Municipal A · inscripciones abiertas."),
+                        models.Notificacion(usuario_id=juan.id, titulo="Convocatoria",
+                                            mensaje="Próximo partido programado.", leida=True),
+                    ])
             db.commit()
 
         print("Seed completado.")

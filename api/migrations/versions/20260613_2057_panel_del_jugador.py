@@ -1,8 +1,8 @@
-"""eventos enriquecidos y acta del arbitro
+"""panel del jugador
 
-Revision ID: 5d95921182c8
+Revision ID: 3b5c9804c2e3
 Revises: 
-Create Date: 2026-06-10 23:46:50.719855
+Create Date: 2026-06-13 20:57:09.695072
 """
 from typing import Sequence, Union
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # Identificadores de la revisión, usados por Alembic.
-revision: str = '5d95921182c8'
+revision: str = '3b5c9804c2e3'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

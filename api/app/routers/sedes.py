@@ -17,10 +17,15 @@ router = APIRouter()
 
 @router.get("", response_model=list[SedeOut])
 def listar_sedes(
+    buscar: str = "",
     db: Session = Depends(get_db),
     _usuario: models.Usuario = Depends(get_current_user),
 ):
-    return db.query(models.Sede).order_by(models.Sede.nombre).all()
+    consulta = db.query(models.Sede)
+    termino = buscar.strip()
+    if termino:
+        consulta = consulta.filter(models.Sede.nombre.ilike(f"%{termino}%"))
+    return consulta.order_by(models.Sede.nombre).all()
 
 
 @router.get("/{sede_id}", response_model=SedeOut)

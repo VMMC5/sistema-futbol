@@ -59,5 +59,6 @@ export function useAuth() {
 export function rutaPanel(usuario) {
   if (usuario?.rol === "entrenador") return "Coach";
   if (usuario?.rol === "arbitro") return "Referee";
+  if (usuario?.rol === "jugador") return "Player";
   return "Home";
 }

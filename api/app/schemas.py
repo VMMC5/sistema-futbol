@@ -27,6 +27,7 @@ class UsuarioOut(BaseModel):
     correo: EmailStr
     rol: str
     activo: bool
+    telefono: str | None = None
 
     # Permite construir el esquema desde un objeto SQLAlchemy
     model_config = {"from_attributes": True}
@@ -500,3 +501,21 @@ class InvitacionOut(BaseModel):
 class JugadorEquipoUpdate(BaseModel):
     dorsal: int | None = Field(default=None, ge=0, le=999)
     posicion: str | None = Field(default=None, max_length=30)
+
+
+# ======================================================================
+#  NOTIFICACIONES y PERFIL del jugador
+# ======================================================================
+class NotificacionOut(BaseModel):
+    id: int
+    titulo: str | None = None
+    mensaje: str
+    leida: bool
+    creada_en: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class PerfilUpdate(BaseModel):
+    nombre: str | None = Field(default=None, min_length=2, max_length=80)
+    telefono: str | None = Field(default=None, max_length=20)

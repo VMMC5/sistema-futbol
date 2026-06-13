@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models
 from app.deps import get_current_user, require_roles
-from app.schemas import CambioPassword, LoginRequest, RegistroUsuario, Token, UsuarioOut
+from app.schemas import CambioPassword, LoginRequest, PerfilUpdate, RegistroUsuario, Token, UsuarioOut
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter()
@@ -72,7 +72,27 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)):
 def yo(usuario: models.Usuario = Depends(get_current_user)):
     return UsuarioOut(
         id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
-        rol=usuario.rol.nombre, activo=usuario.activo,
+        rol=usuario.rol.nombre, activo=usuario.activo, telefono=usuario.telefono,
+    )
+
+
+@router.put("/me", response_model=UsuarioOut)
+def actualizar_perfil(
+    datos: PerfilUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    """El usuario edita sus datos personales (nombre y teléfono). El correo y el
+    rol no se cambian desde aquí."""
+    if datos.nombre is not None:
+        usuario.nombre = datos.nombre
+    if datos.telefono is not None:
+        usuario.telefono = datos.telefono or None
+    db.commit()
+    db.refresh(usuario)
+    return UsuarioOut(
+        id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
+        rol=usuario.rol.nombre, activo=usuario.activo, telefono=usuario.telefono,
     )
 
 

@@ -26,6 +26,12 @@ import LineupMatchesScreen from "./src/screens/coach/LineupMatchesScreen";
 import LineupScreen from "./src/screens/coach/LineupScreen";
 import InvitePlayersScreen from "./src/screens/coach/InvitePlayersScreen";
 import InvitationsScreen from "./src/screens/InvitationsScreen";
+import PlayerHomeScreen from "./src/screens/player/PlayerHomeScreen";
+import PlayerStatsScreen from "./src/screens/player/PlayerStatsScreen";
+import PlayerCalendarScreen from "./src/screens/player/PlayerCalendarScreen";
+import NotificationsScreen from "./src/screens/player/NotificationsScreen";
+import ReservarScreen from "./src/screens/player/ReservarScreen";
+import PlayerProfileScreen from "./src/screens/player/PlayerProfileScreen";
 
 // Pantallas de cuenta / roles (tema oscuro)
 import LoginScreen from "./src/screens/LoginScreen";
@@ -148,6 +154,33 @@ function RefereeTabs() {
   );
 }
 
+// Cabecera verde del panel del jugador
+const greenHeader = {
+  headerStyle: { backgroundColor: lp.green },
+  headerTintColor: lp.white,
+  headerTitleStyle: { color: lp.white, fontWeight: "800", letterSpacing: 1 },
+  headerShadowVisible: false,
+};
+
+function PlayerTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        ...greenHeader,
+        tabBarActiveTintColor: lp.accent,
+        tabBarInactiveTintColor: lp.textMuted,
+        tabBarStyle: { backgroundColor: lp.bg, borderTopColor: lp.surfaceBorder },
+        tabBarIcon: ({ focused }) => <Punto focused={focused} />,
+      }}
+    >
+      <Tab.Screen name="Inicio" component={PlayerHomeScreen} options={{ title: "INICIO" }} />
+      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS" }} />
+      <Tab.Screen name="Reservar" component={ReservarScreen} options={{ title: "RESERVAR CANCHA" }} />
+      <Tab.Screen name="Perfil" component={PlayerProfileScreen} options={{ title: "MI PERFIL" }} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -176,6 +209,12 @@ export default function App() {
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ ...darkHeader, title: "Cambiar contraseña" }} />
           <Stack.Screen name="Home" component={HomeScreen} options={{ ...darkHeader, title: "Mi panel" }} />
           <Stack.Screen name="Invitations" component={InvitationsScreen} options={{ ...darkHeader, title: "Invitaciones" }} />
+          {/* Panel del jugador (tema claro, cabecera verde) */}
+          <Stack.Screen name="Player" component={PlayerTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="PlayerStats" component={PlayerStatsScreen} options={{ ...greenHeader, title: "MIS ESTADÍSTICAS" }} />
+          <Stack.Screen name="PlayerCalendar" component={PlayerCalendarScreen} options={{ ...greenHeader, title: "PRÓXIMOS PARTIDOS" }} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ ...greenHeader, title: "NOTIFICACIONES" }} />
+
           {/* Panel del árbitro (tema claro, cabecera guinda) */}
           <Stack.Screen name="Referee" component={RefereeTabs} options={{ headerShown: false }} />
           <Stack.Screen name="RefLive" component={RefLiveScreen} options={{ ...maroonHeader, title: "PARTIDO EN VIVO" }} />

@@ -40,6 +40,29 @@ def listar_canchas(
     return consulta.order_by(models.Cancha.nombre).all()
 
 
+@router.get("/{cancha_id}/disponibilidad")
+def disponibilidad(
+    cancha_id: int,
+    fecha: str,
+    db: Session = Depends(get_db),
+    _usuario: models.Usuario = Depends(get_current_user),
+):
+    """Horas ya ocupadas (hora_inicio) de una cancha en una fecha, para que el
+    cliente deshabilite esos espacios. No expone quién reservó."""
+    _obtener_cancha(db, cancha_id)
+    reservas = (
+        db.query(models.Reserva)
+        .filter(
+            models.Reserva.cancha_id == cancha_id,
+            models.Reserva.fecha == fecha,
+            models.Reserva.estado != "cancelada",
+        )
+        .all()
+    )
+    ocupados = [r.hora_inicio.strftime("%H:%M") for r in reservas]
+    return {"fecha": fecha, "ocupados": ocupados}
+
+
 @router.get("/{cancha_id}", response_model=CanchaOut)
 def ver_cancha(
     cancha_id: int,

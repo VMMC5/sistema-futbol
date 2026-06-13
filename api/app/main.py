@@ -13,6 +13,7 @@ from app import models  # noqa: F401  -> registra los modelos en la metadata
 from app.routers import (
     auth, torneos, reservas, partidos, estadisticas,
     sedes, canchas, usuarios, publico, solicitudes, equipos, invitaciones,
+    notificaciones, jugador,
 )
 
 app = FastAPI(
@@ -32,6 +33,8 @@ app.include_router(reservas.router, prefix="/reservas", tags=["reservas"])
 app.include_router(partidos.router, prefix="/partidos", tags=["partidos"])
 app.include_router(equipos.router, prefix="/equipos", tags=["equipos"])
 app.include_router(invitaciones.router, prefix="/invitaciones", tags=["invitaciones"])
+app.include_router(notificaciones.router, prefix="/notificaciones", tags=["notificaciones"])
+app.include_router(jugador.router, prefix="/jugador", tags=["jugador"])
 app.include_router(estadisticas.router, prefix="/estadisticas", tags=["estadisticas"])
 
 
