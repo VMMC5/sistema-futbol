@@ -1,0 +1,45 @@
+# =====================================================================
+#  .dockerignore  —  contexto de build del panel web (Flask)
+#
+#  Mantiene fuera de la imagen cualquier secreto y archivo innecesario.
+#  El `COPY . .` del Dockerfile solo verá lo que NO esté listado aquí.
+# =====================================================================
+
+# ---------- Secretos / variables de entorno (lo crítico) ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+
+# ---------- Git / control de versiones ----------
+.git/
+.gitignore
+
+# ---------- Docker ----------
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- Editores / Sistema operativo ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------- Logs y temporales ----------
+*.log

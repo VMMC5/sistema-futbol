@@ -1,0 +1,53 @@
+# =====================================================================
+#  .dockerignore  —  contexto de build de la API (FastAPI)
+#
+#  Define qué NO se envía al daemon de Docker al construir la imagen.
+#  Todo lo listado aquí queda fuera del build context, por lo que el
+#  `COPY . .` del Dockerfile NUNCA lo horneará dentro de la imagen.
+#
+#  Objetivo principal: que ningún secreto (.env, llaves, certificados)
+#  acabe dentro de una imagen que luego se comparte con el equipo.
+# =====================================================================
+
+# ---------- Secretos / variables de entorno (lo crítico) ----------
+.env
+.env.*
+# La plantilla pública sí puede ir (no contiene secretos):
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+
+# ---------- Git / control de versiones ----------
+.git/
+.gitignore
+
+# ---------- Docker (no tiene sentido copiarse a sí mismo) ----------
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- Documentos subidos en tiempo de ejecución ----------
+uploads/
+
+# ---------- Editores / Sistema operativo ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------- Logs y temporales ----------
+*.log

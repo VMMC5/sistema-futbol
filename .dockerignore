@@ -1,0 +1,59 @@
+# =====================================================================
+#  .dockerignore  —  RAÍZ del repositorio
+#
+#  Defensa en profundidad. Hoy cada servicio se construye desde su
+#  propia carpeta (./api, ./web), pero el .env REAL vive aquí, en la
+#  raíz. Si alguien del equipo algún día construye una imagen usando
+#  la raíz como contexto, este archivo evita que el .env y otros
+#  secretos terminen dentro de esa imagen.
+# =====================================================================
+
+# ---------- Secretos / variables de entorno (lo crítico) ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+
+# ---------- Git / control de versiones ----------
+.git/
+.gitignore
+
+# ---------- Docker ----------
+.dockerignore
+docker-compose*.yml
+
+# ---------- Python (api / web) ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- Node / React Native / Expo (mobile) ----------
+node_modules/
+.expo/
+.expo-shared/
+dist/
+
+# ---------- Documentos subidos ----------
+api/uploads/
+
+# ---------- Editores / Sistema operativo ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------- Logs y temporales ----------
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
