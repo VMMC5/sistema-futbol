@@ -346,11 +346,17 @@ class Pago(Base):
     metodo = Column(String(20), nullable=False)   # tarjeta, transferencia
     estado = Column(String(20), default="pendiente")  # pendiente, completado, fallido
     referencia = Column(String(100))              # id de la pasarela de pago
+    concepto = Column(String(160))                # snapshot legible para recibo/historial
+    completado_en = Column(DateTime(timezone=True))
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("Usuario", back_populates="pagos")
     reserva = relationship("Reserva", back_populates="pago", uselist=False)
     inscripcion = relationship("Inscripcion", back_populates="pago", uselist=False)
+
+    @property
+    def usuario_nombre(self):
+        return self.usuario.nombre if self.usuario else None
 
 
 # ----------------------------------------------------------------------
