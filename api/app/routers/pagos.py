@@ -35,6 +35,22 @@ def pagar_reserva(
     return pagos_service.pagar_reserva(db, usuario, reserva, datos)
 
 
+@router.post("/inscripcion/{inscripcion_id}", response_model=PagoOut, status_code=status.HTTP_201_CREATED)
+def pagar_inscripcion(
+    inscripcion_id: int,
+    datos: PagoCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    inscripcion = db.get(models.Inscripcion, inscripcion_id)
+    if inscripcion is None:
+        raise HTTPException(status_code=404, detail="Inscripción no encontrada")
+    # Paga el entrenador dueño del equipo (o el admin)
+    if not _es_admin(usuario) and inscripcion.equipo.entrenador_id != usuario.id:
+        raise HTTPException(status_code=403, detail="No puedes pagar una inscripción ajena")
+    return pagos_service.pagar_inscripcion(db, usuario, inscripcion, datos)
+
+
 @router.post("/{pago_id}/confirmar", response_model=PagoOut)
 def confirmar_pago(
     pago_id: int,

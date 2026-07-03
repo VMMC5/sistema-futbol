@@ -92,6 +92,39 @@ def pagar_reserva(db: Session, usuario: models.Usuario, reserva: models.Reserva,
     return pago
 
 
+def pagar_inscripcion(db: Session, usuario: models.Usuario, inscripcion: models.Inscripcion,
+                      datos: PagoCreate, gateway: PaymentGateway | None = None) -> models.Pago:
+    gateway = gateway or _gateway
+
+    if inscripcion.pago_id:
+        previo = db.get(models.Pago, inscripcion.pago_id)
+        if previo and previo.estado in ("completado", "pendiente"):
+            raise HTTPException(status_code=409, detail="La inscripción ya tiene un pago en curso o completado")
+
+    monto = calcular_monto_inscripcion(inscripcion.torneo)
+    if monto <= 0:
+        raise HTTPException(status_code=400, detail="Esta inscripción no requiere pago")
+
+    concepto = f"Inscripción {inscripcion.equipo.nombre} · {inscripcion.torneo.nombre}"
+    pago, resultado = _procesar(db, usuario, monto, concepto, datos, gateway)
+
+    if resultado.estado == "completado":
+        inscripcion.pago_id = pago.id
+        inscripcion.estado = "aceptada"
+        _notificar(db, usuario.id, "Pago confirmado",
+                   f"Tu {concepto} quedó pagada. Folio {pago.referencia}.")
+    elif resultado.estado == "pendiente":
+        inscripcion.pago_id = pago.id
+        _notificar(db, usuario.id, "Pago en revisión",
+                   f"Registramos tu transferencia por {concepto}. Pendiente de confirmación.")
+
+    db.commit()
+    if resultado.estado == "fallido":
+        raise HTTPException(status_code=402, detail=resultado.motivo or "Pago rechazado")
+    db.refresh(pago)
+    return pago
+
+
 def confirmar_pago(db: Session, pago: models.Pago) -> models.Pago:
     """El superadmin confirma una transferencia pendiente."""
     if pago.metodo != "transferencia" or pago.estado != "pendiente":
