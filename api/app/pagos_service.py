@@ -134,6 +134,11 @@ def confirmar_pago(db: Session, pago: models.Pago) -> models.Pago:
         raise HTTPException(status_code=409,
                             detail="Solo se confirma una transferencia pendiente")
 
+    if pago.reserva is not None and pago.reserva.estado != "pendiente":
+        raise HTTPException(status_code=409, detail="La reserva vinculada ya no está pendiente")
+    if pago.inscripcion is not None and pago.inscripcion.estado != "pendiente":
+        raise HTTPException(status_code=409, detail="La inscripción vinculada ya no está pendiente")
+
     pago.estado = "completado"
     pago.completado_en = datetime.now(timezone.utc)
 

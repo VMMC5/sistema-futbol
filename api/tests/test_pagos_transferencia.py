@@ -38,3 +38,14 @@ def test_no_se_confirma_un_pago_de_tarjeta(client, auth_admin):
                                          "exp_anio": 2999, "cvv": "123", "titular": "Ana"}}).json()
     r = client.post(f"/pagos/{pago['id']}/confirmar", headers=auth_admin)
     assert r.status_code == 409
+
+
+def test_no_confirma_transferencia_de_reserva_cancelada(client, auth_admin):
+    auth = _jugador(client)
+    rid = client.post("/reservas", headers=auth, json=RESERVA_BASE).json()["id"]
+    pago = client.post(f"/pagos/reserva/{rid}", headers=auth, json={"metodo": "transferencia"}).json()
+    assert client.post(f"/reservas/{rid}/cancelar", headers=auth).status_code == 200
+    r = client.post(f"/pagos/{pago['id']}/confirmar", headers=auth_admin)
+    assert r.status_code == 409
+    # la reserva sigue cancelada (no resucitó)
+    assert client.get(f"/reservas/{rid}", headers=auth).json()["estado"] == "cancelada"
