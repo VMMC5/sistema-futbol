@@ -43,3 +43,16 @@ def test_inscripcion_gratuita_no_requiere_pago(client, auth_admin, auth_entrenad
     r = client.post(f"/pagos/inscripcion/{iid}", headers=auth_entrenador,
                     json={"metodo": "tarjeta", "tarjeta": TARJETA_OK})
     assert r.status_code == 400
+
+
+def test_no_paga_inscripcion_no_pendiente(client, db_session, auth_admin, auth_entrenador):
+    from app import models
+    tid = _torneo(client, auth_admin)
+    iid = _inscribir(client, auth_entrenador, tid)
+    db = db_session()
+    ins = db.get(models.Inscripcion, iid)
+    ins.estado = "rechazada"      # estado no-pendiente sin pago (solo alcanzable a nivel de datos)
+    db.commit()
+    r = client.post(f"/pagos/inscripcion/{iid}", headers=auth_entrenador,
+                    json={"metodo": "tarjeta", "tarjeta": TARJETA_OK})
+    assert r.status_code == 409

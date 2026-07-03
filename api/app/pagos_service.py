@@ -101,6 +101,9 @@ def pagar_inscripcion(db: Session, usuario: models.Usuario, inscripcion: models.
         if previo and previo.estado in ("completado", "pendiente"):
             raise HTTPException(status_code=409, detail="La inscripción ya tiene un pago en curso o completado")
 
+    if inscripcion.estado != "pendiente":
+        raise HTTPException(status_code=409, detail="Solo se puede pagar una inscripción pendiente")
+
     monto = calcular_monto_inscripcion(inscripcion.torneo)
     if monto <= 0:
         raise HTTPException(status_code=400, detail="Esta inscripción no requiere pago")
