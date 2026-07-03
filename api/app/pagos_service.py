@@ -35,3 +35,55 @@ def calcular_monto_inscripcion(torneo) -> Decimal:
     if cuota is None or Decimal(cuota) <= 0:
         return Decimal("0")
     return Decimal(cuota).quantize(_DOS_DEC, ROUND_HALF_UP)
+
+
+def _notificar(db: Session, usuario_id: int, titulo: str, mensaje: str) -> None:
+    db.add(models.Notificacion(usuario_id=usuario_id, titulo=titulo, mensaje=mensaje))
+
+
+def _procesar(db: Session, usuario: models.Usuario, monto: Decimal, concepto: str,
+              datos: PagoCreate, gateway: PaymentGateway):
+    datos_tarjeta = None
+    if datos.metodo == "tarjeta":
+        datos_tarjeta = {"numero": datos.tarjeta.numero, "titular": datos.tarjeta.titular}
+    resultado = gateway.charge(monto, datos.metodo, datos_tarjeta)
+
+    pago = models.Pago(
+        usuario_id=usuario.id, monto=monto, metodo=datos.metodo,
+        estado=resultado.estado, referencia=resultado.referencia, concepto=concepto,
+    )
+    if resultado.estado == "completado":
+        pago.completado_en = datetime.now(timezone.utc)
+    db.add(pago)
+    db.flush()
+    return pago, resultado
+
+
+def pagar_reserva(db: Session, usuario: models.Usuario, reserva: models.Reserva,
+                  datos: PagoCreate, gateway: PaymentGateway | None = None) -> models.Pago:
+    gateway = gateway or _gateway
+
+    if reserva.pago_id:
+        previo = db.get(models.Pago, reserva.pago_id)
+        if previo and previo.estado in ("completado", "pendiente"):
+            raise HTTPException(status_code=409, detail="La reserva ya tiene un pago en curso o completado")
+
+    monto = calcular_monto_reserva(reserva.cancha, reserva.hora_inicio, reserva.hora_fin)
+    concepto = f"Reserva {reserva.cancha.nombre} · {reserva.fecha} {reserva.hora_inicio:%H:%M}"
+    pago, resultado = _procesar(db, usuario, monto, concepto, datos, gateway)
+
+    if resultado.estado == "completado":
+        reserva.pago_id = pago.id
+        reserva.estado = "confirmada"
+        _notificar(db, usuario.id, "Pago confirmado",
+                   f"Tu {concepto} quedó pagada. Folio {pago.referencia}.")
+    elif resultado.estado == "pendiente":
+        reserva.pago_id = pago.id
+        _notificar(db, usuario.id, "Pago en revisión",
+                   f"Registramos tu transferencia por {concepto}. Pendiente de confirmación.")
+
+    db.commit()
+    if resultado.estado == "fallido":
+        raise HTTPException(status_code=402, detail=resultado.motivo or "Pago rechazado")
+    db.refresh(pago)
+    return pago
