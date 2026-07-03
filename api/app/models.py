@@ -332,6 +332,14 @@ class Inscripcion(Base):
     equipo = relationship("Equipo", back_populates="inscripciones")
     pago = relationship("Pago", back_populates="inscripcion")
 
+    @property
+    def torneo_nombre(self):
+        return self.torneo.nombre if self.torneo else None
+
+    @property
+    def equipo_nombre(self):
+        return self.equipo.nombre if self.equipo else None
+
 
 # ----------------------------------------------------------------------
 # 12. pagos  (FK usuario_id) — 1:1 con reserva y con inscripción
