@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, pagos_service
-from app.deps import get_current_user
+from app.deps import get_current_user, require_roles
 from app.schemas import PagoCreate, PagoOut
 
 router = APIRouter()
@@ -33,3 +33,15 @@ def pagar_reserva(
     if not _es_admin(usuario) and reserva.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes pagar una reserva ajena")
     return pagos_service.pagar_reserva(db, usuario, reserva, datos)
+
+
+@router.post("/{pago_id}/confirmar", response_model=PagoOut)
+def confirmar_pago(
+    pago_id: int,
+    db: Session = Depends(get_db),
+    _admin: models.Usuario = Depends(require_roles("superadmin")),
+):
+    pago = db.get(models.Pago, pago_id)
+    if pago is None:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+    return pagos_service.confirmar_pago(db, pago)

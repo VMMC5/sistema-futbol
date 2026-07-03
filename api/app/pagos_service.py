@@ -90,3 +90,24 @@ def pagar_reserva(db: Session, usuario: models.Usuario, reserva: models.Reserva,
         raise HTTPException(status_code=402, detail=resultado.motivo or "Pago rechazado")
     db.refresh(pago)
     return pago
+
+
+def confirmar_pago(db: Session, pago: models.Pago) -> models.Pago:
+    """El superadmin confirma una transferencia pendiente."""
+    if pago.metodo != "transferencia" or pago.estado != "pendiente":
+        raise HTTPException(status_code=409,
+                            detail="Solo se confirma una transferencia pendiente")
+
+    pago.estado = "completado"
+    pago.completado_en = datetime.now(timezone.utc)
+
+    if pago.reserva is not None:
+        pago.reserva.estado = "confirmada"
+    if pago.inscripcion is not None:
+        pago.inscripcion.estado = "aceptada"
+
+    _notificar(db, pago.usuario_id, "Pago confirmado",
+               f"Tu pago ({pago.concepto}) fue confirmado. Folio {pago.referencia}.")
+    db.commit()
+    db.refresh(pago)
+    return pago
