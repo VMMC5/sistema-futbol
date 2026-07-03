@@ -62,3 +62,12 @@ def test_monto_lo_fija_el_servidor(client):
     r = client.post(f"/pagos/reserva/{rid}", headers=auth,
                     json={"metodo": "tarjeta", "tarjeta": TARJETA_OK, "monto": 1})
     assert r.json()["monto"] == 200.0
+
+
+def test_no_paga_reserva_cancelada(client):
+    auth = _jugador(client)
+    rid = _reserva(client, auth)
+    assert client.post(f"/reservas/{rid}/cancelar", headers=auth).status_code == 200
+    r = client.post(f"/pagos/reserva/{rid}", headers=auth,
+                    json={"metodo": "tarjeta", "tarjeta": TARJETA_OK})
+    assert r.status_code == 409

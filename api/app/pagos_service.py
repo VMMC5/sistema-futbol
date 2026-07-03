@@ -68,6 +68,9 @@ def pagar_reserva(db: Session, usuario: models.Usuario, reserva: models.Reserva,
         if previo and previo.estado in ("completado", "pendiente"):
             raise HTTPException(status_code=409, detail="La reserva ya tiene un pago en curso o completado")
 
+    if reserva.estado != "pendiente":
+        raise HTTPException(status_code=409, detail="Solo se puede pagar una reserva pendiente")
+
     monto = calcular_monto_reserva(reserva.cancha, reserva.hora_inicio, reserva.hora_fin)
     concepto = f"Reserva {reserva.cancha.nombre} · {reserva.fecha} {reserva.hora_inicio:%H:%M}"
     pago, resultado = _procesar(db, usuario, monto, concepto, datos, gateway)
