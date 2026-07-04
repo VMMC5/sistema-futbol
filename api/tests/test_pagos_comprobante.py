@@ -20,9 +20,13 @@ def _pagar(client, auth):
 def test_historial_solo_muestra_lo_propio(client, auth_admin):
     ana = _jugador(client, "ana@demo.com")
     _pagar(client, ana)
+    luis = _jugador(client, "luis@demo.com")
+    rid = client.post("/reservas", headers=luis, json={**RESERVA_BASE, "fecha": "2026-08-09"}).json()["id"]
+    client.post(f"/pagos/reserva/{rid}", headers=luis, json={"metodo": "tarjeta", "tarjeta": TARJETA_OK})
     assert len(client.get("/pagos", headers=ana).json()) == 1
+    assert len(client.get("/pagos", headers=luis).json()) == 1
     # el admin ve todos
-    assert len(client.get("/pagos", headers=auth_admin).json()) == 1
+    assert len(client.get("/pagos", headers=auth_admin).json()) >= 2
 
 
 def test_comprobante_json(client):
