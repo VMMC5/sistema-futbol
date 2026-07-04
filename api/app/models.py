@@ -332,6 +332,14 @@ class Inscripcion(Base):
     equipo = relationship("Equipo", back_populates="inscripciones")
     pago = relationship("Pago", back_populates="inscripcion")
 
+    @property
+    def torneo_nombre(self):
+        return self.torneo.nombre if self.torneo else None
+
+    @property
+    def equipo_nombre(self):
+        return self.equipo.nombre if self.equipo else None
+
 
 # ----------------------------------------------------------------------
 # 12. pagos  (FK usuario_id) — 1:1 con reserva y con inscripción
@@ -346,11 +354,17 @@ class Pago(Base):
     metodo = Column(String(20), nullable=False)   # tarjeta, transferencia
     estado = Column(String(20), default="pendiente")  # pendiente, completado, fallido
     referencia = Column(String(100))              # id de la pasarela de pago
+    concepto = Column(String(160))                # snapshot legible para recibo/historial
+    completado_en = Column(DateTime(timezone=True))
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("Usuario", back_populates="pagos")
     reserva = relationship("Reserva", back_populates="pago", uselist=False)
     inscripcion = relationship("Inscripcion", back_populates="pago", uselist=False)
+
+    @property
+    def usuario_nombre(self):
+        return self.usuario.nombre if self.usuario else None
 
 
 # ----------------------------------------------------------------------

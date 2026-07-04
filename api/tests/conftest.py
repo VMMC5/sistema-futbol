@@ -45,7 +45,8 @@ def db_session():
     db.flush()
     db.add(models.Sede(nombre="Sede Central", ciudad="Pachuca"))
     db.flush()
-    db.add(models.Cancha(sede_id=1, nombre="Cancha 1", tipo="futbol 7", disponible=True))
+    db.add(models.Cancha(sede_id=1, nombre="Cancha 1", tipo="futbol 7",
+                         precio_hora=200, disponible=True))
     db.add(models.Usuario(
         rol_id=roles["superadmin"].id, nombre="Admin",
         correo="admin@demo.com", password_hash=hash_password("adminpass123"),

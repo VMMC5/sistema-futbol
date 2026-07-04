@@ -519,3 +519,82 @@ class NotificacionOut(BaseModel):
 class PerfilUpdate(BaseModel):
     nombre: str | None = Field(default=None, min_length=2, max_length=80)
     telefono: str | None = Field(default=None, max_length=20)
+
+
+# ======================================================================
+#  PAGOS
+# ======================================================================
+from typing import Literal
+from pydantic import field_validator
+
+
+class DatosTarjeta(BaseModel):
+    numero: str
+    exp_mes: int = Field(ge=1, le=12)
+    exp_anio: int
+    cvv: str
+    titular: str = Field(min_length=2, max_length=80)
+
+    @field_validator("numero")
+    @classmethod
+    def _numero_valido(cls, v: str) -> str:
+        limpio = v.replace(" ", "")
+        if not limpio.isdigit() or not (13 <= len(limpio) <= 19):
+            raise ValueError("número de tarjeta inválido")
+        return limpio
+
+    @field_validator("cvv")
+    @classmethod
+    def _cvv_valido(cls, v: str) -> str:
+        if not v.isdigit() or len(v) != 3:
+            raise ValueError("CVV inválido")
+        return v
+
+
+class PagoCreate(BaseModel):
+    metodo: Literal["tarjeta", "transferencia"]
+    tarjeta: DatosTarjeta | None = None
+
+    @model_validator(mode="after")
+    def _coherencia(self):
+        if self.metodo == "tarjeta":
+            if self.tarjeta is None:
+                raise ValueError("faltan los datos de la tarjeta")
+            hoy = datetime.now()
+            if (self.tarjeta.exp_anio, self.tarjeta.exp_mes) < (hoy.year, hoy.month):
+                raise ValueError("la tarjeta está vencida")
+        return self
+
+
+class PagoOut(BaseModel):
+    id: int
+    concepto: str | None = None
+    monto: float
+    metodo: str
+    estado: str
+    referencia: str | None = None
+    creado_en: datetime | None = None
+    completado_en: datetime | None = None
+    usuario_nombre: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+# ======================================================================
+#  INSCRIPCIONES (equipo a torneo)
+# ======================================================================
+class InscripcionCreate(BaseModel):
+    torneo_id: int
+    equipo_id: int
+
+
+class InscripcionOut(BaseModel):
+    id: int
+    torneo_id: int
+    torneo_nombre: str | None = None
+    equipo_id: int
+    equipo_nombre: str | None = None
+    estado: str
+    pago_id: int | None = None
+
+    model_config = {"from_attributes": True}
