@@ -80,3 +80,17 @@ export async function apiDelete(path, conAuth = true) {
   if (res.status === 204) return true;
   return _manejar(res);
 }
+
+import * as FileSystem from "expo-file-system";
+
+// Descarga el recibo PDF (autenticado) a un archivo local y devuelve su URI.
+export async function descargarReciboPDF(pagoId) {
+  const t = await leerToken();
+  const destino = `${FileSystem.cacheDirectory}recibo_${pagoId}.pdf`;
+  const { uri } = await FileSystem.downloadAsync(
+    `${API_URL}/pagos/${pagoId}/recibo.pdf`,
+    destino,
+    { headers: { Authorization: `Bearer ${t}` } }
+  );
+  return uri;
+}

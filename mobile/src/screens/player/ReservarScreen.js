@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { apiGet, apiPost } from "../../api";
 import { lp, ls } from "../../publicTheme";
+import { useNavigation } from "@react-navigation/native";
 
 const SLOTS = ["16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
 const DIAS_CORTOS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
@@ -21,6 +22,7 @@ function proximosDias(n = 7) {
 
 export default function ReservarScreen() {
   const dias = proximosDias();
+  const navigation = useNavigation();
   const [buscar, setBuscar] = useState("");
   const [sedes, setSedes] = useState([]);
   const [sedeSel, setSedeSel] = useState(null);
@@ -65,10 +67,14 @@ export default function ReservarScreen() {
     setGuardando(true);
     const finH = `${String(parseInt(horaSel, 10) + 1).padStart(2, "0")}:00`;
     try {
-      await apiPost("/reservas", { cancha_id: canchaSel.id, fecha: fechaSel, hora_inicio: horaSel, hora_fin: finH });
-      Alert.alert("Reserva creada", `${canchaSel.nombre} · ${fechaSel} · ${horaSel}. Queda pendiente de pago.`);
+      const r = await apiPost("/reservas", { cancha_id: canchaSel.id, fecha: fechaSel, hora_inicio: horaSel, hora_fin: finH });
       setHoraSel(null);
       setOcupados((o) => [...o, horaSel]);
+      navigation.navigate("Pago", {
+        tipo: "reserva",
+        id: r.id,
+        resumen: `Reserva ${canchaSel.nombre} · ${fechaSel} · ${horaSel}`,
+      });
     } catch (e) {
       Alert.alert("No se pudo reservar", e.message || "Intenta de nuevo");
     } finally {
