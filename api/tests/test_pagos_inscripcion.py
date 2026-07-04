@@ -37,12 +37,11 @@ def test_no_paga_inscripcion_ajena(client, auth_admin, auth_entrenador):
     assert r.status_code == 403
 
 
-def test_inscripcion_gratuita_no_requiere_pago(client, auth_admin, auth_entrenador):
+def test_inscripcion_gratuita_queda_aceptada(client, auth_admin, auth_entrenador):
     tid = _torneo(client, auth_admin, cuota_inscripcion=0)
-    iid = _inscribir(client, auth_entrenador, tid)
-    r = client.post(f"/pagos/inscripcion/{iid}", headers=auth_entrenador,
-                    json={"metodo": "tarjeta", "tarjeta": TARJETA_OK})
-    assert r.status_code == 400
+    r = client.post("/inscripciones", headers=auth_entrenador, json={"torneo_id": tid, "equipo_id": 1})
+    assert r.status_code == 201
+    assert r.json()["estado"] == "aceptada"
 
 
 def test_no_paga_inscripcion_no_pendiente(client, db_session, auth_admin, auth_entrenador):

@@ -63,8 +63,10 @@ def crear_inscripcion(
         if inscritos >= torneo.cupo_maximo:
             raise HTTPException(status_code=409, detail="El torneo llegó a su cupo máximo")
 
+    gratis = torneo.cuota_inscripcion is None or torneo.cuota_inscripcion <= 0
     inscripcion = models.Inscripcion(
-        torneo_id=datos.torneo_id, equipo_id=datos.equipo_id, estado="pendiente",
+        torneo_id=datos.torneo_id, equipo_id=datos.equipo_id,
+        estado="aceptada" if gratis else "pendiente",
     )
     db.add(inscripcion)
     db.commit()
