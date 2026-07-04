@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Pagos{% endblock %}
+{% block heading %}Pagos{% endblock %}
+{% block content %}
+
+<h2>Transferencias pendientes de confirmar</h2>
+{% if pendientes %}
+<table>
+  <thead><tr><th>Folio</th><th>Concepto</th><th>Titular</th><th>Monto</th><th></th></tr></thead>
+  <tbody>
+    {% for p in pendientes %}
+    <tr>
+      <td>{{ p.referencia }}</td>
+      <td>{{ p.concepto }}</td>
+      <td>{{ p.usuario_nombre }}</td>
+      <td>$ {{ '%.2f'|format(p.monto) }}</td>
+      <td>
+        <form method="post" action="{{ url_for('pago_confirmar', pago_id=p.id) }}">
+          <button type="submit">Confirmar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No hay transferencias pendientes.</p>
+{% endif %}
+
+<h2>Todos los pagos</h2>
+<table>
+  <thead><tr><th>Folio</th><th>Concepto</th><th>Método</th><th>Monto</th><th>Estado</th></tr></thead>
+  <tbody>
+    {% for p in pagos %}
+    <tr>
+      <td>{{ p.referencia }}</td>
+      <td>{{ p.concepto }}</td>
+      <td>{{ p.metodo }}</td>
+      <td>$ {{ '%.2f'|format(p.monto) }}</td>
+      <td>{{ p.estado }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

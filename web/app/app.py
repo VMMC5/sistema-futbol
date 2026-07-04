@@ -534,6 +534,34 @@ def reserva_accion(reserva_id, accion):
 
 
 # ----------------------------------------------------------------------
+# Pagos
+# ----------------------------------------------------------------------
+@app.route("/pagos")
+@login_required
+def pagos():
+    r = api_get("/pagos")
+    if r.status_code == 401:
+        return _sesion_expirada()
+    lista = r.json() if r.status_code == 200 else []
+    # Solo interesan las transferencias pendientes para confirmar; el resto, informativo
+    pendientes = [p for p in lista if p["metodo"] == "transferencia" and p["estado"] == "pendiente"]
+    return render_template("pagos.html", pagos=lista, pendientes=pendientes, active="pagos")
+
+
+@app.route("/pagos/<int:pago_id>/confirmar", methods=["POST"])
+@login_required
+def pago_confirmar(pago_id):
+    r = api_post(f"/pagos/{pago_id}/confirmar", {})
+    if r.status_code == 401:
+        return _sesion_expirada()
+    if r.status_code == 200:
+        flash("Pago confirmado.", "ok")
+    else:
+        flash(_detalle_error(r), "error")
+    return redirect(url_for("pagos"))
+
+
+# ----------------------------------------------------------------------
 # Estadísticas
 # ----------------------------------------------------------------------
 @app.route("/estadisticas")

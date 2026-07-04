@@ -44,6 +44,8 @@ import RefLiveScreen from "./src/screens/referee/RefLiveScreen";
 import RefEventScreen from "./src/screens/referee/RefEventScreen";
 import RefSummaryScreen from "./src/screens/referee/RefSummaryScreen";
 import RefHistoryScreen from "./src/screens/referee/RefHistoryScreen";
+import PagoScreen from "./src/screens/PagoScreen";
+import ComprobanteScreen from "./src/screens/ComprobanteScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -214,6 +216,8 @@ export default function App() {
           <Stack.Screen name="PlayerStats" component={PlayerStatsScreen} options={{ ...greenHeader, title: "MIS ESTADÍSTICAS" }} />
           <Stack.Screen name="PlayerCalendar" component={PlayerCalendarScreen} options={{ ...greenHeader, title: "PRÓXIMOS PARTIDOS" }} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ ...greenHeader, title: "NOTIFICACIONES" }} />
+          <Stack.Screen name="Pago" component={PagoScreen} options={{ ...greenHeader, title: "PAGO" }} />
+          <Stack.Screen name="Comprobante" component={ComprobanteScreen} options={{ ...greenHeader, title: "COMPROBANTE" }} />
 
           {/* Panel del árbitro (tema claro, cabecera guinda) */}
           <Stack.Screen name="Referee" component={RefereeTabs} options={{ headerShown: false }} />
