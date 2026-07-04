@@ -56,3 +56,16 @@ def test_recibo_pdf_solo_si_completado(client, auth_admin):
     pago = client.post(f"/pagos/reserva/{rid}", headers=auth, json={"metodo": "transferencia"}).json()
     # transferencia pendiente -> aún no hay recibo
     assert client.get(f"/pagos/{pago['id']}/recibo.pdf", headers=auth).status_code == 409
+
+
+def test_recibo_pdf_con_texto_no_latin1(client, db_session):
+    from app import models
+    auth = _jugador(client)
+    pago = _pagar(client, auth)               # pago con tarjeta -> completado
+    db = db_session()
+    p = db.get(models.Pago, pago["id"])
+    p.concepto = "Reserva 🏟️ Cancha ✅"       # caracteres fuera de Latin-1
+    db.commit()
+    r = client.get(f"/pagos/{pago['id']}/recibo.pdf", headers=auth)
+    assert r.status_code == 200
+    assert r.content[:4] == b"%PDF"
