@@ -21,7 +21,24 @@ from flask import (
 )
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "cambia_esto_en_produccion")
+
+# SECRET_KEY firma la cookie de sesion de Flask: sin ella un atacante podria
+# falsificar sesiones, asi que el panel se niega a arrancar si falta.
+_secret = os.getenv("SECRET_KEY")
+if not _secret:
+    raise RuntimeError(
+        "SECRET_KEY no esta definida. Configurala en el entorno (.env) con una "
+        "llave larga y aleatoria, por ejemplo: openssl rand -hex 32"
+    )
+app.config["SECRET_KEY"] = _secret
+
+# Endurecimiento de la cookie de sesion:
+#   HttpOnly -> inaccesible desde JavaScript (mitiga robo por XSS)
+#   SameSite=Lax -> no se envia en peticiones cross-site (mitiga CSRF)
+#   Secure -> solo viaja por HTTPS; se activa salvo en desarrollo (FLASK_ENV=development)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("FLASK_ENV") != "development"
 
 API_URL = os.getenv("API_URL", "http://api:8000")
 TIMEOUT = 5

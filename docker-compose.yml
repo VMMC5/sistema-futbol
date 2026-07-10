@@ -46,6 +46,10 @@ services:
     container_name: torneos_web
     restart: unless-stopped
     command: flask --app app.app run --host 0.0.0.0 --port 5000 --debug
+    environment:
+      # En desarrollo se sirve por HTTP plano: desactiva la cookie Secure para
+      # que la sesión funcione sin HTTPS. En producción NO se define (Secure=on).
+      FLASK_ENV: development
     volumes:
       - ./web:/code
     ports:
