@@ -15,9 +15,9 @@
       "package": "com.torneos.mobile"
     },
     "extra": {
-      "//": "IMPORTANTE: cambia esta IP por la de la maquina que corre la API.",
-      "//2": "Desde un telefono fisico NO sirve 'localhost'. Usa la IP local de tu PC, p.ej. http://192.168.1.50:8000",
-      "apiUrl": "http://192.168.100.9:8000"
+      "//": "Solo se usa en builds de produccion: en desarrollo la IP se deduce del host de Expo.",
+      "//2": "Desde un telefono fisico NO sirve 'localhost'. Usa la IP local de tu PC.",
+      "apiUrl": "http://10.133.61.227:8000"
     }
   }
 }
