@@ -1,8 +1,12 @@
-"""panel del jugador
+"""esquema inicial
 
-Revision ID: 3b5c9804c2e3
-Revises: 
-Create Date: 2026-06-13 20:57:09.695072
+Baseline consolidado: colapsa las revisiones 3b5c9804c2e3 y 20260703_1000, que
+ya no existen en el árbol. Una base de datos sellada en cualquiera de esas dos
+debe recrearse desde cero; Alembic no puede migrarla hasta aquí.
+
+Revision ID: ac4f76d969b7
+Revises:
+Create Date: 2026-07-09 18:40:46.016642
 """
 from typing import Sequence, Union
 
@@ -11,7 +15,7 @@ import sqlalchemy as sa
 
 
 # Identificadores de la revisión, usados por Alembic.
-revision: str = '3b5c9804c2e3'
+revision: str = 'ac4f76d969b7'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -114,6 +118,8 @@ def upgrade() -> None:
     sa.Column('metodo', sa.String(length=20), nullable=False),
     sa.Column('estado', sa.String(length=20), nullable=True),
     sa.Column('referencia', sa.String(length=100), nullable=True),
+    sa.Column('concepto', sa.String(length=160), nullable=True),
+    sa.Column('completado_en', sa.DateTime(timezone=True), nullable=True),
     sa.Column('creado_en', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], ),
     sa.PrimaryKeyConstraint('id')

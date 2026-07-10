@@ -2,9 +2,22 @@
 import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 
-// La URL de la API se lee de app.json (extra.apiUrl). CAMBIALA por la IP de tu PC.
+const API_PORT = 8000;
+const TIMEOUT_MS = 15000;
+
+// En desarrollo, Expo sirve el bundle desde la IP de la máquina que corre el
+// servidor, así que la reutilizamos para la API y no hay que editar app.json
+// cada vez que cambia la red. En una build de producción no hay hostUri.
+// En modo túnel hostUri es un dominio (exp.direct) que no expone la API: solo
+// se acepta una IPv4, y si no, se cae al valor de app.json.
+function _urlDesdeExpo() {
+  const host = Constants.expoConfig?.hostUri?.split(":")[0];
+  const esIPv4 = host && /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  return esIPv4 ? `http://${host}:${API_PORT}` : null;
+}
+
 export const API_URL =
-  Constants.expoConfig?.extra?.apiUrl || "http://192.168.1.50:8000";
+  _urlDesdeExpo() || Constants.expoConfig?.extra?.apiUrl || `http://localhost:${API_PORT}`;
 
 const TOKEN_KEY = "token";
 
@@ -27,6 +40,24 @@ async function _headers(conAuth) {
   return h;
 }
 
+// Sin un timeout, una IP inalcanzable deja la promesa colgada para siempre y la
+// pantalla se queda cargando sin mostrar error.
+async function _fetch(path, opciones = {}) {
+  const ctrl = new AbortController();
+  const temporizador = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(`${API_URL}${path}`, { ...opciones, signal: ctrl.signal });
+  } catch (e) {
+    throw new Error(
+      e.name === "AbortError"
+        ? `El servidor (${API_URL}) no respondió a tiempo. Revisa que estés en la misma red Wi-Fi.`
+        : `No se pudo conectar con el servidor (${API_URL}).`
+    );
+  } finally {
+    clearTimeout(temporizador);
+  }
+}
+
 async function _manejar(res) {
   let cuerpo = null;
   try {
@@ -42,12 +73,12 @@ async function _manejar(res) {
 }
 
 export async function apiGet(path, conAuth = true) {
-  const res = await fetch(`${API_URL}${path}`, { headers: await _headers(conAuth) });
+  const res = await _fetch(path, { headers: await _headers(conAuth) });
   return _manejar(res);
 }
 
 export async function apiPost(path, body, conAuth = true) {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await _fetch(path, {
     method: "POST",
     headers: await _headers(conAuth),
     body: JSON.stringify(body || {}),
@@ -56,7 +87,7 @@ export async function apiPost(path, body, conAuth = true) {
 }
 
 export async function apiPut(path, body, conAuth = true) {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await _fetch(path, {
     method: "PUT",
     headers: await _headers(conAuth),
     body: JSON.stringify(body || {}),
@@ -67,12 +98,12 @@ export async function apiPut(path, body, conAuth = true) {
 // Envío de formulario multipart (para subir el documento de la solicitud).
 // No se fija Content-Type a mano: fetch añade el boundary correcto.
 export async function apiPostForm(path, formData) {
-  const res = await fetch(`${API_URL}${path}`, { method: "POST", body: formData });
+  const res = await _fetch(path, { method: "POST", body: formData });
   return _manejar(res);
 }
 
 export async function apiDelete(path, conAuth = true) {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await _fetch(path, {
     method: "DELETE",
     headers: await _headers(conAuth),
   });
