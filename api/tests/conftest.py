@@ -19,6 +19,10 @@ os.environ.setdefault("DB_NAME", "test")
 os.environ.setdefault("SECRET_KEY", "secret_de_pruebas")
 os.environ.setdefault("UPLOAD_DIR", "/tmp/uploads_test")
 os.environ.setdefault("UPLOAD_DIR", "/tmp/test_uploads_torneos")
+# Rate limiting apagado por defecto: su almacenamiento en memoria se acumula
+# entre pruebas (todas comparten la IP 'testclient') y dispararía 429 en tests
+# que no lo esperan. test_rate_limit.py lo reactiva puntualmente.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
