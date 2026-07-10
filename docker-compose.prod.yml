@@ -1,0 +1,68 @@
+# Configuración de PRODUCCIÓN (endurecida). Diferencias frente al compose de
+# desarrollo (docker-compose.yml):
+#   - Sin --reload (uvicorn) ni --debug (Flask): no se expone la consola RCE de
+#     Werkzeug ni se recarga código en caliente.
+#   - Flask se sirve con gunicorn, no con el servidor de desarrollo de Flask.
+#   - Sin montajes de volúmenes de código: se usa la imagen construida (inmutable).
+#   - FLASK_ENV=production activa la cookie de sesión Secure (solo HTTPS).
+#   - PostgreSQL NO se publica a la red: solo es accesible entre contenedores.
+#
+# Uso:
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# Requisitos previos:
+#   - .env con SECRET_KEY, DB_* reales (sin valores demo).
+#   - Aplicar migraciones: docker compose -f docker-compose.prod.yml exec api alembic upgrade head
+#   - NO correr el seed en producción (crea credenciales demo).
+#
+# Pendiente de infra (Grupo D): reverse proxy con TLS/HTTPS + HSTS delante de
+# api/web; hasta entonces estos puertos quedan expuestos en claro.
+
+services:
+  db:
+    image: postgres:16
+    container_name: torneos_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    # Sin `ports`: la base de datos no se expone al host; solo la alcanzan los
+    # demás servicios por la red interna de Docker.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./api
+    container_name: torneos_api
+    restart: unless-stopped
+    # Sin --reload y con varios workers para producción.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    container_name: torneos_web
+    restart: unless-stopped
+    # gunicorn en vez del servidor de desarrollo de Flask; sin --debug.
+    command: gunicorn app.app:app --bind 0.0.0.0:5000 --workers 4
+    environment:
+      FLASK_ENV: production
+    env_file: .env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

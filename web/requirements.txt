@@ -8,4 +8,4 @@ requests==2.32.3
 python-dotenv==1.0.1
 
 # Servidor para produccion (en desarrollo se usa `flask run`):
-#   gunicorn==23.0.0
+gunicorn==23.0.0

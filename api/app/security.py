@@ -10,8 +10,15 @@ from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-# Configuracion leida del .env
-SECRET_KEY = os.getenv("SECRET_KEY", "clave_insegura_solo_para_desarrollo")
+# Configuracion leida del .env.
+# SECRET_KEY es obligatoria: sin ella los JWT serian falsificables, asi que la
+# app se niega a arrancar en lugar de caer a una clave por defecto insegura.
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY no esta definida. Configurala en el entorno (.env) con una "
+        "llave larga y aleatoria, por ejemplo: openssl rand -hex 32"
+    )
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
