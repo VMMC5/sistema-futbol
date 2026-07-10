@@ -5,11 +5,14 @@ Usa la configuracion central de base de datos (app/database.py) y los
 modelos (app/models.py). La documentacion interactiva queda en /docs.
 """
 from fastapi import Depends, FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models  # noqa: F401  -> registra los modelos en la metadata
+from app.rate_limit import limiter
 from app.routers import (
     auth, torneos, reservas, partidos, estadisticas,
     sedes, canchas, usuarios, publico, solicitudes, equipos, invitaciones,
@@ -20,6 +23,11 @@ app = FastAPI(
     title="API - Sistema Integral de Canchas y Torneos de Futbol",
     version="0.1.0",
 )
+
+# Rate limiting: registra el limiter y el manejador que responde 429 al superar
+# el tope de peticiones (ver app/rate_limit.py).
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Routers por modulo
 app.include_router(publico.router, prefix="/publico", tags=["publico"])

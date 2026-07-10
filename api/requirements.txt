@@ -17,6 +17,7 @@ bcrypt==4.0.1                   # fijado: passlib 1.7.4 falla con bcrypt >= 4.1
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.20
 fpdf2==2.8.1                    # generacion del PDF del comprobante de pago
+slowapi==0.1.9                  # rate limiting (anti fuerza bruta en /auth/login)
 
 # Migraciones de base de datos
 alembic==1.14.0

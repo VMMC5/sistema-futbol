@@ -6,12 +6,13 @@ Endpoints de autenticación.
 - GET  /auth/me       : datos del usuario autenticado (ruta protegida).
 - GET  /auth/admin-test : ejemplo de ruta restringida por rol.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models
 from app.deps import get_current_user, require_roles
+from app.rate_limit import limiter, LOGIN_RATE_LIMIT
 from app.schemas import CambioPassword, LoginRequest, PerfilUpdate, RegistroUsuario, Token, UsuarioOut
 from app.security import create_access_token, hash_password, verify_password
 
@@ -54,7 +55,9 @@ def registrar(datos: RegistroUsuario, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(datos: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit(LOGIN_RATE_LIMIT)
+def login(request: Request, datos: LoginRequest, db: Session = Depends(get_db)):
+    # 'request' lo exige slowapi para identificar la IP; no se usa en la lógica.
     usuario = db.query(models.Usuario).filter_by(correo=datos.correo).first()
 
     # Mismo mensaje para correo inexistente o contraseña incorrecta:
