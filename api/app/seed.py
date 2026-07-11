@@ -10,28 +10,99 @@ Ejecutar DESPUES de aplicar las migraciones, desde dentro del contenedor:
 
 Es idempotente: si los roles/usuarios ya existen, no los duplica.
 
-Credenciales que crea (solo para desarrollo):
+SEGURIDAD: este script crea usuarios con contrasenas conocidas, asi que NO debe
+correr en produccion. Si APP_ENV=production, aborta (ver _verificar_entorno).
+Para el caso legitimo de sembrar los roles base en produccion hay que pedirlo
+explicitamente con SEED_ALLOW_IN_PROD=true Y dar una contrasena propia en cada
+SEED_PASSWORD_*; sin eso no se usa ningun valor por defecto.
+
+Variables de entorno:
+    APP_ENV               -> "production" activa la barrera. Por defecto "development".
+    SEED_ALLOW_IN_PROD    -> "true" permite correr el seed aun en produccion.
+    SEED_PASSWORD_<ROL>   -> contrasena de cada usuario demo (SUPERADMIN, ENTRENADOR,
+                             ARBITRO, JUGADOR).
+    SEED_PASSWORD_PLANTEL -> contrasena de los jugadores de las plantillas demo.
+
+Credenciales por defecto (SOLO desarrollo):
     superadmin -> superadmin@demo.com / admin1234
     entrenador -> entrenador@demo.com / demo1234
     arbitro    -> arbitro@demo.com    / demo1234
     jugador    -> jugador@demo.com    / demo1234
 """
+import os
+
 from app.database import SessionLocal
 from app import models
 from app.security import hash_password
 
 ROLES = ["jugador", "entrenador", "arbitro", "superadmin"]
 
-# Contrasenas de DESARROLLO (cambiar/eliminar en produccion)
-PASSWORDS = {
+# Contrasenas de DESARROLLO. Solo se usan fuera de produccion: la barrera de
+# _verificar_entorno() exige contrasenas explicitas si se fuerza el seed en prod.
+PASSWORDS_DEV = {
     "superadmin": "admin1234",
     "entrenador": "demo1234",
     "arbitro": "demo1234",
     "jugador": "demo1234",
 }
+PASSWORD_PLANTEL_DEV = "demo1234"
+
+# Las contrasenas de las plantillas demo comparten esta variable.
+_ENV_PLANTEL = "SEED_PASSWORD_PLANTEL"
+
+
+def _en_produccion() -> bool:
+    return os.getenv("APP_ENV", "development").strip().lower() == "production"
+
+
+def _es_verdadero(valor: str) -> bool:
+    return (valor or "").strip().lower() in ("true", "1", "yes")
+
+
+def _verificar_entorno() -> None:
+    """Impide sembrar credenciales demo en produccion.
+
+    Fuera de produccion no hace nada. En produccion aborta, salvo que se pida
+    explicitamente con SEED_ALLOW_IN_PROD=true; incluso entonces, exige que cada
+    contrasena venga del entorno para no crear usuarios con claves publicas.
+    """
+    if not _en_produccion():
+        return
+
+    if not _es_verdadero(os.getenv("SEED_ALLOW_IN_PROD", "")):
+        raise SystemExit(
+            "Seed abortado: APP_ENV=production y este script crea usuarios demo "
+            "con contrasenas conocidas. Si de verdad necesitas sembrar los roles "
+            "base en produccion, define SEED_ALLOW_IN_PROD=true y una contrasena "
+            "propia en cada SEED_PASSWORD_*."
+        )
+
+    requeridas = [f"SEED_PASSWORD_{rol.upper()}" for rol in ROLES] + [_ENV_PLANTEL]
+    faltantes = [nombre for nombre in requeridas if not os.getenv(nombre)]
+    if faltantes:
+        raise SystemExit(
+            "Seed abortado: en produccion no se usan las contrasenas por defecto. "
+            "Faltan estas variables: " + ", ".join(faltantes)
+        )
+
+
+def _passwords() -> dict:
+    """Contrasena de cada usuario demo: del entorno, o el valor de desarrollo."""
+    return {
+        rol: os.getenv(f"SEED_PASSWORD_{rol.upper()}") or PASSWORDS_DEV[rol]
+        for rol in ROLES
+    }
+
+
+def _password_plantel() -> str:
+    return os.getenv(_ENV_PLANTEL) or PASSWORD_PLANTEL_DEV
 
 
 def run():
+    _verificar_entorno()
+    passwords = _passwords()
+    password_plantel = _password_plantel()
+
     db = SessionLocal()
     try:
         # Roles (idempotente)
@@ -63,7 +134,7 @@ def run():
                     rol_id=rol.id,
                     nombre=f"Demo {nombre_rol}",
                     correo=correo,
-                    password_hash=hash_password(PASSWORDS[nombre_rol]),
+                    password_hash=hash_password(passwords[nombre_rol]),
                 ))
 
         db.commit()
@@ -80,7 +151,7 @@ def run():
             if not u:
                 u = models.Usuario(
                     rol_id=rol_jugador.id, nombre=nombre, correo=correo,
-                    password_hash=hash_password("demo1234"),
+                    password_hash=hash_password(password_plantel),
                 )
                 db.add(u)
                 db.flush()
@@ -184,10 +255,11 @@ def run():
             db.commit()
 
         print("Seed completado.")
-        print("  superadmin@demo.com / admin1234")
-        print("  entrenador@demo.com / demo1234")
-        print("  arbitro@demo.com    / demo1234")
-        print("  jugador@demo.com    / demo1234")
+        # Las credenciales solo se imprimen fuera de produccion: en un servidor
+        # real acabarian en los logs.
+        if not _en_produccion():
+            for rol in ["superadmin", "entrenador", "arbitro", "jugador"]:
+                print(f"  {rol}@demo.com / {passwords[rol]}")
     finally:
         db.close()
 

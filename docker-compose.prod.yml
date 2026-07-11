@@ -13,7 +13,8 @@
 # Requisitos previos:
 #   - .env con SECRET_KEY, DB_* reales (sin valores demo).
 #   - Aplicar migraciones: docker compose -f docker-compose.prod.yml exec api alembic upgrade head
-#   - NO correr el seed en producción (crea credenciales demo).
+#   - El seed NO corre aquí: APP_ENV=production hace que aborte (crea usuarios
+#     demo con contraseñas conocidas).
 #
 # Pendiente de infra (Grupo D): reverse proxy con TLS/HTTPS + HSTS delante de
 # api/web; hasta entonces estos puertos quedan expuestos en claro.
@@ -43,6 +44,10 @@ services:
     restart: unless-stopped
     # Sin --reload y con varios workers para producción.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    environment:
+      # Activa la barrera del seed: `python -m app.seed` aborta en producción
+      # en vez de crear usuarios demo con contraseñas conocidas.
+      APP_ENV: production
     ports:
       - "8000:8000"
     env_file: .env
