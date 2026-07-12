@@ -1,0 +1,73 @@
+# Las direcciones de los backends llegan por entorno:
+#   En local: API_1=api1:8000       (nombres de contenedor)
+#   En AWS:   API_1=10.0.2.10:8001  (IP privada de la EC2 privada)
+# Así este fichero no se edita a mano al desplegar, que es donde se cuelan errores.
+
+upstream api_backend {
+    server ${API_1};
+    server ${API_2};
+}
+
+upstream panel_backend {
+    server ${WEB_1};
+}
+
+# Todo el tráfico en claro se redirige a HTTPS.
+server {
+    listen 80;
+    server_name _;
+
+    # Reservado para el desafío HTTP-01 de certbot cuando exista el dominio.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # nginx, que es quien termina el TLS, es el ÚNICO dueño de HSTS.
+    # La API y el panel también la emiten (grupo D) y, si llegaran las dos, el
+    # navegador descartaría la política entera: el requisito parecería cumplido
+    # sin estarlo. Por eso se descarta la de la app antes de emitir la nuestra.
+    proxy_hide_header Strict-Transport-Security;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Cabeceras que necesitan los backends:
+    #   X-Forwarded-For   -> la IP real del cliente (rate limiting y auditoría)
+    #   X-Forwarded-Proto -> para que Flask construya redirecciones https
+    #
+    # CRÍTICO: se SOBRESCRIBE con $remote_addr, no se anexa.
+    # Con $proxy_add_x_forwarded_for (que anexa), un atacante que enviara
+    # "X-Forwarded-For: 9.9.9.9" haría que nginx reenviara "9.9.9.9, <ip_real>",
+    # y uvicorn (trusted_hosts="*") toma el PRIMER valor: el falsificado.
+    # Rotándolo en cada petición, el atacante anularía por completo el rate
+    # limiting y envenenaría la auditoría. Verificado explotable.
+    # nginx es el único proxy del sistema, así que no hay cadena que preservar.
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # La API, repartida entre las dos réplicas.
+    # La barra final de proxy_pass quita el prefijo /api antes de reenviar.
+    location /api/ {
+        proxy_pass http://api_backend/;
+    }
+
+    # El panel de administración.
+    location / {
+        proxy_pass http://panel_backend;
+    }
+}
