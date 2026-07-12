@@ -5,6 +5,11 @@
 # Uso:  ./infra/levantar-local.sh   &&   ./infra/verificar-local.sh
 #
 # Al terminar, `./infra/restaurar-desarrollo.sh` devuelve el entorno de siempre.
+#
+# TU BASE DE DATOS DE DESARROLLO NO SE TOCA: los compose de producción corren en
+# su propio proyecto de Compose (`torneos-prod`), con volúmenes y contenedores
+# aparte. El stack de desarrollo solo se PARA (para liberar los puertos), no se
+# borra; sus datos siguen ahí cuando lo vuelvas a levantar.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -14,6 +19,8 @@ PRIVADO="docker compose --env-file $ENV_FILE -f docker-compose.privado.yml"
 PUBLICO="docker compose --env-file $ENV_FILE -f docker-compose.publico.yml"
 
 echo "==> Preparando variables de producción para la prueba (no toca tu .env)"
+# Este fichero es una copia de tu .env (con SECRET_KEY y contraseñas dentro). El
+# patrón `.env.*` de .gitignore lo mantiene fuera del repositorio.
 if [ ! -f "$ENV_FILE" ]; then
     cp .env "$ENV_FILE"
     cat >> "$ENV_FILE" <<'EOF'
@@ -33,7 +40,10 @@ docker network create torneos_privada 2>/dev/null || true
 echo "==> Certificado autofirmado"
 ./infra/nginx/generar-certificado.sh localhost
 
-echo "==> Parando el stack de desarrollo (libera los puertos)"
+# Solo `down`, NUNCA `down -v`: para los contenedores de desarrollo y libera los
+# puertos (entre ellos el 5432, que si no haría fallar la comprobación 9), pero
+# deja intactos el volumen y los datos de tu base de desarrollo.
+echo "==> Parando el stack de desarrollo (libera los puertos; no borra nada)"
 docker compose down 2>/dev/null || true
 
 echo "==> Servidor PRIVADO (API x2, panel, Postgres)"

@@ -1,8 +1,17 @@
 # ===== Secretos / entorno =====
+# Se ignora CUALQUIER variante de .env (.env.local, .env.produccion.local, ...):
+# levantar-local.sh genera .env.produccion.local copiando el .env real, con
+# SECRET_KEY y las contraseñas de la base dentro. Sin este patrón, un `git add -A`
+# despistado lo subiría al repositorio.
 .env
-.env.local
+.env.*
+# La plantilla SÍ se versiona: no tiene secretos, solo los nombres de las variables.
+!.env.example
 *.pem
 *.key
+
+# Certificados y material de Let's Encrypt (contienen la clave privada).
+infra/letsencrypt/
 
 # ===== Documentos subidos =====
 api/uploads/

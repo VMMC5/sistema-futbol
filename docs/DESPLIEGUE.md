@@ -74,6 +74,17 @@ de gastar tiempo depurando esto ya en AWS:
 Cualquier fallo que reporte `verificar-local.sh` hay que resolverlo aquí,
 en local, antes de desplegar en AWS.
 
+**Tu base de datos de desarrollo no corre peligro.** Los dos compose de
+producción declaran `name: torneos-prod`, así que Docker Compose los trata como
+un proyecto aparte del de desarrollo (que toma el nombre del directorio,
+`sistema-futbol`): volúmenes distintos (`torneos-prod_pgdata` frente a
+`sistema-futbol_pgdata`) y contenedores distintos (`torneos_prod_db` frente a
+`torneos_db`). La prueba levanta su propia base desde cero —que es lo que hace
+falta para que corra el script de init de Postgres y se creen los dos roles— y
+`restaurar-desarrollo.sh` borra solo esa. El stack de desarrollo únicamente se
+**para** mientras dura la prueba, para liberar los puertos; sus datos siguen ahí
+cuando lo vuelves a levantar.
+
 ## 5. Desplegar el servidor privado
 
 ```bash
@@ -99,6 +110,16 @@ SECRET_KEY=<generar: openssl rand -hex 32>
 
 `DB_NAME` ya viene con el valor por defecto (`torneos`) en `.env.example`; no
 hace falta tocarlo salvo que quieras otro nombre.
+
+Que las `DB_ADMIN_*` estén en el `.env` **no** significa que acaben en todos los
+contenedores: ningún servicio de `docker-compose.privado.yml` usa `env_file`, que
+volcaría el fichero entero en el entorno de cada uno. Cada servicio enumera las
+variables que necesita, y las `DB_ADMIN_*` solo se las pasan `db` y `migraciones`.
+Los contenedores de la API y el panel no las ven ni existiendo en el fichero:
+
+```bash
+docker compose -f docker-compose.privado.yml config | grep -A20 '^  api1:' | grep DB_ADMIN   # sin resultados
+```
 
 Las réplicas deben publicar sus puertos en la interfaz privada para que nginx
 las alcance desde la otra EC2. Crear `docker-compose.privado.aws.yml`:
@@ -140,6 +161,16 @@ limitado (`DB_APP_USER`), que no tiene permisos de DDL.
 
 **No correr el seed**: `APP_ENV=production` hace que aborte, y así debe ser. El
 primer superadmin se crea a mano.
+
+### Documentos subidos: un volumen compartido por las dos réplicas
+
+Los PDF que suben los aspirantes se guardan en disco (`UPLOAD_DIR=/datos/uploads`)
+y luego los sirve la propia API. Con **dos** réplicas eso obliga a un volumen
+compartido (`uploads`, montado en `api1` y `api2`): sin él, un documento subido a
+`api1` daría 404 la mitad de las veces —cuando el balanceador enrutara al admin
+a `api2`— y además se perdería en cada `up --build`. Si algún día hace falta una
+tercera réplica **en otra máquina**, este volumen local deja de servir y hay que
+mover los documentos a S3 o a EFS.
 
 ## 6. Desplegar el servidor público
 
@@ -191,29 +222,97 @@ publicados.
 
 Mientras no hay dominio, el certificado es autofirmado: **cifra de verdad**, pero
 el navegador avisa de que no puede verificar la identidad. Con un dominio
-apuntando a la IP pública, se sustituye por uno real y gratuito de Let's Encrypt:
+apuntando a la Elastic IP, se sustituye por uno real y gratuito de Let's Encrypt.
+
+### Cómo encajan las piezas
+
+Certbot y nginx son dos contenedores distintos que tienen que ponerse de acuerdo
+en **dos** directorios del host. Si uno de los dos no cuadra, el procedimiento
+falla, y a veces falla **en silencio**:
+
+| Directorio del host | Lo escribe | Lo lee | Para qué |
+|---|---|---|---|
+| `infra/certbot-www/` | certbot | nginx (`location /.well-known/acme-challenge/`) | El desafío HTTP-01: Let's Encrypt tiene que poder descargar por HTTP el fichero que certbot deja aquí. |
+| `infra/letsencrypt/` | certbot | certbot | Los certificados **y** `renewal/`, que es donde certbot apunta cómo renovar cada dominio. |
+| `infra/nginx/certs/` | tú (`cp -L`) | nginx | El `fullchain.pem` y el `privkey.pem` que nginx sirve. |
+
+Dos cosas que conviene tener claras, porque son las que rompen el 90 % de las
+guías de internet:
+
+- **Nunca uses un volumen nombrado (`-v certbot_www:...`) para el webroot.**
+  Compose le pone el prefijo del proyecto (`torneos-prod_certbot_www`), así que un
+  `docker run -v certbot_www:...` suelto crearía un volumen **distinto**: el
+  desafío se escribiría donde nginx no lo sirve y la validación fallaría. Por eso
+  el webroot es un bind mount a `./infra/certbot-www`, el mismo del lado de nginx.
+- **Monta `/etc/letsencrypt` entero, no solo `live/`.** En `live/<DOMINIO>/`
+  certbot no deja ficheros, sino **symlinks relativos** a `../../archive/`; si
+  montas solo ese directorio, del otro lado quedan enlaces rotos. Y sin
+  `renewal/`, `certbot renew` no encuentra qué renovar, **no renueva nada y sale
+  con éxito**: el certificado caducaría a los 90 días sin un solo aviso.
+
+### Emitir el certificado (una vez)
+
+nginx tiene que estar **ya levantado** (sección 6, con el certificado
+autofirmado): es quien sirve el desafío por el puerto 80.
 
 ```bash
-docker run --rm \
-  -v ./infra/nginx/certs:/etc/letsencrypt/live/<DOMINIO> \
-  -v certbot_www:/var/www/certbot \
+# 1. Emitir. Certbot deja el desafío en el webroot que nginx publica.
+sudo docker run --rm \
+  -v "$PWD/infra/letsencrypt:/etc/letsencrypt" \
+  -v "$PWD/infra/certbot-www:/var/www/certbot" \
   certbot/certbot certonly --webroot -w /var/www/certbot \
-  -d <DOMINIO> --agree-tos -m <CORREO_ADMIN>
+  -d <DOMINIO> --agree-tos -m <CORREO_ADMIN> --no-eff-email
 
+# 2. Copiar a donde nginx los lee, DEFERENCIANDO los symlinks (cp -L).
+sudo cp -L infra/letsencrypt/live/<DOMINIO>/fullchain.pem infra/nginx/certs/fullchain.pem
+sudo cp -L infra/letsencrypt/live/<DOMINIO>/privkey.pem   infra/nginx/certs/privkey.pem
+sudo chmod 600 infra/nginx/certs/privkey.pem
+
+# 3. Reiniciar: nginx lee el certificado una sola vez, al arrancar.
 docker compose -f docker-compose.publico.yml restart nginx
 ```
 
 - `<DOMINIO>`: el dominio real apuntando a la Elastic IP (p. ej. `torneos.tuclub.mx`).
 - `<CORREO_ADMIN>`: un correo tuyo, para los avisos de expiración de Let's Encrypt.
+- `sudo` porque certbot corre como root y los ficheros que deja son suyos.
 
-Certbot escribe `fullchain.pem` y `privkey.pem` en la misma ruta que ya usa
-nginx, así que **no hay que tocar la configuración**. El `restart nginx` de
-arriba es imprescindible aquí (no es el mismo caso de la sección 7: el
-certificado cambió de contenido, no la dirección de un backend). Renovación
-automática:
+El `restart nginx` de aquí es imprescindible, y no es el mismo caso de la
+sección 7: allí cambiaba la dirección de un backend; aquí cambia el contenido
+del certificado.
+
+Comprobar que quedó bien (ya sin `-k`: si el certificado es válido, `curl` lo
+acepta sin protestar):
 
 ```bash
-0 3 * * * cd /home/ec2-user/sistema-futbol && docker run --rm -v ./infra/nginx/certs:/etc/letsencrypt certbot/certbot renew --quiet && docker compose -f docker-compose.publico.yml restart nginx
+curl https://<DOMINIO>/api/health          # {"api":"ok","base_de_datos":"ok"}
+```
+
+### Renovar (automático)
+
+Los certificados de Let's Encrypt duran **90 días**. La renovación repite los
+mismos tres pasos —`certbot renew`, `cp -L`, `restart nginx`—, que es justo lo
+que hace `infra/nginx/renovar-certificado.sh`:
+
+```bash
+sudo crontab -e
+```
+
+```cron
+# Diario a las 3:00. Certbot solo renueva si quedan menos de 30 días; el resto
+# de los días no hace nada y sale con éxito, así que correrlo a diario es seguro
+# y deja 30 días de margen si un día falla.
+0 3 * * * cd /home/ec2-user/sistema-futbol && ./infra/nginx/renovar-certificado.sh <DOMINIO> >> /var/log/certbot-renovacion.log 2>&1
+```
+
+Antes de fiarse del cron, conviene probar el script una vez a mano —debe terminar
+con `Certificado de <DOMINIO> al día y nginx recargado.`— y ensayar la renovación
+en seco, que valida el desafío de verdad sin gastar cuota de Let's Encrypt:
+
+```bash
+sudo docker run --rm \
+  -v "$PWD/infra/letsencrypt:/etc/letsencrypt" \
+  -v "$PWD/infra/certbot-www:/var/www/certbot" \
+  certbot/certbot renew --dry-run
 ```
 
 ## 9. Comprobación del despliegue

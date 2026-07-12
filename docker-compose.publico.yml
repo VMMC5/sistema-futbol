@@ -8,10 +8,15 @@
 #   ./infra/nginx/generar-certificado.sh          # solo la primera vez
 #   docker compose -f docker-compose.publico.yml up -d
 
+# Proyecto PROPIO, igual que el compose privado: así la prueba local de
+# producción no comparte volúmenes ni nombres de contenedor con el compose de
+# desarrollo (que se llama `sistema-futbol`, por el directorio).
+name: torneos-prod
+
 services:
   nginx:
     image: nginx:1.27-alpine
-    container_name: torneos_nginx
+    container_name: torneos_prod_nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -26,15 +31,18 @@ services:
       # La imagen oficial procesa estas plantillas con envsubst al arrancar.
       - ./infra/nginx/templates:/etc/nginx/templates:ro
       - ./infra/nginx/certs:/etc/nginx/certs:ro
-      - certbot_www:/var/www/certbot
+      # Webroot del desafío HTTP-01 de certbot. Es un bind mount, NO un volumen
+      # nombrado, a propósito: certbot corre en su propio `docker run`, fuera de
+      # este compose, y un volumen nombrado llevaría el prefijo del proyecto
+      # (`torneos-prod_certbot_www`), así que `-v certbot_www:...` crearía un
+      # volumen DISTINTO y el desafío se escribiría donde nginx no lo sirve.
+      # Con una ruta del host, los dos escriben y leen el mismo sitio.
+      - ./infra/certbot-www:/var/www/certbot
     # El healthcheck de nginx lo añade la Fase 2, junto con el resto del
     # monitoreo. (La imagen alpine trae BusyBox wget, cuyo soporte de TLS es
     # limitado; conviene resolverlo allí y no improvisarlo aquí.)
     networks:
       - privada
-
-volumes:
-  certbot_www:
 
 networks:
   privada:

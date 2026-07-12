@@ -39,27 +39,50 @@ n=$(curl -sk -D- -o /dev/null https://localhost/login | grep -ci "^strict-transp
 
 echo "=== 5. El BALANCEADOR reparte entre las dos réplicas ==="
 for _ in $(seq 1 8); do curl -sk -o /dev/null https://localhost/api/health; done
-a1=$(docker logs torneos_api1 2>&1 | grep -c 'GET /health')
-a2=$(docker logs torneos_api2 2>&1 | grep -c 'GET /health')
+a1=$(docker logs torneos_prod_api1 2>&1 | grep -c 'GET /health')
+a2=$(docker logs torneos_prod_api2 2>&1 | grep -c 'GET /health')
 if [ "$a1" -gt 0 ] && [ "$a2" -gt 0 ]; then
     ok "reparte de verdad (api1=$a1, api2=$a2)"
 else
     fallo "no reparte (api1=$a1, api2=$a2): una réplica no recibe tráfico"
 fi
 
-echo "=== 6. Tolerancia a fallos: se apaga una réplica ==="
-docker stop torneos_api2 >/dev/null 2>&1
-codigo=$(curl -sk -o /dev/null -w "%{http_code}" https://localhost/api/health)
-docker start torneos_api2 >/dev/null 2>&1
-[ "$codigo" = "200" ] && ok "sigue en pie con api2 caída" || fallo "cayó al apagar api2 ($codigo)"
+echo "=== 6. Tolerancia a fallos: se apaga CADA réplica, una por una ==="
+# Se prueban las DOS, no solo api2. Apagando únicamente api2 no se detectaba que
+# el panel apuntaba a `api1` a pelo: con api1 caída el panel moría aunque api2
+# siguiera viva. Ahora las dos réplicas comparten el alias de red `api`, así que
+# también se comprueba desde DENTRO del panel que sigue alcanzando a la API.
+for replica in torneos_prod_api1 torneos_prod_api2; do
+    docker stop "$replica" >/dev/null 2>&1
+
+    # a) El sistema sigue en pie a través de nginx (el balanceador descarta la caída).
+    codigo=$(curl -sk -o /dev/null -w "%{http_code}" https://localhost/api/health)
+    [ "$codigo" = "200" ] && ok "la API responde con $replica caída" \
+                          || fallo "la API cayó al apagar $replica ($codigo)"
+
+    # b) El panel sigue alcanzando a la API por el alias compartido `api`.
+    if docker exec torneos_prod_web python -c \
+        "import urllib.request; urllib.request.urlopen('http://api:8000/health', timeout=5)" \
+        >/dev/null 2>&1; then
+        ok "el panel alcanza la API con $replica caída"
+    else
+        fallo "el panel NO alcanza la API con $replica caída (¿API_URL apunta a una réplica concreta?)"
+    fi
+
+    docker start "$replica" >/dev/null 2>&1
+    # Que vuelva a estar sana antes de apagar la siguiente (si no, se apagarían las dos).
+    until docker exec "$replica" python -c \
+        "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)" \
+        >/dev/null 2>&1; do sleep 1; done
+done
 
 echo "=== 7. La auditoría registra la IP REAL del cliente ==="
 curl -sk -o /dev/null -X POST https://localhost/api/auth/login \
     -H "Content-Type: application/json" \
     -d '{"correo":"intruso@demo.com","password":"mala"}'
 sleep 1
-docker logs torneos_api1 2>&1 | grep AUDIT | tail -1
-docker logs torneos_api2 2>&1 | grep AUDIT | tail -1
+docker logs torneos_prod_api1 2>&1 | grep AUDIT | tail -1
+docker logs torneos_prod_api2 2>&1 | grep AUDIT | tail -1
 
 echo "=== 8. Un atacante NO puede falsificar su IP (regresión de seguridad) ==="
 # Si nginx anexara X-Forwarded-For en vez de sobrescribirla, uvicorn tomaría este
@@ -71,8 +94,8 @@ curl -sk -o /dev/null -X POST https://localhost/api/auth/login \
     -H "X-Forwarded-For: 9.9.9.9" \
     -d '{"correo":"falsificador@demo.com","password":"mala"}'
 sleep 1
-if docker logs torneos_api1 2>&1 | grep AUDIT | grep -q "9.9.9.9" ||
-   docker logs torneos_api2 2>&1 | grep AUDIT | grep -q "9.9.9.9"; then
+if docker logs torneos_prod_api1 2>&1 | grep AUDIT | grep -q "9.9.9.9" ||
+   docker logs torneos_prod_api2 2>&1 | grep AUDIT | grep -q "9.9.9.9"; then
     fallo "la IP falsificada (9.9.9.9) llegó a la auditoría."
     echo "          nginx debe SOBRESCRIBIR X-Forwarded-For con \$remote_addr, no anexarla."
 else

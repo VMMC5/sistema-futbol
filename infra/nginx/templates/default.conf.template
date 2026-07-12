@@ -37,6 +37,13 @@ server {
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         HIGH:!aNULL:!MD5;
 
+    # Los aspirantes suben su documento (PDF) al registrarse. La API acepta
+    # hasta 5 MB (MAX_BYTES en app/routers/solicitudes.py), pero el límite por
+    # defecto de nginx es 1 MB: sin esta línea, un PDF escaneado de 2 MB moriría
+    # aquí con un 413 y ni siquiera llegaría a la API. 6m deja margen sobre los
+    # 5 MB (multipart añade cabeceras al cuerpo de la petición).
+    client_max_body_size 6m;
+
     # nginx, que es quien termina el TLS, es el ÚNICO dueño de HSTS.
     # La API y el panel también la emiten (grupo D) y, si llegaran las dos, el
     # navegador descartaría la política entera: el requisito parecería cumplido
