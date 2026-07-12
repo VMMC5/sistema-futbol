@@ -6,7 +6,12 @@
 #
 # Uso:
 #   docker compose -f docker-compose.privado.yml up -d --build
-#   docker compose -f docker-compose.privado.yml exec api1 alembic upgrade head
+#   docker compose -f docker-compose.privado.yml --profile migraciones run --rm migraciones
+#
+# Las migraciones NO se corren con `exec api1`: los contenedores de la API no
+# tienen credenciales de admin de la base, así que Alembic fallaría con
+# "permission denied for schema public". Corren en el servicio efímero
+# `migraciones`, que es el único que las recibe (ver más abajo).
 #
 # El seed NO corre aquí: APP_ENV=production hace que aborte.
 
