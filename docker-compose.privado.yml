@@ -35,6 +35,30 @@ services:
     networks:
       - privada
 
+  # Migraciones. Contenedor EFÍMERO: es el único que recibe las credenciales de
+  # admin (las que pueden alterar el esquema). Los contenedores de la API, que
+  # están permanentemente en marcha y expuestos a través de nginx, NO las tienen:
+  # si alguien comprometiera la API, en su entorno no habría credenciales de
+  # administrador de la base.
+  #
+  # El perfil evita que arranque con `up`. Se lanza a mano:
+  #   docker compose -f docker-compose.privado.yml --profile migraciones \
+  #     run --rm migraciones
+  migraciones:
+    build: ./api
+    profiles: ["migraciones"]
+    command: alembic upgrade head
+    environment:
+      APP_ENV: production
+      DB_ADMIN_USER: ${DB_ADMIN_USER}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD}
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - privada
+
   # Dos réplicas reales de la API: es lo que nginx balancea.
   # Se puede apagar una y comprobar que el sistema sigue respondiendo.
   api1: &api
@@ -45,6 +69,7 @@ services:
     environment:
       APP_ENV: production
       # La API se conecta con el usuario LIMITADO, no con el dueño del esquema.
+      # Y NO recibe DB_ADMIN_*: no puede alterar el esquema ni aunque quisiera.
       DB_USER: ${DB_APP_USER}
       DB_PASSWORD: ${DB_APP_PASSWORD}
       # Solo nginx alcanza esta API, así que se puede confiar en su
