@@ -7,22 +7,27 @@ Entorno de Alembic.
   `alembic revision --autogenerate` para detectar cambios en las tablas.
 """
 import os
+import sys
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+# Alembic carga este archivo directamente (no como parte del paquete), así que
+# el propio directorio migrations/ no queda en sys.path por defecto: hay que
+# añadirlo a mano para poder importar url_bd.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # Importar la metadata de los modelos
 from app.database import Base
 from app import models  # noqa: F401  -> asegura que todos los modelos se registren
+from url_bd import url_de_migraciones
 
 config = context.config
 
-# Construir la URL desde el entorno (igual que app/database.py)
-DATABASE_URL = (
-    f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
-    f"@{os.getenv('DB_HOST', 'db')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}"
-)
+# Construir la URL desde el entorno (igual que app/database.py), con un
+# usuario admin separado del limitado que usa la API en runtime.
+DATABASE_URL = url_de_migraciones()
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 if config.config_file_name is not None:
