@@ -1,0 +1,88 @@
+# SERVIDOR PRIVADO — en AWS, la EC2 SIN IP pública.
+#
+# Aquí vive todo lo que no debe ser alcanzable desde internet: la API (en dos
+# réplicas, para que nginx pueda balancear), el panel y la base de datos.
+# Su Security Group solo admite tráfico originado en la EC2 pública.
+#
+# Uso:
+#   docker compose -f docker-compose.privado.yml up -d --build
+#   docker compose -f docker-compose.privado.yml exec api1 alembic upgrade head
+#
+# El seed NO corre aquí: APP_ENV=production hace que aborte.
+
+services:
+  db:
+    image: postgres:16
+    container_name: torneos_db
+    restart: unless-stopped
+    environment:
+      # POSTGRES_USER es el dueño del esquema: lo usan las migraciones.
+      POSTGRES_USER: ${DB_ADMIN_USER}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      # El script de init crea con estas el usuario limitado de la API.
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Solo se ejecuta al crear el volumen (base nueva).
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - privada
+
+  # Dos réplicas reales de la API: es lo que nginx balancea.
+  # Se puede apagar una y comprobar que el sistema sigue respondiendo.
+  api1: &api
+    build: ./api
+    container_name: torneos_api1
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    environment:
+      APP_ENV: production
+      # La API se conecta con el usuario LIMITADO, no con el dueño del esquema.
+      DB_USER: ${DB_APP_USER}
+      DB_PASSWORD: ${DB_APP_PASSWORD}
+      # Solo nginx alcanza esta API, así que se puede confiar en su
+      # X-Forwarded-For para obtener la IP real del cliente.
+      TRUSTED_PROXIES: "*"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - privada
+
+  api2:
+    <<: *api
+    container_name: torneos_api2
+
+  web:
+    build: ./web
+    container_name: torneos_web
+    restart: unless-stopped
+    command: gunicorn app.app:app --bind 0.0.0.0:5000 --workers 4
+    environment:
+      FLASK_ENV: production
+      TRUSTED_PROXIES: "*"
+      # El panel habla con la API por la red interna, sin pasar por nginx.
+      API_URL: http://api1:8000
+    env_file: .env
+    depends_on:
+      - api1
+    networks:
+      - privada
+
+volumes:
+  pgdata:
+
+networks:
+  # En AWS esta red es la red privada de la VPC. En local, una red Docker
+  # externa que la simula (ver la guía de verificación).
+  privada:
+    external: true
+    name: torneos_privada
