@@ -26,10 +26,28 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app import database  # noqa: E402
 from app.database import Base, get_db  # noqa: E402
 from app import models  # noqa: E402
 from app.main import app  # noqa: E402
 from app.security import hash_password  # noqa: E402
+
+# La mayoría de las pruebas usan el fixture `client` de abajo, que overridea
+# get_db con su propia SQLite aislada por test. Pero algunas (p. ej.
+# test_proxy_headers.py) reconstruyen la app directamente con TestClient, sin
+# pasar por ese override, y get_db() real intentaría conectar a la Postgres
+# de docker-compose (host "db"), inalcanzable fuera de esos contenedores. Para
+# que esas pruebas no dependan de infraestructura viva, aquí se sustituye el
+# engine por defecto de app.database por una SQLite en memoria hermética con
+# las tablas creadas (vacía; alcanza para consultas que no esperan datos).
+_engine_por_defecto = create_engine(
+    "sqlite://",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+database.engine = _engine_por_defecto
+database.SessionLocal = sessionmaker(bind=_engine_por_defecto, autocommit=False, autoflush=False)
+Base.metadata.create_all(_engine_por_defecto)
 
 
 @pytest.fixture
