@@ -4,6 +4,8 @@ Punto de entrada de la API (FastAPI).
 Usa la configuracion central de base de datos (app/database.py) y los
 modelos (app/models.py). La documentacion interactiva queda en /docs.
 """
+import logging
+
 from fastapi import Depends, FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -13,16 +15,27 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models  # noqa: F401  -> registra los modelos en la metadata
 from app.rate_limit import limiter
+from app.security_headers import SecurityHeadersMiddleware
 from app.routers import (
     auth, torneos, reservas, partidos, estadisticas,
     sedes, canchas, usuarios, publico, solicitudes, equipos, invitaciones,
     notificaciones, jugador, pagos, inscripciones,
 )
 
+# Logging basico: sin esto, las lineas de auditoria (app/audit.py) no saldrian
+# por ningun lado.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
 app = FastAPI(
     title="API - Sistema Integral de Canchas y Torneos de Futbol",
     version="0.1.0",
 )
+
+# Cabeceras de seguridad en todas las respuestas (ver app/security_headers.py).
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate limiting: registra el limiter y el manejador que responde 429 al superar
 # el tope de peticiones (ver app/rate_limit.py).

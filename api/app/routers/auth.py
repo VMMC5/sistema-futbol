@@ -9,6 +9,7 @@ Endpoints de autenticación.
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.database import get_db
 from app import models
 from app.deps import get_current_user, require_roles
@@ -57,16 +58,21 @@ def registrar(datos: RegistroUsuario, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 @limiter.limit(LOGIN_RATE_LIMIT)
 def login(request: Request, datos: LoginRequest, db: Session = Depends(get_db)):
-    # 'request' lo exige slowapi para identificar la IP; no se usa en la lógica.
+    # 'request' lo exige slowapi para identificar la IP; también da la IP que se
+    # deja registrada en la auditoría.
+    ip = audit.ip_de(request)
     usuario = db.query(models.Usuario).filter_by(correo=datos.correo).first()
 
     # Mismo mensaje para correo inexistente o contraseña incorrecta:
     # no revelar cuál de los dos falló.
     if usuario is None or not verify_password(datos.password, usuario.password_hash):
+        audit.registrar(audit.LOGIN_FALLIDO, objetivo=datos.correo, ip=ip)
         raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos")
     if not usuario.activo:
+        audit.registrar(audit.LOGIN_CUENTA_DESACTIVADA, actor_id=usuario.id, ip=ip)
         raise HTTPException(status_code=403, detail="La cuenta está desactivada")
 
+    audit.registrar(audit.LOGIN_EXITOSO, actor_id=usuario.id, ip=ip)
     token = create_access_token(usuario_id=usuario.id, rol=usuario.rol.nombre)
     return Token(access_token=token, debe_cambiar_password=usuario.debe_cambiar_password)
 
@@ -112,6 +118,7 @@ def cambiar_password(
     usuario.password_hash = hash_password(datos.password_nueva)
     usuario.debe_cambiar_password = False
     db.commit()
+    audit.registrar(audit.PASSWORD_CAMBIADA, actor_id=usuario.id)
     return {"mensaje": "Contraseña actualizada"}
 
 
