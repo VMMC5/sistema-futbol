@@ -43,6 +43,39 @@ app.config["SESSION_COOKIE_SECURE"] = os.getenv("FLASK_ENV") != "development"
 API_URL = os.getenv("API_URL", "http://api:8000")
 TIMEOUT = 5
 
+# Politica de seguridad de contenido del panel.
+#   script-src 'self'  -> estricto: las plantillas no llevan <script> inline, y
+#                         esto es lo que de verdad frena la ejecucion de XSS.
+#   style-src 'unsafe-inline' -> necesario: varias plantillas usan atributos
+#                         style="..."; sin esto el panel se ve roto.
+#   fonts.googleapis / fonts.gstatic -> tipografias que carga base.html.
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "img-src 'self' data:; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)
+
+
+@app.after_request
+def cabeceras_de_seguridad(respuesta):
+    """Cabeceras de seguridad en todas las respuestas del panel."""
+    respuesta.headers.setdefault("Content-Security-Policy", CSP)
+    respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
+    respuesta.headers.setdefault("X-Frame-Options", "DENY")
+    respuesta.headers.setdefault("Referrer-Policy", "no-referrer")
+    # HSTS solo fuera de desarrollo: en local se sirve por HTTP plano y esta
+    # cabecera forzaria https, dejando el panel inaccesible.
+    if os.getenv("FLASK_ENV") != "development":
+        respuesta.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return respuesta
+
 
 # ----------------------------------------------------------------------
 # Helpers para hablar con la API

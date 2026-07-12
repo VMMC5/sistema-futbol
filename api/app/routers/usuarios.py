@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models
+from app import audit, models
 from app.deps import get_current_user, require_roles
 from app.schemas import UsuarioAdminCreate, UsuarioAdminOut, UsuarioAdminUpdate
 from app.security import hash_password
@@ -84,6 +84,10 @@ def crear_usuario(
     db.add(usuario)
     db.commit()
     db.refresh(usuario)
+    audit.registrar(
+        audit.USUARIO_CREADO, actor_id=_admin.id, objetivo=usuario.id,
+        detalle=f"rol={rol.nombre}",
+    )
     return _to_out(usuario)
 
 
@@ -117,4 +121,10 @@ def actualizar_usuario(
 
     db.commit()
     db.refresh(usuario)
+    # Solo los NOMBRES de los campos tocados: 'cambios' lleva la contraseña en
+    # claro y esa no debe acabar nunca en los logs.
+    audit.registrar(
+        audit.USUARIO_ACTUALIZADO, actor_id=admin.id, objetivo=usuario.id,
+        detalle=f"campos={','.join(sorted(cambios))}",
+    )
     return _to_out(usuario)

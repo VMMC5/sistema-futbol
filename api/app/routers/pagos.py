@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models, pagos_service, recibo_pdf
+from app import audit, models, pagos_service, recibo_pdf
 from app.deps import get_current_user, require_roles
 from app.schemas import PagoCreate, PagoOut
 
@@ -60,7 +60,12 @@ def confirmar_pago(
     pago = db.get(models.Pago, pago_id)
     if pago is None:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
-    return pagos_service.confirmar_pago(db, pago)
+    confirmado = pagos_service.confirmar_pago(db, pago)
+    audit.registrar(
+        audit.PAGO_CONFIRMADO, actor_id=_admin.id, objetivo=pago.id,
+        detalle=f"monto={pago.monto} metodo={pago.metodo}",
+    )
+    return confirmado
 
 
 @router.get("", response_model=list[PagoOut])

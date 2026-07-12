@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models
+from app import audit, models
 from app.deps import require_roles
 from app.email_utils import enviar_correo
 from app.schemas import RechazoSolicitud, SolicitudOut
@@ -150,6 +150,12 @@ def aceptar_solicitud(
     solicitud.estado = "aceptada"
     db.commit()
 
+    # Se audita el alta, nunca la contraseña temporal.
+    audit.registrar(
+        audit.SOLICITUD_ACEPTADA, actor_id=_admin.id, objetivo=solicitud.id,
+        detalle=f"usuario_creado={usuario.id} rol={rol.nombre}",
+    )
+
     # Correo con las credenciales temporales
     enviar_correo(
         destinatario=solicitud.correo,
@@ -185,6 +191,10 @@ def rechazar_solicitud(
     solicitud.estado = "rechazada"
     solicitud.motivo = datos.motivo
     db.commit()
+
+    audit.registrar(
+        audit.SOLICITUD_RECHAZADA, actor_id=_admin.id, objetivo=solicitud.id,
+    )
 
     enviar_correo(
         destinatario=solicitud.correo,
