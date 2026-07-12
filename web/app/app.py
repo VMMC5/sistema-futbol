@@ -19,8 +19,16 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+
+# nginx termina el TLS y habla con Flask por HTTP plano. Sin esto, Flask creería
+# que el esquema es http y construiría las redirecciones (p. ej. la del login)
+# con http://, sacando al usuario de HTTPS en el primer clic.
+# Solo se activa detrás del proxy: la cabecera es falsificable en acceso directo.
+if os.getenv("TRUSTED_PROXIES", "").strip():
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1, x_host=1)
 
 # SECRET_KEY firma la cookie de sesion de Flask: sin ella un atacante podria
 # falsificar sesiones, asi que el panel se niega a arrancar si falta.
