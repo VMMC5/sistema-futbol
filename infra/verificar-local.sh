@@ -121,6 +121,44 @@ salida=$($PRIVADO exec -T db psql -U "${DB_APP_USER:-torneos_app}" -d "${DB_NAME
 echo "$salida" | grep -qi "permission denied" && ok "DDL denegado: $salida" \
                                               || fallo "pudo hacer DDL: $salida"
 
+echo "=== 12. Todos los servicios reportan 'healthy' ==="
+# Los healthchecks son la base del monitoreo: sin ellos, Docker no sabe si un
+# contenedor está vivo pero roto, y Uptime Kuma no tendría qué vigilar.
+enfermos=$(docker ps --filter "name=torneos_prod" --format '{{.Names}} {{.Status}}' |
+           grep -v "(healthy)" || true)
+if [ -z "$enfermos" ]; then
+    ok "los 6 contenedores están healthy"
+else
+    fallo "hay contenedores sin healthcheck o enfermos:"
+    echo "$enfermos" | sed 's/^/          /'
+fi
+
+echo "=== 13. El panel de monitoreo (Uptime Kuma) responde en SU puerto ==="
+# Kuma va en el 8443, no en el sitio público. Dos motivos: no puede servirse
+# desde un subpath (habría que cederle ~24 rutas de primer nivel, que ganarían
+# sobre las del panel), y hasta que se crea su usuario admin sirve la pantalla
+# de configuración inicial a QUIEN LA PIDA. El firewall abre el 8443 solo a la
+# IP de administración.
+titulo=$(curl -skL --max-time 5 https://localhost:8443/ | grep -oiE "<title>[^<]*</title>" | head -1)
+echo "$titulo" | grep -qi "uptime kuma" && ok "Kuma sirve su panel ($titulo)" \
+                                        || fallo "Kuma no responde en el 8443: $titulo"
+
+echo "=== 14. Kuma NO contamina el sitio público ==="
+# /dashboard es una ruta de Kuma. En el sitio público debe caer en el panel
+# Flask (que no la tiene -> 404), NO en Kuma.
+codigo=$(curl -sk -o /dev/null -w "%{http_code}" https://localhost/dashboard)
+[ "$codigo" = "404" ] && ok "/dashboard va al panel, no a Kuma" \
+                      || fallo "/dashboard devolvió $codigo: Kuma se está comiendo rutas del sitio público"
+
+echo "=== 15. nginx deja logs que fail2ban pueda leer ==="
+# fail2ban corre en el HOST y no puede leer `docker logs`. Sin este montaje, las
+# jaulas de nginx no vigilarían nada y el firewall quedaría sin monitoreo web.
+if [ -s /var/log/nginx-torneos/access.log ]; then
+    ok "nginx escribe /var/log/nginx-torneos/access.log ($(wc -l < /var/log/nginx-torneos/access.log) líneas)"
+else
+    fallo "no hay access.log en el host: fail2ban no podría vigilar nginx"
+fi
+
 echo
 if [ "$fallos" -eq 0 ]; then
     echo "TODO CORRECTO: la infraestructura cumple lo que promete."

@@ -121,6 +121,19 @@ services:
       TRUSTED_PROXIES: "*"
     volumes:
       - uploads:/datos/uploads
+    # La imagen base es python:3.12-slim: NO trae curl ni wget. El healthcheck se
+    # hace con el propio python, que sí está. urlopen lanza excepción si el código
+    # no es 2xx, así que un /health caído (o un 500) marca el contenedor unhealthy.
+    # Esto es lo que alimenta el `(healthy)` de `docker compose ps` y lo que
+    # permite que otros servicios esperen con `condition: service_healthy`.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # 20s de gracia: uvicorn con 2 workers tarda un par de segundos en aceptar
+      # conexiones. Sin start_period, los primeros fallos contarían como reintentos.
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
@@ -152,6 +165,16 @@ services:
       # api2, así que la DNS de Docker devuelve las dos IPs y Python las prueba
       # en orden. Si cae una réplica, el panel sigue funcionando con la otra.
       API_URL: http://api:8000
+    # Misma restricción que la API (python:3.12-slim, sin curl ni wget): se
+    # comprueba con python. Se pide /login y no `/`, porque `/` redirige (302) y
+    # urlopen seguiría la redirección hasta el login de todas formas; pedirlo
+    # directo hace la comprobación explícita: 200 = gunicorn vivo y renderizando.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/login', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
       - api1
       - api2

@@ -21,16 +21,38 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      # Monitoreo (Uptime Kuma) en un puerto aparte, no en el sitio público. El
+      # firewall lo abre SOLO a la IP de administración: Kuma sirve su pantalla
+      # de configuración inicial a quien la pida hasta que se crea el admin, así
+      # que expuesto a internet cualquiera podría apropiarse del panel.
+      - "8443:8443"
     environment:
       # Direcciones de los backends. En local son nombres de contenedor; en AWS,
       # la IP privada de la otra EC2 con sus puertos. El .template no cambia.
       API_1: ${API_1:-api1:8000}
       API_2: ${API_2:-api2:8000}
       WEB_1: ${WEB_1:-web:5000}
+      # Panel de monitoreo. Vive en este mismo compose, así que en local y en AWS
+      # es siempre el nombre del contenedor: nunca sale del servidor público.
+      KUMA_1: ${KUMA_1:-kuma:3001}
     volumes:
       # La imagen oficial procesa estas plantillas con envsubst al arrancar.
       - ./infra/nginx/templates:/etc/nginx/templates:ro
+      # Trozos de configuración reutilizados por varias `location` (las cabeceras
+      # WebSocket de Uptime Kuma). Van FUERA de templates/ a propósito: envsubst
+      # se pasa por todo lo que hay allí y se comería $http_upgrade.
+      - ./infra/nginx/snippets:/etc/nginx/snippets:ro
       - ./infra/nginx/certs:/etc/nginx/certs:ro
+      # LOGS PARA fail2ban. fail2ban corre en el HOST (no en un contenedor) y
+      # necesita LEER los logs de nginx. Por defecto la imagen enlaza
+      # /var/log/nginx/{access,error}.log a /dev/stdout y /dev/stderr: los logs
+      # solo salen por `docker logs`, que fail2ban no sabe leer.
+      # Al montar un directorio del host encima, esos symlinks desaparecen y
+      # nginx escribe ficheros de verdad, que quedan en el host y fail2ban sí
+      # puede vigilar (ver infra/fail2ban/jail.local: logpath apunta aquí).
+      # Efecto secundario esperado: `docker logs torneos_prod_nginx` deja de
+      # mostrar peticiones; están en /var/log/nginx-torneos/access.log.
+      - /var/log/nginx-torneos:/var/log/nginx
       # Webroot del desafío HTTP-01 de certbot. Es un bind mount, NO un volumen
       # nombrado, a propósito: certbot corre en su propio `docker run`, fuera de
       # este compose, y un volumen nombrado llevaría el prefijo del proyecto
@@ -38,11 +60,56 @@ services:
       # volumen DISTINTO y el desafío se escribiría donde nginx no lo sirve.
       # Con una ruta del host, los dos escriben y leen el mismo sitio.
       - ./infra/certbot-www:/var/www/certbot
-    # El healthcheck de nginx lo añade la Fase 2, junto con el resto del
-    # monitoreo. (La imagen alpine trae BusyBox wget, cuyo soporte de TLS es
-    # limitado; conviene resolverlo allí y no improvisarlo aquí.)
+    # Se comprueba contra /nginx-salud en el puerto 80 (ver el .template), NO
+    # contra https ni contra `/`. Dos razones, las dos verificadas a mano:
+    #   1. BusyBox wget (lo único que trae nginx:alpine) SIGUE las redirecciones.
+    #      Pedir `/` en el 80 devuelve un 301 a https://... y wget lo sigue hasta
+    #      el 443, donde muere validando el certificado autofirmado. El
+    #      healthcheck quedaría unhealthy para siempre.
+    #   2. Hay que usar 127.0.0.1, no `localhost`: dentro del contenedor
+    #      `localhost` resuelve primero a ::1, nginx solo escucha en IPv4 y
+    #      BusyBox wget NO reintenta con la IPv4 -> "Connection refused".
+    # /nginx-salud devuelve 200 sin tocar los backends: comprueba que nginx está
+    # vivo, que es lo que este healthcheck debe decir. Si además cayera la API,
+    # eso lo reporta el healthcheck de la API (y Uptime Kuma).
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-salud"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks:
       - privada
+
+  # MONITOREO. Panel de uptime: hace ping a la API, al panel y a la propia web
+  # pública, guarda el histórico y avisa cuando algo se cae.
+  #
+  # Vive en el servidor PÚBLICO a propósito: si estuviera en el privado y cayera
+  # la red entre ambos, el panel que debe avisarte del corte sería inalcanzable.
+  kuma:
+    image: louislam/uptime-kuma:1
+    container_name: torneos_prod_kuma
+    restart: unless-stopped
+    # SIN `ports`. Uptime Kuma no debe quedar colgando en el 3001 del host, en
+    # claro y saltándose el firewall (Docker escribe sus reglas de publicación por
+    # DELANTE de las de ufw). Solo se llega a él a través de nginx, bajo HTTPS, en
+    # el puerto 8443 — un puerto propio, no el sitio público:
+    #   - Kuma 1.x no se puede servir desde un subpath (su HTML ancla los recursos
+    #     a la raíz), y meterlo en el sitio principal obligaba a reservarle ~24
+    #     rutas de primer nivel que GANABAN sobre las del panel de administración.
+    #   - Hasta que se crea su usuario admin, Kuma sirve la pantalla de
+    #     configuración inicial a QUIEN LA PIDA: expuesto a internet, cualquiera
+    #     podría adelantarse y apropiarse del panel. El firewall abre el 8443 solo
+    #     desde la IP de administración.
+    volumes:
+      - kuma:/app/data
+    networks:
+      - privada
+
+volumes:
+  # Histórico de monitoreo (SQLite). Volumen nombrado: sin él, cada `up` se
+  # llevaría por delante los monitores configurados y sus estadísticas.
+  kuma:
 
 networks:
   privada:
