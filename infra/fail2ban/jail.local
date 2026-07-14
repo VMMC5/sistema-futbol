@@ -1,0 +1,154 @@
+# fail2ban — jaulas del sistema de torneos
+# ========================================
+#
+# Se instala en /etc/fail2ban/jail.local con:
+#
+#     sudo ./infra/fail2ban/instalar-fail2ban.sh <publica|privada>
+#
+#
+# ¿POR QUÉ FAIL2BAN? Porque el requisito del PI no dice "aplicar un firewall":
+# dice "APLICACIÓN Y MONITOREO de Firewall".
+#
+#   - `configurar-firewall.sh` APLICA: decide qué puertos están abiertos y para
+#     quién. Es una foto fija: no aprende, no reacciona.
+#   - fail2ban MONITOREA: lee continuamente los logs de los servicios que SÍ
+#     están abiertos (SSH, nginx), detecta patrones de ataque (fuerza bruta,
+#     escaneo de rutas) y MODIFICA el firewall en caliente para banear a quien
+#     ataca. Es la parte viva.
+#
+# Sin fail2ban, el 22, el 80 y el 443 están abiertos y un atacante puede probar
+# contraseñas indefinidamente: el firewall no se entera de nada porque, desde su
+# punto de vista, ese tráfico es legítimo (va a un puerto permitido).
+#
+#
+# *** LA TRAMPA DE DOCKER, OTRA VEZ ***
+#
+# Por defecto fail2ban banea insertando reglas en la cadena INPUT. Pero nginx
+# corre en un CONTENEDOR: su tráfico llega por DNAT + FORWARD, no por INPUT
+# (ver la cabecera de infra/firewall/configurar-firewall.sh). Un baneo en INPUT
+# NO BLOQUEARÍA al atacante: fail2ban diría "IP baneada", el informe se vería
+# precioso, y el atacante seguiría entrando tan tranquilo.
+#
+# Por eso las jaulas de nginx llevan `chain = DOCKER-USER`: fail2ban engancha
+# ahí su cadena de baneos, que es la única que Docker consulta antes que las
+# suyas. La jaula de SSH NO lo lleva: sshd corre en el host, su tráfico sí pasa
+# por INPUT, y ahí el comportamiento por defecto es el correcto.
+
+[DEFAULT]
+
+# Redes que NUNCA se banean, para no dejarnos fuera a nosotros mismos:
+#   127.0.0.1/8   loopback
+#   10.0.0.0/16   la VPC entera (docs/DESPLIEGUE.md) -> incluye a nginx llamando
+#                 a la EC2 privada. Si nginx se autobaneara, caería el sistema.
+#   172.16.0.0/12 rango por defecto de las redes bridge de Docker
+#
+# AÑADE AQUÍ TU IP DE ADMINISTRACIÓN antes de instalar: si te equivocas tres
+# veces con la clave SSH, te baneas a ti mismo y hay que entrar por la consola
+# serie de AWS para arreglarlo.
+ignoreip = 127.0.0.1/8 ::1 10.0.0.0/16 172.16.0.0/12
+
+# Ventana en la que se cuentan los intentos fallidos.
+findtime = 10m
+
+# Cuánto dura el baneo. 1 hora para el primer baneo; los reincidentes escalan
+# (ver bantime.increment).
+bantime  = 1h
+
+# Escalado: quien vuelve a caer, es baneado más tiempo cada vez (1h, 2h, 4h...).
+# Un escáner automatizado acaba fuera durante días sin intervención humana.
+bantime.increment = true
+bantime.factor    = 2
+bantime.maxtime   = 1w
+
+# Acción de baneo por defecto: iptables. La sobrescribimos por jaula donde haga
+# falta (nginx -> DOCKER-USER).
+banaction = iptables-multiport
+
+# Backend de lectura de logs. `auto` usa systemd donde lo hay (sshd en Ubuntu ya
+# no escribe /var/log/auth.log en todas las versiones) y ficheros donde no.
+backend = auto
+
+
+# ---------------------------------------------------------------------------
+# SSH — las dos EC2
+# ---------------------------------------------------------------------------
+#
+# sshd corre en el HOST, no en un contenedor: su tráfico pasa por INPUT y el
+# baneo por defecto (chain = INPUT) es el correcto. NO poner DOCKER-USER aquí.
+#
+# En la EC2 pública el 22 solo está abierto para ADMIN_IP, y en la privada solo
+# para el bastión, así que esta jaula es una segunda capa: cubre el caso de que
+# alguien comprometa la máquina de administración o el propio bastión.
+[sshd]
+enabled  = true
+port     = ssh
+# systemd: en Ubuntu 22.04+ sshd registra en el journal, no en /var/log/auth.log.
+backend  = systemd
+maxretry = 4
+bantime  = 1h
+
+
+# ---------------------------------------------------------------------------
+# nginx — SOLO en la EC2 pública (es la única donde corre nginx)
+# ---------------------------------------------------------------------------
+#
+# LOS LOGS: nginx corre en un contenedor, así que sus logs NO están en el
+# /var/log/nginx del host, sino dentro del contenedor (y, de hecho, la imagen
+# oficial los redirige a /dev/stdout y /dev/stderr, o sea, a `docker logs`).
+# fail2ban no puede leer eso.
+#
+# SOLUCIÓN (hay que aplicarla en docker-compose.publico.yml, ver el informe):
+# montar un directorio del host sobre /var/log/nginx del contenedor:
+#
+#     services:
+#       nginx:
+#         volumes:
+#           - /var/log/nginx-torneos:/var/log/nginx
+#
+# Al montar encima, los symlinks a /dev/stdout de la imagen desaparecen y nginx
+# escribe ficheros de verdad, que quedan en el host: /var/log/nginx-torneos/access.log
+# y error.log. Ahí es donde apuntan las jaulas de abajo.
+#
+# El formato de log es el `combined` por defecto de nginx, que es justamente el
+# que esperan los filtros que trae fail2ban. No hay que tocar el template.
+
+# Escaneo de rutas conocidas de otros sistemas (/wp-login.php, /.env, /admin.php,
+# /phpmyadmin...). Es el 90 % del ruido que recibe cualquier IP pública: bots
+# buscando WordPress. Nuestro sistema no tiene ninguna de esas rutas, así que
+# quien las pide no es un usuario: es un escáner. Fuera.
+# El filtro `nginx-botsearch` viene de serie con fail2ban.
+[nginx-botsearch]
+# Se deja apagada AQUÍ a propósito: jail.local se instala en las DOS VMs, y en la
+# privada no hay nginx ni su access.log (fail2ban fallaría al arrancar y la
+# dejaría sin vigilancia de SSH). El instalador la enciende SOLO en la pública,
+# vía /etc/fail2ban/jail.d/nginx-torneos.local.
+enabled   = false
+port      = http,https
+logpath   = /var/log/nginx-torneos/access.log
+           /var/log/nginx-torneos/error.log
+maxretry  = 3
+findtime  = 10m
+bantime   = 24h
+# CLAVE: el baneo tiene que ir a DOCKER-USER, no a INPUT, o no bloquea nada.
+banaction = iptables-allports[chain=DOCKER-USER]
+
+# Fuerza bruta contra el login. Filtro propio: infra/fail2ban/filter.d/torneos-login.conf
+# (los filtros de serie de nginx no conocen nuestras rutas).
+[torneos-login]
+# Apagada aquí por el mismo motivo que nginx-botsearch: la enciende el instalador
+# solo en la EC2 pública, que es donde existe el log de nginx.
+enabled   = false
+port      = http,https
+filter    = torneos-login
+logpath   = /var/log/nginx-torneos/access.log
+maxretry  = 5
+findtime  = 10m
+bantime   = 2h
+banaction = iptables-allports[chain=DOCKER-USER]
+
+# NOTA SOBRE `enabled = false` EN LAS DOS JAULAS DE NGINX:
+# Se dejan desactivadas a propósito. `instalar-fail2ban.sh publica` las activa
+# (y comprueba antes que el directorio de logs existe); en la EC2 PRIVADA no hay
+# nginx, así que si estuvieran activadas fail2ban arrancaría quejándose de un
+# logpath inexistente y podría no arrancar en absoluto, dejando también el SSH
+# sin vigilancia. Mejor que las active quien sabe en qué máquina está.

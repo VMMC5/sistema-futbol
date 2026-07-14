@@ -12,10 +12,32 @@ upstream panel_backend {
     server ${WEB_1};
 }
 
+# Panel de monitoreo (Uptime Kuma). Corre en el propio servidor público.
+upstream kuma_backend {
+    server ${KUMA_1};
+}
+
 # Todo el tráfico en claro se redirige a HTTPS.
 server {
     listen 80;
     server_name _;
+
+    # Salud del propio nginx: lo consulta su HEALTHCHECK de Docker.
+    #
+    # Está aquí, en el 80 y ANTES del redirect, y no en el 443, porque el único
+    # cliente HTTP de la imagen nginx:alpine es BusyBox wget: sigue los 301, y al
+    # llegar al 443 se estrella contra el certificado autofirmado. Un 200 directo
+    # y en claro, sobre el loopback, evita todo eso.
+    #
+    # No toca los backends: dice "nginx está vivo", no "el sistema entero va
+    # bien" (de eso se encargan los healthchecks de la API/panel y Uptime Kuma).
+    location = /nginx-salud {
+        access_log off;          # si no, ensucia el log que vigila fail2ban
+        allow 127.0.0.1;         # solo desde dentro del contenedor
+        deny all;                # desde internet, 403: no se anuncia nada
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
 
     # Reservado para el desafío HTTP-01 de certbot cuando exista el dominio.
     location /.well-known/acme-challenge/ {
@@ -73,8 +95,45 @@ server {
         proxy_pass http://api_backend/;
     }
 
+    # ------------------------------------------------------------------
+    # MONITOREO — Uptime Kuma, detrás del mismo TLS y sin puerto propio.
     # El panel de administración.
     location / {
         proxy_pass http://panel_backend;
+    }
+}
+
+# ----------------------------------------------------------------------
+# MONITOREO (Uptime Kuma) — en su PROPIO puerto, no en el sitio público.
+# ----------------------------------------------------------------------
+# Kuma 1.x no se puede servir desde un subpath: su HTML referencia los recursos
+# anclados a la raíz (`/assets/...`, `/icon.svg`) y su router navega a
+# /dashboard, no a /monitor/dashboard. Meterlo en el sitio principal obligaba a
+# reservarle ~24 rutas de primer nivel, que además GANABAN sobre las del panel:
+# el día que el panel necesitara /settings o /status, dejaría de funcionar.
+#
+# Servirlo en un puerto aparte lo resuelve de raíz y, de paso, cierra un agujero:
+# Kuma sirve su pantalla de configuración inicial a QUIEN LA PIDA hasta que se
+# crea el usuario admin. Expuesto a internet, cualquiera podría adelantarse y
+# apropiarse del panel de monitoreo. El firewall abre este puerto SOLO a la IP de
+# administración (ver infra/firewall/configurar-firewall.sh).
+server {
+    listen 8443 ssl;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location / {
+        # Sin barra final: el URI se pasa tal cual y Kuma queda en su raíz.
+        proxy_pass http://kuma_backend;
+        include /etc/nginx/snippets/kuma-ws.conf;
     }
 }
