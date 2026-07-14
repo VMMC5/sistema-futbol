@@ -1,0 +1,50 @@
+# SERVIDOR PÚBLICO — en AWS, la EC2 CON IP pública.
+#
+# Es el único punto de entrada del sistema. Termina el TLS, es el dueño de la
+# cabecera HSTS y balancea entre las dos réplicas de la API que viven en el
+# servidor privado.
+#
+# Uso:
+#   ./infra/nginx/generar-certificado.sh          # solo la primera vez
+#   docker compose -f docker-compose.publico.yml up -d
+
+# Proyecto PROPIO, igual que el compose privado: así la prueba local de
+# producción no comparte volúmenes ni nombres de contenedor con el compose de
+# desarrollo (que se llama `sistema-futbol`, por el directorio).
+name: torneos-prod
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: torneos_prod_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Direcciones de los backends. En local son nombres de contenedor; en AWS,
+      # la IP privada de la otra EC2 con sus puertos. El .template no cambia.
+      API_1: ${API_1:-api1:8000}
+      API_2: ${API_2:-api2:8000}
+      WEB_1: ${WEB_1:-web:5000}
+    volumes:
+      # La imagen oficial procesa estas plantillas con envsubst al arrancar.
+      - ./infra/nginx/templates:/etc/nginx/templates:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+      # Webroot del desafío HTTP-01 de certbot. Es un bind mount, NO un volumen
+      # nombrado, a propósito: certbot corre en su propio `docker run`, fuera de
+      # este compose, y un volumen nombrado llevaría el prefijo del proyecto
+      # (`torneos-prod_certbot_www`), así que `-v certbot_www:...` crearía un
+      # volumen DISTINTO y el desafío se escribiría donde nginx no lo sirve.
+      # Con una ruta del host, los dos escriben y leen el mismo sitio.
+      - ./infra/certbot-www:/var/www/certbot
+    # El healthcheck de nginx lo añade la Fase 2, junto con el resto del
+    # monitoreo. (La imagen alpine trae BusyBox wget, cuyo soporte de TLS es
+    # limitado; conviene resolverlo allí y no improvisarlo aquí.)
+    networks:
+      - privada
+
+networks:
+  privada:
+    external: true
+    name: torneos_privada

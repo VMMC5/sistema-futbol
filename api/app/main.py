@@ -5,12 +5,14 @@ Usa la configuracion central de base de datos (app/database.py) y los
 modelos (app/models.py). La documentacion interactiva queda en /docs.
 """
 import logging
+import os
 
 from fastapi import Depends, FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.database import get_db
 from app import models  # noqa: F401  -> registra los modelos en la metadata
@@ -33,6 +35,16 @@ app = FastAPI(
     title="API - Sistema Integral de Canchas y Torneos de Futbol",
     version="0.1.0",
 )
+
+# Detrás de nginx, la IP del cliente llega en X-Forwarded-For. Sin esto, el rate
+# limiting agruparía a TODOS los usuarios bajo la IP del proxy (un solo cupo para
+# el mundo entero) y la auditoría registraría siempre esa misma IP.
+#
+# Solo se confía en la cabecera si TRUSTED_PROXIES está definida: sin proxy
+# delante, cualquiera podría falsificarla para saltarse el rate limiting.
+PROXIES_DE_CONFIANZA = os.getenv("TRUSTED_PROXIES", "").strip()
+if PROXIES_DE_CONFIANZA:
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=PROXIES_DE_CONFIANZA)
 
 # Cabeceras de seguridad en todas las respuestas (ver app/security_headers.py).
 app.add_middleware(SecurityHeadersMiddleware)

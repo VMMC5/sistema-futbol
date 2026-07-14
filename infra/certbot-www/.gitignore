@@ -1,0 +1,7 @@
+# Webroot del desafío HTTP-01 de certbot (ver docs/DESPLIEGUE.md, sección 8).
+# nginx sirve este directorio en /.well-known/acme-challenge/, y certbot escribe
+# aquí el reto que Let's Encrypt viene a leer. El contenido es efímero: se ignora.
+# El directorio SÍ tiene que existir, porque docker-compose.publico.yml lo monta.
+*
+!.gitignore
+!.gitkeep

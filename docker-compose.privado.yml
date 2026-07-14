@@ -1,0 +1,173 @@
+# SERVIDOR PRIVADO — en AWS, la EC2 SIN IP pública.
+#
+# Aquí vive todo lo que no debe ser alcanzable desde internet: la API (en dos
+# réplicas, para que nginx pueda balancear), el panel y la base de datos.
+# Su Security Group solo admite tráfico originado en la EC2 pública.
+#
+# Uso:
+#   docker compose -f docker-compose.privado.yml up -d --build
+#   docker compose -f docker-compose.privado.yml --profile migraciones run --rm migraciones
+#
+# Las migraciones NO se corren con `exec api1`: los contenedores de la API no
+# tienen credenciales de admin de la base, así que Alembic fallaría con
+# "permission denied for schema public". Corren en el servicio efímero
+# `migraciones`, que es el único que las recibe (ver más abajo).
+#
+# El seed NO corre aquí: APP_ENV=production hace que aborte.
+
+# Proyecto PROPIO, separado del de desarrollo (que toma el nombre del directorio,
+# `sistema-futbol`). Sin esto, ambos compartirían el volumen `pgdata` y los
+# nombres de contenedor: probar producción en local machacaría la base de datos
+# de desarrollo, y al revés, un volumen de desarrollo ya existente impediría que
+# corriera el script de init de Postgres (que solo corre con volumen nuevo), con
+# lo que los roles no se crearían y las migraciones fallarían con
+# `role "torneos_admin" does not exist`.
+name: torneos-prod
+
+services:
+  db:
+    image: postgres:16
+    container_name: torneos_prod_db
+    restart: unless-stopped
+    environment:
+      # POSTGRES_USER es el dueño del esquema: lo usan las migraciones.
+      POSTGRES_USER: ${DB_ADMIN_USER}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      # El script de init crea con estas el usuario limitado de la API.
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Solo se ejecuta al crear el volumen (base nueva).
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - privada
+
+  # Migraciones. Contenedor EFÍMERO: es el único que recibe las credenciales de
+  # admin (las que pueden alterar el esquema). Los contenedores de la API, que
+  # están permanentemente en marcha y expuestos a través de nginx, NO las tienen:
+  # si alguien comprometiera la API, en su entorno no habría credenciales de
+  # administrador de la base.
+  #
+  # Por eso ningún servicio usa `env_file: .env`: eso volcaría el fichero ENTERO
+  # —DB_ADMIN_* incluidas— en el entorno de cada contenedor, anulando justamente
+  # esta separación. Cada servicio declara solo las variables que necesita.
+  #
+  # El perfil evita que arranque con `up`. Se lanza a mano:
+  #   docker compose -f docker-compose.privado.yml --profile migraciones \
+  #     run --rm migraciones
+  migraciones:
+    build: ./api
+    profiles: ["migraciones"]
+    command: alembic upgrade head
+    environment:
+      APP_ENV: production
+      # Alembic necesita DDL: se conecta con el dueño del esquema.
+      # (api/migrations/url_bd.py prefiere DB_ADMIN_* sobre DB_USER/DB_PASSWORD.)
+      DB_ADMIN_USER: ${DB_ADMIN_USER}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      SECRET_KEY: ${SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - privada
+
+  # Dos réplicas reales de la API: es lo que nginx balancea.
+  # Se puede apagar una y comprobar que el sistema sigue respondiendo.
+  api1: &api
+    build: ./api
+    container_name: torneos_prod_api1
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    # SIN `env_file`: aquí se enumeran, una a una, las únicas variables que la
+    # API necesita. Cualquier otra cosa que haya en el .env (empezando por las
+    # credenciales de admin de la base) NO entra en este contenedor.
+    environment:
+      APP_ENV: production
+      SECRET_KEY: ${SECRET_KEY}
+      # La API se conecta con el usuario LIMITADO, no con el dueño del esquema.
+      # Y NO recibe DB_ADMIN_*: no puede alterar el esquema ni aunque quisiera.
+      DB_USER: ${DB_APP_USER}
+      DB_PASSWORD: ${DB_APP_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-20/minute}
+      # Los documentos que suben los aspirantes van al volumen compartido de
+      # abajo, NO al sistema de ficheros del contenedor: con dos réplicas, un
+      # PDF subido a api1 tiene que poder servirlo api2 (si no, el admin ve un
+      # 404 la mitad de las veces). Fuera de /code para que no lo pise el build.
+      UPLOAD_DIR: /datos/uploads
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      # Solo nginx alcanza esta API, así que se puede confiar en su
+      # X-Forwarded-For para obtener la IP real del cliente.
+      TRUSTED_PROXIES: "*"
+    volumes:
+      - uploads:/datos/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      privada:
+        # Alias compartido por las DOS réplicas: `api` resuelve a las dos IPs.
+        # El panel lo usa para no quedar atado a api1 (ver `web`).
+        aliases:
+          - api
+
+  api2:
+    <<: *api
+    container_name: torneos_prod_api2
+
+  web:
+    build: ./web
+    container_name: torneos_prod_web
+    restart: unless-stopped
+    command: gunicorn app.app:app --bind 0.0.0.0:5000 --workers 4
+    # SIN `env_file`, por lo mismo que la API: el panel solo necesita firmar su
+    # cookie de sesión y saber dónde está la API. No pinta nada con las
+    # credenciales de la base.
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: ${SECRET_KEY}
+      TRUSTED_PROXIES: "*"
+      # El panel habla con la API por la red interna, sin pasar por nginx, pero
+      # NO contra una réplica concreta: `api` es el alias que comparten api1 y
+      # api2, así que la DNS de Docker devuelve las dos IPs y Python las prueba
+      # en orden. Si cae una réplica, el panel sigue funcionando con la otra.
+      API_URL: http://api:8000
+    depends_on:
+      - api1
+      - api2
+    networks:
+      - privada
+
+volumes:
+  pgdata:
+  # Documentos (PDF) que suben los aspirantes. Compartido por las dos réplicas y
+  # persistente: sin él, cada `up --build` se llevaría por delante los
+  # documentos ya subidos.
+  uploads:
+
+networks:
+  # En AWS esta red es la red privada de la VPC. En local, una red Docker
+  # externa que la simula (ver la guía de verificación).
+  privada:
+    external: true
+    name: torneos_privada
