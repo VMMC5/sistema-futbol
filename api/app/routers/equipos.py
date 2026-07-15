@@ -9,12 +9,12 @@ Reglas:
   no pertenezcan a ningún equipo. El jugador acepta o rechaza desde su app.
 - Un jugador pertenece a un solo equipo. Solo el entrenador lo quita.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models, stats
+from app import models, notificaciones_service, stats
 from app.deps import get_current_user, require_roles
 from app.schemas import (
     EquipoCreate, EquipoOut, EquipoUpdate, JugadorEquipoOut, JugadorEquipoUpdate,
@@ -308,7 +308,7 @@ def quitar_jugador(
 # ---------------------------------------------------------------- invitaciones (lado entrenador)
 @router.post("/{equipo_id}/invitaciones", response_model=InvitacionOut, status_code=status.HTTP_201_CREATED)
 def invitar_jugador(
-    equipo_id: int, datos: InvitacionCrear,
+    equipo_id: int, datos: InvitacionCrear, background_tasks: BackgroundTasks,
     db: Session = Depends(get_db), usuario: models.Usuario = Depends(get_current_user),
 ):
     eq = _equipo_o_404(db, equipo_id)
@@ -330,11 +330,11 @@ def invitar_jugador(
 
     inv = models.InvitacionEquipo(equipo_id=equipo_id, jugador_id=jugador.id)
     db.add(inv)
-    # Notificación interna para el jugador
-    db.add(models.Notificacion(
-        usuario_id=jugador.id, titulo="Invitación a equipo",
-        mensaje=f"{eq.nombre} te invitó a unirte al equipo.",
-    ))
+    # Notificación interna + push para el jugador
+    notificaciones_service.crear_notificacion(
+        db, jugador.id, "Invitación a equipo",
+        f"{eq.nombre} te invitó a unirte al equipo.", background_tasks,
+    )
     db.commit()
     db.refresh(inv)
     return inv

@@ -73,6 +73,7 @@ class Usuario(Base):
     partidos_arbitrados = relationship("Partido", back_populates="arbitro")
     notificaciones = relationship("Notificacion", back_populates="usuario")
     membresias = relationship("JugadorEquipo", back_populates="jugador")
+    dispositivos_push = relationship("DispositivoPush", back_populates="usuario")
 
 
 # ----------------------------------------------------------------------
@@ -411,6 +412,18 @@ class Notificacion(Base):
     creada_en = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("Usuario", back_populates="notificaciones")
+
+
+class DispositivoPush(Base):
+    __tablename__ = "dispositivos_push"
+
+    id = Column(Integer, primary_key=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    token = Column(String(255), unique=True, nullable=False)
+    plataforma = Column(String(20))
+    creado_en = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("Usuario", back_populates="dispositivos_push")
 
 
 # ----------------------------------------------------------------------

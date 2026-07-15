@@ -1,6 +1,7 @@
 // Contexto de autenticación: guarda el token y el usuario, y expone login/logout.
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { apiGet, apiPost, guardarToken, leerToken, borrarToken } from "./api";
+import { registrarParaPush, desregistrar } from "./push";
 
 const AuthContext = createContext(null);
 
@@ -16,6 +17,7 @@ export function AuthProvider({ children }) {
         if (t) {
           const me = await apiGet("/auth/me");
           setUsuario(me);
+          registrarParaPush();
         }
       } catch (_) {
         await borrarToken();
@@ -30,6 +32,7 @@ export function AuthProvider({ children }) {
     await guardarToken(r.access_token);
     const me = await apiGet("/auth/me");
     setUsuario(me);
+    registrarParaPush();
     return { debeCambiar: r.debe_cambiar_password, usuario: me };
   }
 
@@ -40,6 +43,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    await desregistrar();
     await borrarToken();
     setUsuario(null);
   }
