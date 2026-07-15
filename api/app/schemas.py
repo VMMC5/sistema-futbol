@@ -516,6 +516,11 @@ class NotificacionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DispositivoRegistro(BaseModel):
+    token: str = Field(min_length=1, max_length=255)
+    plataforma: str | None = Field(default=None, max_length=20)
+
+
 class PerfilUpdate(BaseModel):
     nombre: str | None = Field(default=None, min_length=2, max_length=80)
     telefono: str | None = Field(default=None, max_length=20)
