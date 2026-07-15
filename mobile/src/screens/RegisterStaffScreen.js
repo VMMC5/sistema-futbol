@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { apiPostForm } from "../api";
+import { validarSolicitudStaff } from "../validacion";
 import { colors, styles } from "../theme";
 
 export default function RegisterStaffScreen() {
@@ -29,6 +30,11 @@ export default function RegisterStaffScreen() {
   async function enviar() {
     setError("");
     setOk("");
+    const problema = validarSolicitudStaff(form);
+    if (problema) {
+      setError(problema);
+      return;
+    }
     if (!archivo) {
       setError("Adjunta tu documento (PDF o imagen).");
       return;

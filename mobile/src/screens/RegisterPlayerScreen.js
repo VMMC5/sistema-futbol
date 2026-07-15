@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { ScrollView, Text, TextInput, TouchableOpacity } from "react-native";
 import { apiPost } from "../api";
+import { validarRegistroJugador } from "../validacion";
 import { colors, styles } from "../theme";
 
 export default function RegisterPlayerScreen({ navigation }) {
@@ -13,6 +14,11 @@ export default function RegisterPlayerScreen({ navigation }) {
 
   async function registrar() {
     setError("");
+    const problema = validarRegistroJugador(form);
+    if (problema) {
+      setError(problema);
+      return;
+    }
     setCargando(true);
     try {
       await apiPost(
