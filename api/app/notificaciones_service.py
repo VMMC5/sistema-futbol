@@ -5,11 +5,15 @@ crear_notificacion() es la ÚNICA puerta para crear una notificación (salvo el
 seed): inserta la fila en BD y, si se le pasa un BackgroundTasks, encola el
 envío push. El envío es best-effort: nunca rompe la acción que lo originó.
 """
+import logging
+
 import httpx
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app import models
+
+logger = logging.getLogger(__name__)
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 _TIMEOUT = 10.0
@@ -44,14 +48,18 @@ def enviar_push(usuario_id: int, titulo: str, mensaje: str) -> None:
         ]
         try:
             tickets = _post_expo(mensajes)
-        except Exception:
-            return  # best-effort: no rompemos nada si Expo falla
+        except Exception as exc:
+            # best-effort: no rompemos nada si Expo falla, pero lo registramos
+            # (sin token ni cuerpo del mensaje) para tener visibilidad en prod.
+            logger.warning("Fallo al enviar push (usuario_id=%s): %s", usuario_id, exc)
+            return
         for disp, ticket in zip(dispositivos, tickets):
             if (ticket.get("status") == "error"
                     and ticket.get("details", {}).get("error") == "DeviceNotRegistered"):
                 db.delete(disp)
         db.commit()
     except Exception:
+        logger.warning("Error al purgar tokens push (usuario_id=%s)", usuario_id, exc_info=True)
         db.rollback()
     finally:
         db.close()
