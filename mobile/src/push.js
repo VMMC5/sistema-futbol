@@ -51,11 +51,11 @@ export async function desregistrar() {
   }
 }
 
-// Al tocar una notificación, abre la pantalla de Avisos. Devuelve limpieza.
+// Al tocar una notificación, abre la pantalla de Notificaciones. Devuelve limpieza.
 export function configurarManejadores(navigationRef) {
   const sub = Notifications.addNotificationResponseReceivedListener(() => {
     if (navigationRef?.isReady?.()) {
-      navigationRef.navigate("Avisos");
+      navigationRef.navigate("Notifications");
     }
   });
   return () => sub.remove();

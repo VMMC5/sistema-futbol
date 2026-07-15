@@ -1,8 +1,8 @@
 // Punto de entrada: navegación + contexto de autenticación.
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { NavigationContainer, DefaultTheme, useNavigation } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, useNavigation, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
@@ -46,6 +46,10 @@ import RefSummaryScreen from "./src/screens/referee/RefSummaryScreen";
 import RefHistoryScreen from "./src/screens/referee/RefHistoryScreen";
 import PagoScreen from "./src/screens/PagoScreen";
 import ComprobanteScreen from "./src/screens/ComprobanteScreen";
+
+import { configurarManejadores } from "./src/push";
+
+const navigationRef = createNavigationContainerRef();
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -184,10 +188,15 @@ function PlayerTabs() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const limpiar = configurarManejadores(navigationRef);
+    return limpiar;
+  }, []);
+
   return (
     <AuthProvider>
       <StatusBar style="dark" />
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer theme={navTheme} ref={navigationRef}>
         <Stack.Navigator initialRouteName="Public">
           {/* Área pública con pestañas inferiores */}
           <Stack.Screen name="Public" component={PublicTabs} options={{ headerShown: false }} />
