@@ -5,7 +5,7 @@ Reglas de acceso:
 - Pagar una reserva: su dueño.
 - El monto lo calcula el servidor (nunca el cliente).
 """
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -24,6 +24,7 @@ def _es_admin(usuario: models.Usuario) -> bool:
 def pagar_reserva(
     reserva_id: int,
     datos: PagoCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
@@ -32,13 +33,14 @@ def pagar_reserva(
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
     if not _es_admin(usuario) and reserva.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes pagar una reserva ajena")
-    return pagos_service.pagar_reserva(db, usuario, reserva, datos)
+    return pagos_service.pagar_reserva(db, usuario, reserva, datos, background_tasks=background_tasks)
 
 
 @router.post("/inscripcion/{inscripcion_id}", response_model=PagoOut, status_code=status.HTTP_201_CREATED)
 def pagar_inscripcion(
     inscripcion_id: int,
     datos: PagoCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
@@ -48,19 +50,20 @@ def pagar_inscripcion(
     # Paga el entrenador dueño del equipo (o el admin)
     if not _es_admin(usuario) and inscripcion.equipo.entrenador_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes pagar una inscripción ajena")
-    return pagos_service.pagar_inscripcion(db, usuario, inscripcion, datos)
+    return pagos_service.pagar_inscripcion(db, usuario, inscripcion, datos, background_tasks=background_tasks)
 
 
 @router.post("/{pago_id}/confirmar", response_model=PagoOut)
 def confirmar_pago(
     pago_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
     pago = db.get(models.Pago, pago_id)
     if pago is None:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
-    confirmado = pagos_service.confirmar_pago(db, pago)
+    confirmado = pagos_service.confirmar_pago(db, pago, background_tasks=background_tasks)
     audit.registrar(
         audit.PAGO_CONFIRMADO, actor_id=_admin.id, objetivo=pago.id,
         detalle=f"monto={pago.monto} metodo={pago.metodo}",

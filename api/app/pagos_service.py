@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import models
+from app import notificaciones_service
 from app.gateway import MockGateway, PaymentGateway
 from app.schemas import PagoCreate
 
@@ -37,8 +38,9 @@ def calcular_monto_inscripcion(torneo) -> Decimal:
     return Decimal(cuota).quantize(_DOS_DEC, ROUND_HALF_UP)
 
 
-def _notificar(db: Session, usuario_id: int, titulo: str, mensaje: str) -> None:
-    db.add(models.Notificacion(usuario_id=usuario_id, titulo=titulo, mensaje=mensaje))
+def _notificar(db: Session, usuario_id: int, titulo: str, mensaje: str,
+               background_tasks=None) -> None:
+    notificaciones_service.crear_notificacion(db, usuario_id, titulo, mensaje, background_tasks)
 
 
 def _procesar(db: Session, usuario: models.Usuario, monto: Decimal, concepto: str,
@@ -60,7 +62,8 @@ def _procesar(db: Session, usuario: models.Usuario, monto: Decimal, concepto: st
 
 
 def pagar_reserva(db: Session, usuario: models.Usuario, reserva: models.Reserva,
-                  datos: PagoCreate, gateway: PaymentGateway | None = None) -> models.Pago:
+                  datos: PagoCreate, gateway: PaymentGateway | None = None,
+                  background_tasks=None) -> models.Pago:
     gateway = gateway or _gateway
 
     if reserva.pago_id:
@@ -79,11 +82,11 @@ def pagar_reserva(db: Session, usuario: models.Usuario, reserva: models.Reserva,
         reserva.pago_id = pago.id
         reserva.estado = "confirmada"
         _notificar(db, usuario.id, "Pago confirmado",
-                   f"Tu {concepto} quedó pagada. Folio {pago.referencia}.")
+                   f"Tu {concepto} quedó pagada. Folio {pago.referencia}.", background_tasks)
     elif resultado.estado == "pendiente":
         reserva.pago_id = pago.id
         _notificar(db, usuario.id, "Pago en revisión",
-                   f"Registramos tu transferencia por {concepto}. Pendiente de confirmación.")
+                   f"Registramos tu transferencia por {concepto}. Pendiente de confirmación.", background_tasks)
 
     db.commit()
     if resultado.estado == "fallido":
@@ -93,7 +96,8 @@ def pagar_reserva(db: Session, usuario: models.Usuario, reserva: models.Reserva,
 
 
 def pagar_inscripcion(db: Session, usuario: models.Usuario, inscripcion: models.Inscripcion,
-                      datos: PagoCreate, gateway: PaymentGateway | None = None) -> models.Pago:
+                      datos: PagoCreate, gateway: PaymentGateway | None = None,
+                      background_tasks=None) -> models.Pago:
     gateway = gateway or _gateway
 
     if inscripcion.pago_id:
@@ -115,11 +119,11 @@ def pagar_inscripcion(db: Session, usuario: models.Usuario, inscripcion: models.
         inscripcion.pago_id = pago.id
         inscripcion.estado = "aceptada"
         _notificar(db, usuario.id, "Pago confirmado",
-                   f"Tu {concepto} quedó pagada. Folio {pago.referencia}.")
+                   f"Tu {concepto} quedó pagada. Folio {pago.referencia}.", background_tasks)
     elif resultado.estado == "pendiente":
         inscripcion.pago_id = pago.id
         _notificar(db, usuario.id, "Pago en revisión",
-                   f"Registramos tu transferencia por {concepto}. Pendiente de confirmación.")
+                   f"Registramos tu transferencia por {concepto}. Pendiente de confirmación.", background_tasks)
 
     db.commit()
     if resultado.estado == "fallido":
@@ -128,7 +132,7 @@ def pagar_inscripcion(db: Session, usuario: models.Usuario, inscripcion: models.
     return pago
 
 
-def confirmar_pago(db: Session, pago: models.Pago) -> models.Pago:
+def confirmar_pago(db: Session, pago: models.Pago, background_tasks=None) -> models.Pago:
     """El superadmin confirma una transferencia pendiente."""
     if pago.metodo != "transferencia" or pago.estado != "pendiente":
         raise HTTPException(status_code=409,
@@ -148,7 +152,7 @@ def confirmar_pago(db: Session, pago: models.Pago) -> models.Pago:
         pago.inscripcion.estado = "aceptada"
 
     _notificar(db, pago.usuario_id, "Pago confirmado",
-               f"Tu pago ({pago.concepto}) fue confirmado. Folio {pago.referencia}.")
+               f"Tu pago ({pago.concepto}) fue confirmado. Folio {pago.referencia}.", background_tasks)
     db.commit()
     db.refresh(pago)
     return pago
