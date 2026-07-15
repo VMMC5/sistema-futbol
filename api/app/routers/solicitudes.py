@@ -22,6 +22,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse
+from pydantic import EmailStr
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -42,7 +43,7 @@ ROLES_VALIDOS = {"entrenador", "arbitro"}
 @router.post("", response_model=SolicitudOut, status_code=status.HTTP_201_CREATED)
 async def crear_solicitud(
     nombre: str = Form(..., min_length=2, max_length=80),
-    correo: str = Form(...),
+    correo: EmailStr = Form(...),
     rol_solicitado: str = Form(...),
     telefono: str | None = Form(None),
     documento: UploadFile = File(...),

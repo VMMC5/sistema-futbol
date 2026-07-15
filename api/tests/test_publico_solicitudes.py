@@ -38,6 +38,14 @@ def test_solicitud_rol_invalido(client):
     assert r.status_code == 400
 
 
+def test_solicitud_correo_malformado(client):
+    # El correo debe tener formato válido (EmailStr), no basta con ser único.
+    r = client.post("/solicitudes",
+                    data={"nombre": "X Y", "correo": "correo-sin-arroba", "rol_solicitado": "arbitro"},
+                    files=_documento_pdf())
+    assert r.status_code == 422
+
+
 def test_solicitud_documento_invalido(client):
     r = client.post("/solicitudes",
                     data={"nombre": "X Y", "correo": "x@demo.com", "rol_solicitado": "arbitro"},

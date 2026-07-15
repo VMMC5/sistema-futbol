@@ -5,6 +5,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, StyleSheet,
 } from "react-native";
 import { apiPost } from "../api";
+import { validarTarjeta } from "../validacion";
 
 export default function PagoScreen({ route, navigation }) {
   const { tipo, id, resumen } = route.params; // tipo: "reserva" | "inscripcion"
@@ -17,6 +18,13 @@ export default function PagoScreen({ route, navigation }) {
   const [cargando, setCargando] = useState(false);
 
   async function pagar() {
+    if (metodo === "tarjeta") {
+      const problema = validarTarjeta({ numero, cvv, titular, expMes, expAnio });
+      if (problema) {
+        Alert.alert("Revisa los datos de la tarjeta", problema);
+        return;
+      }
+    }
     setCargando(true);
     try {
       const body = { metodo };
