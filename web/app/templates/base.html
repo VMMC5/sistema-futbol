@@ -1,3 +1,4 @@
+{% from "_iconos.html" import icono %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -17,16 +18,16 @@
         <div class="name">TORNEOS<small>PANEL ADMIN</small></div>
       </div>
       <nav class="nav">
-        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active == 'dashboard' }}"><span class="dot"></span> Dashboard</a>
-        <a href="{{ url_for('partidos') }}" class="{{ 'active' if active == 'partidos' }}"><span class="dot"></span> Partidos</a>
-        <a href="{{ url_for('reservas') }}" class="{{ 'active' if active == 'reservas' }}"><span class="dot"></span> Reservas</a>
-        <a href="{{ url_for('pagos') }}" class="{{ 'active' if active == 'pagos' }}"><span class="dot"></span> Pagos</a>
-        <a href="{{ url_for('estadisticas') }}" class="{{ 'active' if active == 'estadisticas' }}"><span class="dot"></span> Estadísticas</a>
-        <a href="{{ url_for('torneos') }}" class="{{ 'active' if active == 'torneos' }}"><span class="dot"></span> Torneos</a>
-        <a href="{{ url_for('sedes') }}" class="{{ 'active' if active == 'sedes' }}"><span class="dot"></span> Sedes</a>
-        <a href="{{ url_for('canchas') }}" class="{{ 'active' if active == 'canchas' }}"><span class="dot"></span> Canchas</a>
-        <a href="{{ url_for('usuarios') }}" class="{{ 'active' if active == 'usuarios' }}"><span class="dot"></span> Usuarios</a>
-        <a href="{{ url_for('solicitudes') }}" class="{{ 'active' if active == 'solicitudes' }}"><span class="dot"></span> Solicitudes</a>
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active == 'dashboard' }}">{{ icono("category") }} Dashboard</a>
+        <a href="{{ url_for('partidos') }}" class="{{ 'active' if active == 'partidos' }}">{{ icono("football") }} Partidos</a>
+        <a href="{{ url_for('reservas') }}" class="{{ 'active' if active == 'reservas' }}">{{ icono("calendar") }} Reservas</a>
+        <a href="{{ url_for('pagos') }}" class="{{ 'active' if active == 'pagos' }}">{{ icono("creditcard") }} Pagos</a>
+        <a href="{{ url_for('estadisticas') }}" class="{{ 'active' if active == 'estadisticas' }}">{{ icono("chart") }} Estadísticas</a>
+        <a href="{{ url_for('torneos') }}" class="{{ 'active' if active == 'torneos' }}">{{ icono("cuptrophy") }} Torneos</a>
+        <a href="{{ url_for('sedes') }}" class="{{ 'active' if active == 'sedes' }}">{{ icono("location") }} Sedes</a>
+        <a href="{{ url_for('canchas') }}" class="{{ 'active' if active == 'canchas' }}">{{ icono("flag") }} Canchas</a>
+        <a href="{{ url_for('usuarios') }}" class="{{ 'active' if active == 'usuarios' }}">{{ icono("people") }} Usuarios</a>
+        <a href="{{ url_for('solicitudes') }}" class="{{ 'active' if active == 'solicitudes' }}">{{ icono("checklist") }} Solicitudes</a>
       </nav>
       <div class="foot">Sistema Integral de<br>Canchas y Torneos</div>
     </aside>
