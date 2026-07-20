@@ -31,7 +31,7 @@
         <td style="text-align:right; white-space:nowrap;">
           <a href="{{ url_for('sede_editar', sede_id=s.id) }}" class="btn ghost" style="padding:7px 14px;">Editar</a>
           <form method="post" action="{{ url_for('sede_eliminar', sede_id=s.id) }}" style="display:inline;"
-                onsubmit="return confirm('¿Eliminar la sede “{{ s.nombre }}”? Esta acción no se puede deshacer.');">
+                data-confirm="¿Eliminar la sede “{{ s.nombre }}”? Esta acción no se puede deshacer.">
             <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--danger);">Eliminar</button>
           </form>
         </td>

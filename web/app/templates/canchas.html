@@ -39,7 +39,7 @@
         <td style="text-align:right; white-space:nowrap;">
           <a href="{{ url_for('cancha_editar', cancha_id=c.id) }}" class="btn ghost" style="padding:7px 14px;">Editar</a>
           <form method="post" action="{{ url_for('cancha_eliminar', cancha_id=c.id) }}" style="display:inline;"
-                onsubmit="return confirm('¿Eliminar la cancha “{{ c.nombre }}”?');">
+                data-confirm="¿Eliminar la cancha “{{ c.nombre }}”?">
             <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--danger);">Eliminar</button>
           </form>
         </td>
