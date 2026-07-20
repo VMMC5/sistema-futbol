@@ -5,14 +5,20 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#07140d",
       "resizeMode": "contain"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": { "supportsTablet": true },
     "android": {
-      "package": "com.torneos.mobile"
+      "package": "com.torneos.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#07140d"
+      }
     },
     "plugins": ["expo-notifications"],
     "extra": {
