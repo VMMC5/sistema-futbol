@@ -49,3 +49,6 @@ Thumbs.db
 
 # ===== Herramientas locales (Claude Code) =====
 .claude/
+
+# Artefactos de Windows (Mark of the Web) al copiar archivos desde el host
+*:Zone.Identifier

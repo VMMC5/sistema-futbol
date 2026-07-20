@@ -7,7 +7,7 @@
 <!-- Filtro por torneo -->
 <form method="get" class="filter-bar">
   <label for="torneo_id">Torneo:</label>
-  <select id="torneo_id" name="torneo_id" onchange="this.form.submit()">
+  <select id="torneo_id" name="torneo_id" data-autosubmit>
     <option value="">Todos</option>
     {% for t in torneos %}
     <option value="{{ t.id }}" {{ 'selected' if torneo_id == t.id }}>{{ t.nombre }}</option>

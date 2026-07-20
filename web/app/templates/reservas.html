@@ -39,7 +39,7 @@
           {% endif %}
           {% if r.estado != 'cancelada' %}
           <form method="post" action="{{ url_for('reserva_accion', reserva_id=r.id, accion='cancelar') }}" style="display:inline;"
-                onsubmit="return confirm('¿Cancelar esta reserva?');">
+                data-confirm="¿Cancelar esta reserva?">
             <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--danger);">Cancelar</button>
           </form>
           {% endif %}

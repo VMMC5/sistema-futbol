@@ -6,7 +6,7 @@
 {% block content %}
 <form method="get" class="filter-bar">
   <label for="estado">Estado:</label>
-  <select id="estado" name="estado" onchange="this.form.submit()">
+  <select id="estado" name="estado" data-autosubmit>
     {% for op in ['pendiente', 'aceptada', 'rechazada'] %}
     <option value="{{ op }}" {{ 'selected' if estado == op }}>{{ op | capitalize }}</option>
     {% endfor %}
@@ -39,7 +39,7 @@
         <td style="text-align:right; white-space:nowrap;">
           {% if estado == 'pendiente' %}
           <form method="post" action="{{ url_for('solicitud_aceptar', solicitud_id=s.id) }}" style="display:inline;"
-                onsubmit="return confirm('¿Aceptar a {{ s.nombre }} como {{ s.rol_solicitado }}? Se creará su cuenta y se le enviará un correo.');">
+                data-confirm="¿Aceptar a {{ s.nombre }} como {{ s.rol_solicitado }}? Se creará su cuenta y se le enviará un correo.">
             <button type="submit" class="btn" style="padding:7px 14px;">Aceptar</button>
           </form>
           <form method="post" action="{{ url_for('solicitud_rechazar', solicitud_id=s.id) }}" style="display:inline-flex; gap:6px; align-items:center; margin-left:6px;">

@@ -1,45 +1,78 @@
 {% extends "base.html" %}
+{% set active = 'pagos' %}
 {% block title %}Pagos{% endblock %}
 {% block heading %}Pagos{% endblock %}
-{% block content %}
 
-<h2>Transferencias pendientes de confirmar</h2>
+{% block content %}
+{% macro estado_tag(estado) %}
+  {% if estado == 'completado' %}<span class="estado-tag en_curso">completado</span>
+  {% elif estado == 'fallido' %}<span class="estado-tag finalizado">fallido</span>
+  {% else %}<span class="estado-tag programado">pendiente</span>{% endif %}
+{% endmacro %}
+
+<div class="section-head"><h2>Transferencias pendientes de confirmar</h2></div>
+
 {% if pendientes %}
-<table>
-  <thead><tr><th>Folio</th><th>Concepto</th><th>Titular</th><th>Monto</th><th></th></tr></thead>
-  <tbody>
-    {% for p in pendientes %}
-    <tr>
-      <td>{{ p.referencia }}</td>
-      <td>{{ p.concepto }}</td>
-      <td>{{ p.usuario_nombre }}</td>
-      <td>$ {{ '%.2f'|format(p.monto) }}</td>
-      <td>
-        <form method="post" action="{{ url_for('pago_confirmar', pago_id=p.id) }}">
-          <button type="submit">Confirmar</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Folio</th>
+        <th>Concepto</th>
+        <th>Titular</th>
+        <th>Monto</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pendientes %}
+      <tr>
+        <td><strong>{{ p.referencia }}</strong></td>
+        <td>{{ p.concepto }}</td>
+        <td>{{ p.usuario_nombre }}</td>
+        <td>$ {{ '%.2f'|format(p.monto) }}</td>
+        <td style="text-align:right; white-space:nowrap;">
+          <form method="post" action="{{ url_for('pago_confirmar', pago_id=p.id) }}" style="display:inline;">
+            <button type="submit" class="btn ghost" style="padding:7px 14px; color:var(--lime);">Confirmar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p>No hay transferencias pendientes.</p>
+<div class="panel-table"><div class="empty">No hay transferencias pendientes.</div></div>
 {% endif %}
 
-<h2>Todos los pagos</h2>
-<table>
-  <thead><tr><th>Folio</th><th>Concepto</th><th>Método</th><th>Monto</th><th>Estado</th></tr></thead>
-  <tbody>
-    {% for p in pagos %}
-    <tr>
-      <td>{{ p.referencia }}</td>
-      <td>{{ p.concepto }}</td>
-      <td>{{ p.metodo }}</td>
-      <td>$ {{ '%.2f'|format(p.monto) }}</td>
-      <td>{{ p.estado }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="section-head" style="margin-top:28px;"><h2>Todos los pagos</h2></div>
+
+{% if pagos %}
+<div class="panel-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Folio</th>
+        <th>Concepto</th>
+        <th>Método</th>
+        <th>Monto</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pagos %}
+      <tr>
+        <td><strong>{{ p.referencia }}</strong></td>
+        <td>{{ p.concepto }}</td>
+        <td>{{ p.metodo|capitalize }}</td>
+        <td>$ {{ '%.2f'|format(p.monto) }}</td>
+        <td>{{ estado_tag(p.estado) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">No hay pagos registrados.</div></div>
+{% endif %}
 {% endblock %}
