@@ -47,6 +47,25 @@ def test_cupo_lleno_rechaza(client, auth_admin, auth_entrenador):
     assert r.status_code == 409
 
 
+def test_inscripcion_rechazada_no_ocupa_cupo(client, db_session, auth_admin, auth_entrenador):
+    """
+    Una inscripción rechazada está muerta: no debe seguir consumiendo un lugar.
+    Hoy ningún endpoint produce ese estado (solo existen 'pendiente' y
+    'aceptada'), así que la fila se inserta a mano para fijar la regla antes de
+    que exista un endpoint de rechazo.
+    """
+    from app import models
+
+    tid = _torneo(client, auth_admin, cupo_maximo=1)
+    db = db_session()
+    db.add(models.Inscripcion(torneo_id=tid, equipo_id=2, estado="rechazada"))
+    db.commit()
+    db.close()
+
+    r = client.post("/inscripciones", headers=auth_entrenador, json={"torneo_id": tid, "equipo_id": 1})
+    assert r.status_code == 201, r.text
+
+
 def test_listar_inscripciones_por_torneo(client, auth_admin, auth_entrenador):
     tid = _torneo(client, auth_admin)
     client.post("/inscripciones", headers=auth_entrenador, json={"torneo_id": tid, "equipo_id": 1})

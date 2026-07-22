@@ -128,6 +128,7 @@ def mis_partidos(db: Session = Depends(get_db), usuario: models.Usuario = Depend
         return []
     partidos = (
         db.query(models.Partido)
+        .options(*models.CARGA_PARTIDO)
         .filter(
             or_(models.Partido.equipo_local_id.in_(ids), models.Partido.equipo_visitante_id.in_(ids)),
             models.Partido.estado == "programado",
@@ -348,6 +349,7 @@ def invitaciones_del_equipo(
     _verificar_dueno(eq, usuario)
     return (
         db.query(models.InvitacionEquipo)
+        .options(*models.CARGA_INVITACION)
         .filter_by(equipo_id=equipo_id, estado="pendiente")
         .order_by(models.InvitacionEquipo.id.desc())
         .all()

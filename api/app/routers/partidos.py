@@ -146,7 +146,7 @@ def listar_partidos(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
-    consulta = db.query(models.Partido)
+    consulta = db.query(models.Partido).options(*models.CARGA_PARTIDO)
     if mios:
         # Partidos asignados al árbitro autenticado (para el modo árbitro)
         consulta = consulta.filter(models.Partido.arbitro_id == usuario.id)
@@ -232,6 +232,7 @@ def listar_eventos(
     _obtener_partido(db, partido_id)  # 404 si no existe
     return (
         db.query(models.EventoPartido)
+        .options(*models.CARGA_EVENTO)
         .filter(models.EventoPartido.partido_id == partido_id)
         .order_by(models.EventoPartido.minuto, models.EventoPartido.id)
         .all()
@@ -325,7 +326,11 @@ def listar_alineacion(
     _usuario: models.Usuario = Depends(get_current_user),
 ):
     _obtener_partido(db, partido_id)  # 404 si no existe
-    consulta = db.query(models.Alineacion).filter(models.Alineacion.partido_id == partido_id)
+    consulta = (
+        db.query(models.Alineacion)
+        .options(*models.CARGA_ALINEACION)
+        .filter(models.Alineacion.partido_id == partido_id)
+    )
     if equipo_id:
         consulta = consulta.filter(models.Alineacion.equipo_id == equipo_id)
     return consulta.order_by(models.Alineacion.equipo_id, models.Alineacion.id).all()

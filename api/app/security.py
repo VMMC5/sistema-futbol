@@ -20,7 +20,11 @@ if not SECRET_KEY:
         "llave larga y aleatoria, por ejemplo: openssl rand -hex 32"
     )
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+# 12 horas. No hay refresh token todavia: cuando el access token expira, la app
+# movil expulsa al usuario al login en medio de lo que este haciendo. Una jornada
+# de trabajo cabe en este margen. Al implementar el refresh token, este valor
+# debe volver a bajar (60 min o menos), que es lo correcto para un token de acceso.
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "720"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

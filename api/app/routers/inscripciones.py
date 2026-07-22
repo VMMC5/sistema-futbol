@@ -59,7 +59,15 @@ def crear_inscripcion(
 
     # Cupo
     if torneo.cupo_maximo is not None:
-        inscritos = db.query(models.Inscripcion).filter_by(torneo_id=datos.torneo_id).count()
+        # Solo cuentan las inscripciones vivas: una rechazada no ocupa lugar.
+        inscritos = (
+            db.query(models.Inscripcion)
+            .filter(
+                models.Inscripcion.torneo_id == datos.torneo_id,
+                models.Inscripcion.estado.in_(("pendiente", "aceptada")),
+            )
+            .count()
+        )
         if inscritos >= torneo.cupo_maximo:
             raise HTTPException(status_code=409, detail="El torneo llegó a su cupo máximo")
 
@@ -80,7 +88,7 @@ def listar_inscripciones(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
-    consulta = db.query(models.Inscripcion)
+    consulta = db.query(models.Inscripcion).options(*models.CARGA_INSCRIPCION)
     # Un entrenador ve las inscripciones de SUS equipos; el admin, todas.
     if not _es_admin(usuario):
         consulta = consulta.join(models.Equipo).filter(models.Equipo.entrenador_id == usuario.id)

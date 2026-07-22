@@ -100,7 +100,7 @@ def listar_reservas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
-    consulta = db.query(models.Reserva)
+    consulta = db.query(models.Reserva).options(*models.CARGA_RESERVA)
 
     # Un usuario normal solo ve SUS reservas; el admin las ve todas.
     if not _es_admin(usuario):

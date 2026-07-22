@@ -22,6 +22,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     Numeric,
@@ -30,7 +31,7 @@ from sqlalchemy import (
     Time,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.sql import func
 from sqlalchemy import Column
 
@@ -161,6 +162,12 @@ class Reserva(Base):
     hora_fin = Column(Time, nullable=False)
     estado = Column(String(20), default="pendiente")  # pendiente, confirmada, cancelada
 
+    __table_args__ = (
+        # El chequeo de solapamiento filtra siempre por cancha + fecha.
+        Index("ix_reservas_cancha_fecha", "cancha_id", "fecha"),
+        Index("ix_reservas_usuario", "usuario_id"),
+    )
+
     usuario = relationship("Usuario", back_populates="reservas")
     cancha = relationship("Cancha", back_populates="reservas")
     pago = relationship("Pago", back_populates="reserva")
@@ -214,6 +221,14 @@ class Partido(Base):
     estado = Column(String(20), default="programado")  # programado, en_juego, finalizado
     acta_firmada = Column(Boolean, default=False, nullable=False)
     acta_firmada_en = Column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index("ix_partidos_torneo_estado", "torneo_id", "estado"),
+        Index("ix_partidos_arbitro", "arbitro_id"),
+        # Los listados del entrenador y del jugador buscan por cualquiera de los dos bandos.
+        Index("ix_partidos_equipo_local", "equipo_local_id"),
+        Index("ix_partidos_equipo_visitante", "equipo_visitante_id"),
+    )
 
     torneo = relationship("Torneo", back_populates="partidos")
     cancha = relationship("Cancha", back_populates="partidos")
@@ -293,6 +308,11 @@ class EventoPartido(Base):
     minuto = Column(Integer)
     detalle = Column(String(120))
 
+    __table_args__ = (
+        Index("ix_eventos_partido", "partido_id"),
+        Index("ix_eventos_jugador", "jugador_id"),
+    )
+
     partido = relationship("Partido", back_populates="eventos")
     equipo = relationship("Equipo", foreign_keys=[equipo_id])
     jugador = relationship("Usuario", foreign_keys=[jugador_id])
@@ -327,6 +347,8 @@ class Inscripcion(Base):
 
     __table_args__ = (
         UniqueConstraint("torneo_id", "equipo_id", name="uq_inscripcion_torneo_equipo"),
+        # torneo_id ya lo cubre el índice del UNIQUE (es su primera columna); equipo_id no.
+        Index("ix_inscripciones_equipo", "equipo_id"),
     )
 
     torneo = relationship("Torneo", back_populates="inscripciones")
@@ -411,6 +433,10 @@ class Notificacion(Base):
     leida = Column(Boolean, default=False, nullable=False)
     creada_en = Column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        Index("ix_notificaciones_usuario", "usuario_id"),
+    )
+
     usuario = relationship("Usuario", back_populates="notificaciones")
 
 
@@ -478,6 +504,11 @@ class InvitacionEquipo(Base):
     estado = Column(String(20), default="pendiente", nullable=False)  # pendiente|aceptada|rechazada
     creada_en = Column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        Index("ix_invitaciones_jugador_estado", "jugador_id", "estado"),
+        Index("ix_invitaciones_equipo_estado", "equipo_id", "estado"),
+    )
+
     equipo = relationship("Equipo", foreign_keys=[equipo_id])
     jugador = relationship("Usuario", foreign_keys=[jugador_id])
 
@@ -492,3 +523,46 @@ class InvitacionEquipo(Base):
     @property
     def jugador_nombre(self):
         return self.jugador.nombre if self.jugador else None
+
+
+# ----------------------------------------------------------------------
+# Opciones de carga anticipada
+#
+# Varios esquemas *Out exponen propiedades `*_nombre` que leen una relación.
+# En un listado eso se traduce en una consulta extra POR FILA y POR RELACIÓN
+# (el clásico N+1). Estas tuplas se pasan a `.options(*...)` en los listados
+# para traerlo todo en una sola consulta.
+# ----------------------------------------------------------------------
+CARGA_PARTIDO = (
+    joinedload(Partido.torneo),
+    joinedload(Partido.cancha),
+    joinedload(Partido.arbitro),
+    joinedload(Partido.equipo_local),
+    joinedload(Partido.equipo_visitante),
+)
+
+CARGA_RESERVA = (
+    joinedload(Reserva.usuario),
+    joinedload(Reserva.cancha),
+)
+
+CARGA_EVENTO = (
+    joinedload(EventoPartido.equipo),
+    joinedload(EventoPartido.jugador),
+    joinedload(EventoPartido.jugador_secundario),
+)
+
+CARGA_ALINEACION = (
+    joinedload(Alineacion.equipo),
+    joinedload(Alineacion.jugador),
+)
+
+CARGA_INSCRIPCION = (
+    joinedload(Inscripcion.torneo),
+    joinedload(Inscripcion.equipo),
+)
+
+CARGA_INVITACION = (
+    joinedload(InvitacionEquipo.equipo).joinedload(Equipo.entrenador),
+    joinedload(InvitacionEquipo.jugador),
+)
