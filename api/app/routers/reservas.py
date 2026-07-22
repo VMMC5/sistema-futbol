@@ -22,14 +22,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models
-from app.deps import get_current_user, require_roles
+from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import ReservaCreate, ReservaOut
 
 router = APIRouter()
-
-
-def _es_admin(usuario: models.Usuario) -> bool:
-    return usuario.rol.nombre == "superadmin"
 
 
 def _obtener_reserva(db: Session, reserva_id: int) -> models.Reserva:
@@ -100,10 +96,10 @@ def listar_reservas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
-    consulta = db.query(models.Reserva)
+    consulta = db.query(models.Reserva).options(*models.CARGA_RESERVA)
 
     # Un usuario normal solo ve SUS reservas; el admin las ve todas.
-    if not _es_admin(usuario):
+    if not es_admin(usuario):
         consulta = consulta.filter(models.Reserva.usuario_id == usuario.id)
 
     if cancha_id:
@@ -122,7 +118,7 @@ def ver_reserva(
     usuario: models.Usuario = Depends(get_current_user),
 ):
     reserva = _obtener_reserva(db, reserva_id)
-    if not _es_admin(usuario) and reserva.usuario_id != usuario.id:
+    if not es_admin(usuario) and reserva.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes ver una reserva ajena")
     return reserva
 
@@ -135,8 +131,17 @@ def cancelar_reserva(
     usuario: models.Usuario = Depends(get_current_user),
 ):
     reserva = _obtener_reserva(db, reserva_id)
-    if not _es_admin(usuario) and reserva.usuario_id != usuario.id:
+    if not es_admin(usuario) and reserva.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes cancelar una reserva ajena")
+
+    # Cancelar una reserva pagada dejaba el dinero fuera de todo flujo: el pago
+    # completado se quedaba huérfano, sin reembolso ni registro. No hay flujo de
+    # reembolso todavía, así que se bloquea y lo gestiona el administrador.
+    if reserva.pago is not None and reserva.pago.estado == "completado":
+        raise HTTPException(
+            status_code=409,
+            detail="La reserva ya está pagada; contacta al administrador para gestionar el reembolso",
+        )
 
     reserva.estado = "cancelada"
     db.commit()

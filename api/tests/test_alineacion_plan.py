@@ -94,3 +94,31 @@ def test_mis_partidos_entrenador(client, auth_admin, auth_entrenador, torneo_id)
     r = client.get("/equipos/mis-partidos", headers=auth_entrenador)
     assert r.status_code == 200 and len(r.json()) >= 1
     assert r.json()[0]["mi_equipo_id"] in (1, 2) and "rival_nombre" in r.json()[0]
+
+
+def test_no_guarda_plan_vacio(client, auth_admin, auth_entrenador, torneo_id, agregar_miembro):
+    """
+    La pantalla del entrenador (LineupScreen) permitía confirmar una alineación
+    sin ningún jugador. El servidor la aceptaba y el partido quedaba sin plan.
+    """
+    pid = _partido(client, auth_admin, torneo_id)
+    r = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador,
+                   json={"equipo_id": 1, "formacion": "4-4-2", "jugadores": []})
+    assert r.status_code == 400, r.text
+    assert "jugador" in r.json()["detail"].lower()
+
+
+def test_se_puede_reemplazar_un_plan_existente(client, auth_admin, auth_entrenador,
+                                               torneo_id, agregar_miembro):
+    """Rechazar el plan vacío no debe impedir corregir uno ya guardado."""
+    pid = _partido(client, auth_admin, torneo_id)
+    a = agregar_miembro(auth_entrenador, 1, "Uno", "uno@demo.com")
+    b = agregar_miembro(auth_entrenador, 1, "Dos", "dos@demo.com")
+    base = {"equipo_id": 1, "formacion": "4-4-2"}
+    r1 = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador,
+                    json={**base, "jugadores": [{"jugador_equipo_id": a["je_id"], "posicion": "POR", "orden": 0}]})
+    assert r1.status_code == 200
+    r2 = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador,
+                    json={**base, "jugadores": [{"jugador_equipo_id": b["je_id"], "posicion": "DEL", "orden": 9}]})
+    assert r2.status_code == 200 and len(r2.json()["jugadores"]) == 1
+    assert r2.json()["jugadores"][0]["nombre"] == "Dos"

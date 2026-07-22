@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, notificaciones_service, stats
-from app.deps import get_current_user, require_roles
+from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     EquipoCreate, EquipoOut, EquipoUpdate, JugadorEquipoOut, JugadorEquipoUpdate,
     JugadorDisponibleOut, InvitacionCrear, InvitacionOut,
@@ -40,7 +40,7 @@ def _equipo_o_404(db: Session, equipo_id: int) -> models.Equipo:
 
 
 def _verificar_dueno(eq: models.Equipo, usuario: models.Usuario):
-    if usuario.rol.nombre != "superadmin" and eq.entrenador_id != usuario.id:
+    if not es_admin(usuario) and eq.entrenador_id != usuario.id:
         raise HTTPException(status_code=403, detail="No es tu equipo")
 
 
@@ -52,7 +52,7 @@ def _jugador_en_algun_equipo(db: Session, jugador_id: int) -> bool:
 @router.get("", response_model=list[EquipoOut])
 def listar_equipos(db: Session = Depends(get_db), usuario: models.Usuario = Depends(get_current_user)):
     consulta = db.query(models.Equipo)
-    if usuario.rol.nombre != "superadmin":
+    if not es_admin(usuario):
         consulta = consulta.filter(models.Equipo.entrenador_id == usuario.id)
     return [_out(e) for e in consulta.order_by(models.Equipo.id).all()]
 
@@ -128,6 +128,7 @@ def mis_partidos(db: Session = Depends(get_db), usuario: models.Usuario = Depend
         return []
     partidos = (
         db.query(models.Partido)
+        .options(*models.CARGA_PARTIDO)
         .filter(
             or_(models.Partido.equipo_local_id.in_(ids), models.Partido.equipo_visitante_id.in_(ids)),
             models.Partido.estado == "programado",
@@ -348,6 +349,7 @@ def invitaciones_del_equipo(
     _verificar_dueno(eq, usuario)
     return (
         db.query(models.InvitacionEquipo)
+        .options(*models.CARGA_INVITACION)
         .filter_by(equipo_id=equipo_id, estado="pendiente")
         .order_by(models.InvitacionEquipo.id.desc())
         .all()

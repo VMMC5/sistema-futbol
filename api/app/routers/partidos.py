@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models
-from app.deps import get_current_user, require_roles
+from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
     AlineacionOut,
@@ -59,7 +59,7 @@ def _obtener_partido(db: Session, partido_id: int) -> models.Partido:
 
 def _puede_arbitrar(usuario: models.Usuario, partido: models.Partido) -> bool:
     """El superadmin siempre puede; un árbitro solo en SUS partidos asignados."""
-    return usuario.rol.nombre == "superadmin" or usuario.id == partido.arbitro_id
+    return es_admin(usuario) or usuario.id == partido.arbitro_id
 
 
 def _exigir_arbitraje(usuario: models.Usuario, partido: models.Partido):
@@ -146,7 +146,7 @@ def listar_partidos(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
-    consulta = db.query(models.Partido)
+    consulta = db.query(models.Partido).options(*models.CARGA_PARTIDO)
     if mios:
         # Partidos asignados al árbitro autenticado (para el modo árbitro)
         consulta = consulta.filter(models.Partido.arbitro_id == usuario.id)
@@ -232,6 +232,7 @@ def listar_eventos(
     _obtener_partido(db, partido_id)  # 404 si no existe
     return (
         db.query(models.EventoPartido)
+        .options(*models.CARGA_EVENTO)
         .filter(models.EventoPartido.partido_id == partido_id)
         .order_by(models.EventoPartido.minuto, models.EventoPartido.id)
         .all()
@@ -314,7 +315,7 @@ def eliminar_evento(
 # ======================================================================
 def _puede_gestionar_alineacion(usuario: models.Usuario, equipo: models.Equipo) -> bool:
     """El superadmin siempre; un entrenador solo la de SU equipo."""
-    return usuario.rol.nombre == "superadmin" or usuario.id == equipo.entrenador_id
+    return es_admin(usuario) or usuario.id == equipo.entrenador_id
 
 
 @router.get("/{partido_id}/alineacion", response_model=list[AlineacionOut])
@@ -325,7 +326,11 @@ def listar_alineacion(
     _usuario: models.Usuario = Depends(get_current_user),
 ):
     _obtener_partido(db, partido_id)  # 404 si no existe
-    consulta = db.query(models.Alineacion).filter(models.Alineacion.partido_id == partido_id)
+    consulta = (
+        db.query(models.Alineacion)
+        .options(*models.CARGA_ALINEACION)
+        .filter(models.Alineacion.partido_id == partido_id)
+    )
     if equipo_id:
         consulta = consulta.filter(models.Alineacion.equipo_id == equipo_id)
     return consulta.order_by(models.Alineacion.equipo_id, models.Alineacion.id).all()
@@ -496,6 +501,14 @@ def guardar_plan(
     equipo = db.get(models.Equipo, datos.equipo_id)
     if not _puede_gestionar_alineacion(usuario, equipo):
         raise HTTPException(status_code=403, detail="No es tu equipo")
+
+    # Una alineación sin nadie no es una alineación. Guardarla dejaba al partido
+    # sin plan y al entrenador creyendo que lo había confirmado.
+    if not datos.jugadores:
+        raise HTTPException(
+            status_code=400,
+            detail="La alineación debe tener al menos un jugador",
+        )
 
     # Resolver cada hueco contra la plantilla del equipo (y tomar nombre/dorsal)
     plantilla = {j.id: j for j in equipo.jugadores}

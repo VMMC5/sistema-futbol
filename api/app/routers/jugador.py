@@ -100,6 +100,7 @@ def proximos_partidos(db: Session = Depends(get_db), usuario: models.Usuario = D
         return []
     partidos = (
         db.query(models.Partido)
+        .options(*models.CARGA_PARTIDO)
         .filter(
             or_(models.Partido.equipo_local_id.in_(equipos), models.Partido.equipo_visitante_id.in_(equipos)),
             models.Partido.estado.in_(["programado", "en_juego"]),

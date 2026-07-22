@@ -29,6 +29,7 @@ def _invitacion_propia(db: Session, invitacion_id: int, usuario: models.Usuario)
 def mis_invitaciones(db: Session = Depends(get_db), usuario: models.Usuario = Depends(get_current_user)):
     return (
         db.query(models.InvitacionEquipo)
+        .options(*models.CARGA_INVITACION)
         .filter_by(jugador_id=usuario.id, estado="pendiente")
         .order_by(models.InvitacionEquipo.id.desc())
         .all()

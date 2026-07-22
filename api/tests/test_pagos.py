@@ -71,3 +71,30 @@ def test_no_paga_reserva_cancelada(client):
     r = client.post(f"/pagos/reserva/{rid}", headers=auth,
                     json={"metodo": "tarjeta", "tarjeta": TARJETA_OK})
     assert r.status_code == 409
+
+
+def test_no_cancela_reserva_ya_pagada(client):
+    """
+    Cancelar una reserva pagada dejaba el dinero fuera de todo flujo: el estado
+    pasaba a 'cancelada' y el pago completado se quedaba huérfano, sin reembolso
+    ni registro. Se bloquea; el reembolso lo gestiona el administrador.
+    """
+    auth = _jugador(client)
+    rid = _reserva(client, auth)
+    assert client.post(f"/pagos/reserva/{rid}", headers=auth,
+                       json={"metodo": "tarjeta", "tarjeta": TARJETA_OK}).status_code == 201
+
+    r = client.post(f"/reservas/{rid}/cancelar", headers=auth)
+    assert r.status_code == 409, r.text
+    assert "pagada" in r.json()["detail"].lower()
+    # y la reserva sigue viva
+    assert client.get(f"/reservas/{rid}", headers=auth).json()["estado"] == "confirmada"
+
+
+def test_si_cancela_reserva_con_pago_fallido(client):
+    """Un pago rechazado no bloquea nada: la reserva debe poder cancelarse."""
+    auth = _jugador(client)
+    rid = _reserva(client, auth)
+    client.post(f"/pagos/reserva/{rid}", headers=auth,
+                json={"metodo": "tarjeta", "tarjeta": TARJETA_RECHAZO})
+    assert client.post(f"/reservas/{rid}/cancelar", headers=auth).status_code == 200

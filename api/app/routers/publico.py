@@ -9,7 +9,7 @@ Endpoints públicos (sin autenticación) para la app de cara al público.
 - /publico/torneos/{id}/goleadores     -> goleadores del torneo
 """
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app import models, stats
@@ -43,6 +43,7 @@ def _resumen_torneo(db: Session, t: models.Torneo) -> dict:
 def inicio(db: Session = Depends(get_db)):
     proximos = (
         db.query(models.Partido)
+        .options(*models.CARGA_PARTIDO)
         .filter(models.Partido.estado.in_(["programado", "en_juego"]))
         .order_by(models.Partido.fecha_hora.is_(None), models.Partido.fecha_hora)
         .limit(5)
@@ -50,7 +51,12 @@ def inicio(db: Session = Depends(get_db)):
     )
     torneos_activos = [
         _resumen_torneo(db, t)
-        for t in db.query(models.Torneo).filter(models.Torneo.estado == "en_curso").all()
+        for t in (
+            db.query(models.Torneo)
+            .options(joinedload(models.Torneo.sede))
+            .filter(models.Torneo.estado == "en_curso")
+            .all()
+        )
     ]
     return {
         "proximos_partidos": [PartidoOut.model_validate(p) for p in proximos],
@@ -95,6 +101,7 @@ def partidos_torneo(torneo_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Torneo no encontrado")
     return (
         db.query(models.Partido)
+        .options(*models.CARGA_PARTIDO)
         .filter(models.Partido.torneo_id == torneo_id)
         .order_by(models.Partido.fecha_hora.is_(None), models.Partido.fecha_hora, models.Partido.id)
         .all()
