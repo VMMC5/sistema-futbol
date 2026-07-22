@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_iconos.html" import icono %}
 {% set active = 'partidos' %}
 {% block title %}Partido{% endblock %}
 {% block heading %}Detalle del partido{% endblock %}
@@ -50,7 +51,10 @@
       <div class="event">
         <div class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</div>
         <div class="event-icon {{ e.tipo }}">
-          {% if e.tipo == 'gol' %}⚽{% elif e.tipo == 'tarjeta_amarilla' %}🟨{% elif e.tipo == 'tarjeta_roja' %}🟥{% else %}🔁{% endif %}
+          {% if e.tipo == 'gol' %}{{ icono("football", 20) }}
+          {%- elif e.tipo == 'tarjeta_amarilla' %}{{ icono("tarjeta", 20, "ic-amarilla") }}
+          {%- elif e.tipo == 'tarjeta_roja' %}{{ icono("tarjeta", 20, "ic-roja") }}
+          {%- else %}{{ icono("transfer", 20) }}{% endif %}
         </div>
         <div class="event-body">
           <div class="event-type">{{ e.tipo | replace('_', ' ') }}</div>

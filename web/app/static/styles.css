@@ -148,6 +148,9 @@ table { width: 100%; border-collapse: collapse; }
 .panel-table tr:last-child td { border-bottom: none; }
 .panel-table tbody tr:hover { background: var(--pitch-700); }
 .panel-table .num { text-align: center; font-variant-numeric: tabular-nums; }
+/* Un icono como cabecera de columna: sin la línea base del texto de 11px que
+   lo dejaría descolgado, y sin heredar el interlineado de la etiqueta. */
+.panel-table th .ic { display: inline-block; vertical-align: middle; }
 .panel-table .pts { color: var(--lime); font-weight: 800; }
 .rank { color: var(--muted); font-family: "Bebas Neue", sans-serif; font-size: 20px; width: 36px; }
 .rank.top { color: var(--lime); }
@@ -228,7 +231,12 @@ table { width: 100%; border-collapse: collapse; }
 .event { display: flex; align-items: center; gap: 14px; background: var(--pitch-800);
   border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
 .event-min { font-family: "Bebas Neue", sans-serif; font-size: 22px; color: var(--lime); width: 42px; }
-.event-icon { font-size: 20px; width: 28px; text-align: center; }
+.event-icon { width: 28px; display: flex; align-items: center; justify-content: center; }
+
+/* Tarjetas de árbitro: aquí el color ES la información (amarilla vs roja), así
+   que no se hereda de currentColor como en el resto de iconos. */
+.ic-amarilla { color: #f2b53c; }
+.ic-roja { color: var(--danger); }
 .event-type { font-weight: 700; text-transform: capitalize; font-size: 14px; }
 .event-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
 
