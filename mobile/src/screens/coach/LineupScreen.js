@@ -96,10 +96,15 @@ export default function LineupScreen({ route, navigation }) {
   }
 
   async function confirmar() {
-    setGuardando(true);
     const jugadores = slots
       .filter((s) => asignados[s.orden])
       .map((s) => ({ jugador_equipo_id: asignados[s.orden].id, posicion: s.label, orden: s.orden }));
+    // Espejo de la regla del servidor: una alineación sin nadie no se guarda.
+    if (jugadores.length === 0) {
+      Alert.alert("Alineación vacía", "Coloca al menos un jugador en la cancha antes de confirmar.");
+      return;
+    }
+    setGuardando(true);
     try {
       await apiPut(`/partidos/${partidoId}/plan`, { equipo_id: equipoId, formacion, jugadores });
       Alert.alert("Listo", "Alineación guardada.", [{ text: "OK", onPress: () => navigation.goBack() }]);

@@ -43,6 +43,19 @@ def get_current_user(
     return usuario
 
 
+def es_admin(usuario: models.Usuario) -> bool:
+    """
+    True si el usuario es superadmin.
+
+    Vive aquí y no en cada router a propósito: es una regla de autorización, y
+    tenerla repetida invita a que alguien la cambie en un archivo y deje los
+    otros autorizando de más. Úsala para comprobaciones dentro del cuerpo del
+    endpoint (por ejemplo "el dueño o un admin"); cuando el endpoint entero es
+    solo para admins, la forma correcta sigue siendo Depends(require_roles(...)).
+    """
+    return usuario.rol.nombre == "superadmin"
+
+
 def require_roles(*roles_permitidos: str):
     """Crea una dependencia que solo deja pasar a los roles indicados."""
 

@@ -10,14 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import audit, models, pagos_service, recibo_pdf
-from app.deps import get_current_user, require_roles
+from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import PagoCreate, PagoOut
 
 router = APIRouter()
-
-
-def _es_admin(usuario: models.Usuario) -> bool:
-    return usuario.rol.nombre == "superadmin"
 
 
 @router.post("/reserva/{reserva_id}", response_model=PagoOut, status_code=status.HTTP_201_CREATED)
@@ -31,7 +27,7 @@ def pagar_reserva(
     reserva = db.get(models.Reserva, reserva_id)
     if reserva is None:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
-    if not _es_admin(usuario) and reserva.usuario_id != usuario.id:
+    if not es_admin(usuario) and reserva.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes pagar una reserva ajena")
     return pagos_service.pagar_reserva(db, usuario, reserva, datos, background_tasks=background_tasks)
 
@@ -48,7 +44,7 @@ def pagar_inscripcion(
     if inscripcion is None:
         raise HTTPException(status_code=404, detail="Inscripción no encontrada")
     # Paga el entrenador dueño del equipo (o el admin)
-    if not _es_admin(usuario) and inscripcion.equipo.entrenador_id != usuario.id:
+    if not es_admin(usuario) and inscripcion.equipo.entrenador_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes pagar una inscripción ajena")
     return pagos_service.pagar_inscripcion(db, usuario, inscripcion, datos, background_tasks=background_tasks)
 
@@ -77,7 +73,7 @@ def historial_pagos(
     usuario: models.Usuario = Depends(get_current_user),
 ):
     consulta = db.query(models.Pago)
-    if not _es_admin(usuario):
+    if not es_admin(usuario):
         consulta = consulta.filter(models.Pago.usuario_id == usuario.id)
     return consulta.order_by(models.Pago.id.desc()).all()
 
@@ -86,7 +82,7 @@ def _pago_visible(db: Session, pago_id: int, usuario: models.Usuario) -> models.
     pago = db.get(models.Pago, pago_id)
     if pago is None:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
-    if not _es_admin(usuario) and pago.usuario_id != usuario.id:
+    if not es_admin(usuario) and pago.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes ver un pago ajeno")
     return pago
 

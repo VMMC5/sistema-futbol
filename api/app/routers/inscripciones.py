@@ -16,14 +16,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models
-from app.deps import get_current_user
+from app.deps import es_admin, get_current_user
 from app.schemas import InscripcionCreate, InscripcionOut
 
 router = APIRouter()
-
-
-def _es_admin(usuario: models.Usuario) -> bool:
-    return usuario.rol.nombre == "superadmin"
 
 
 @router.post("", response_model=InscripcionOut, status_code=status.HTTP_201_CREATED)
@@ -39,7 +35,7 @@ def crear_inscripcion(
     equipo = db.get(models.Equipo, datos.equipo_id)
     if equipo is None:
         raise HTTPException(status_code=400, detail="El equipo no existe")
-    if not _es_admin(usuario) and equipo.entrenador_id != usuario.id:
+    if not es_admin(usuario) and equipo.entrenador_id != usuario.id:
         raise HTTPException(status_code=403, detail="Solo el entrenador del equipo puede inscribirlo")
 
     # Inscripciones abiertas
@@ -90,7 +86,7 @@ def listar_inscripciones(
 ):
     consulta = db.query(models.Inscripcion).options(*models.CARGA_INSCRIPCION)
     # Un entrenador ve las inscripciones de SUS equipos; el admin, todas.
-    if not _es_admin(usuario):
+    if not es_admin(usuario):
         consulta = consulta.join(models.Equipo).filter(models.Equipo.entrenador_id == usuario.id)
     if torneo_id:
         consulta = consulta.filter(models.Inscripcion.torneo_id == torneo_id)
