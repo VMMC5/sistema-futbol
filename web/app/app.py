@@ -677,6 +677,27 @@ def solicitud_documento(solicitud_id):
     return Response(resp.content, content_type=resp.headers.get("Content-Type", "application/octet-stream"))
 
 
+@app.route("/usuarios/<int:usuario_id>/foto")
+@login_required
+def usuario_foto(usuario_id):
+    # La foto está protegida por token; el panel la descarga con la sesión
+    # y la reenvía al navegador (mismo patrón que el documento de solicitud).
+    resp = requests.get(
+        f"{API_URL}/usuarios/{usuario_id}/foto",
+        headers=_headers(), timeout=TIMEOUT,
+    )
+    if resp.status_code == 401:
+        return _sesion_expirada()
+    if resp.status_code != 200:
+        # Sin foto: 404 para que el <img> caiga a su fallback CSS.
+        return Response(status=404)
+    return Response(
+        resp.content,
+        content_type=resp.headers.get("Content-Type", "image/jpeg"),
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
 @app.route("/solicitudes/<int:solicitud_id>/aceptar", methods=["POST"])
 @login_required
 def solicitud_aceptar(solicitud_id):
