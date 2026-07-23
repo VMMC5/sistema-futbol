@@ -52,3 +52,6 @@ Thumbs.db
 
 # Artefactos de Windows (Mark of the Web) al copiar archivos desde el host
 *:Zone.Identifier
+
+# Maquetas del brainstorming visual (superpowers)
+.superpowers/
