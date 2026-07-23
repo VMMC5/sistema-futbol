@@ -42,6 +42,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import RefMatchesScreen from "./src/screens/referee/RefMatchesScreen";
 import RefLiveScreen from "./src/screens/referee/RefLiveScreen";
 import RefEventScreen from "./src/screens/referee/RefEventScreen";
+import RefLineupScreen from "./src/screens/referee/RefLineupScreen";
 import RefSummaryScreen from "./src/screens/referee/RefSummaryScreen";
 import RefHistoryScreen from "./src/screens/referee/RefHistoryScreen";
 import PagoScreen from "./src/screens/PagoScreen";
@@ -232,6 +233,7 @@ export default function App() {
           <Stack.Screen name="Referee" component={RefereeTabs} options={{ headerShown: false }} />
           <Stack.Screen name="RefLive" component={RefLiveScreen} options={{ ...maroonHeader, title: "PARTIDO EN VIVO" }} />
           <Stack.Screen name="RefEvent" component={RefEventScreen} options={{ ...maroonHeader, title: "EVENTO" }} />
+          <Stack.Screen name="RefLineup" component={RefLineupScreen} options={{ ...maroonHeader, title: "ALINEACIONES" }} />
           <Stack.Screen name="RefSummary" component={RefSummaryScreen} options={{ ...maroonHeader, title: "RESUMEN DEL PARTIDO" }} />
         </Stack.Navigator>
       </NavigationContainer>

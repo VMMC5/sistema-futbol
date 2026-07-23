@@ -45,6 +45,10 @@ export default function RefLiveScreen({ route, navigation }) {
     navigation.navigate("RefEvent", { partidoId, tipo });
   }
 
+  function verAlineaciones() {
+    navigation.navigate("RefLineup", { partidoId });
+  }
+
   function finalizar() {
     Alert.alert("Finalizar partido", "¿Finalizar el partido y pasar al acta?", [
       { text: "Cancelar", style: "cancel" },
@@ -80,6 +84,10 @@ export default function RefLiveScreen({ route, navigation }) {
         <Text style={marcador.score}>{partido.goles_local} – {partido.goles_visitante}</Text>
         <Text style={marcador.team}>{partido.equipo_visitante_nombre || "Visitante"}</Text>
       </View>
+
+      <TouchableOpacity style={[btn.full, { backgroundColor: lp.green, marginBottom: 16 }]} onPress={verAlineaciones}>
+        <Text style={btn.fullText}>Ver alineaciones</Text>
+      </TouchableOpacity>
 
       {/* Botones de evento 2x2 */}
       <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
