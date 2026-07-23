@@ -117,6 +117,25 @@ export async function apiDelete(path, conAuth = true) {
   return _manejar(res);
 }
 
+// Sube la foto de perfil del usuario autenticado (multipart).
+export async function subirFoto(uri) {
+  const t = await leerToken();
+  const form = new FormData();
+  form.append("foto", { uri, name: "perfil.jpg", type: "image/jpeg" });
+  const res = await fetch(`${API_URL}/usuarios/me/foto`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${t}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "No se pudo subir la foto");
+  return res.json();
+}
+
+// Quita la foto de perfil del usuario autenticado.
+export async function borrarFoto() {
+  return apiDelete("/usuarios/me/foto");
+}
+
 import * as FileSystem from "expo-file-system";
 
 // Descarga el recibo PDF (autenticado) a un archivo local y devuelve su URI.
