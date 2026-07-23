@@ -21,6 +21,8 @@ from flask import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from app.posiciones import filas_desde_plan
+
 app = Flask(__name__)
 
 # nginx termina el TLS y habla con Flask por HTTP plano. Sin esto, Flask creería
@@ -536,14 +538,51 @@ def partido_detalle(partido_id):
     if rp.status_code != 200:
         flash("Partido no encontrado.", "error")
         return redirect(url_for("partidos"))
+    partido = rp.json()
 
     eventos = api_get(f"/partidos/{partido_id}/eventos")
-    alineacion = api_get(f"/partidos/{partido_id}/alineacion")
+    eventos = eventos.json() if eventos.status_code == 200 else []
+    resumen = api_get(f"/partidos/{partido_id}/resumen-jugadores")
+    resumen = resumen.json() if resumen.status_code == 200 else {}
+
+    def cargar_plan(equipo_id):
+        if not equipo_id:
+            return None
+        r = api_get(f"/partidos/{partido_id}/plan?equipo_id={equipo_id}")
+        if r.status_code != 200:
+            return None
+        p = r.json()
+        # sin titulares => sin plan real (el aviso "alineación no registrada")
+        if not p.get("jugadores"):
+            return None
+        for j in p["jugadores"] + p.get("suplentes", []):
+            jid = j.get("jugador_id")
+            j["id"] = jid
+            j["ev"] = resumen.get(str(jid)) if jid else None
+        return p
+
+    plan_local = cargar_plan(partido.get("equipo_local_id"))
+    plan_visitante = cargar_plan(partido.get("equipo_visitante_id"))
+
+    filas_local = (
+        filas_desde_plan(plan_local["formacion"], plan_local["jugadores"])
+        if plan_local else None
+    )
+    filas_visitante = (
+        filas_desde_plan(plan_visitante["formacion"], plan_visitante["jugadores"])
+        if plan_visitante else None
+    )
+    banca_local = plan_local.get("suplentes") if plan_local else None
+    banca_visitante = plan_visitante.get("suplentes") if plan_visitante else None
+
     return render_template(
         "partido_detalle.html",
-        partido=rp.json(),
-        eventos=eventos.json() if eventos.status_code == 200 else [],
-        alineacion=alineacion.json() if alineacion.status_code == 200 else [],
+        partido=partido,
+        eventos=eventos,
+        filas_local=filas_local,
+        filas_visitante=filas_visitante,
+        banca_local=banca_local,
+        banca_visitante=banca_visitante,
     )
 
 
