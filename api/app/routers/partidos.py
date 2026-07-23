@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models
+from app import eventos_resumen, models
 from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
@@ -237,6 +237,16 @@ def listar_eventos(
         .order_by(models.EventoPartido.minuto, models.EventoPartido.id)
         .all()
     )
+
+
+@router.get("/{partido_id}/resumen-jugadores")
+def resumen_jugadores(
+    partido_id: int,
+    db: Session = Depends(get_db),
+    _usuario: models.Usuario = Depends(get_current_user),
+):
+    _obtener_partido(db, partido_id)  # 404 si no existe
+    return eventos_resumen.resumen_por_jugador(db, partido_id)
 
 
 @router.post("/{partido_id}/eventos", response_model=EventoOut, status_code=status.HTTP_201_CREATED)
