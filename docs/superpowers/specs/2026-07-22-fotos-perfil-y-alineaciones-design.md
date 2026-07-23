@@ -211,15 +211,16 @@ Lectura (alineación):
 - **Móvil**: fuera del alcance de pytest; validación manual con Expo (checklist
   en el plan).
 
-## Preguntas abiertas (para el plan, no bloquean el spec)
+## Decisiones sobre las preguntas abiertas (resueltas con el usuario 2026-07-22)
 
-1. `resumen-jugadores` ¿endpoint aparte o embebido en `PlanOut`? Inclino por
-   **aparte**: el plan es por equipo y el resumen es del partido entero; mezclarlos
-   obliga a recalcular por cada equipo. Un endpoint por partido se pide una vez.
-2. Punto de entrada exacto de la vista del árbitro (RefLiveScreen vs. menú del
-   partido) — se decide al mapear la navegación en el plan.
-3. ¿Fallback de avatar compartido entre web y móvil? Mismo diseño (inicial sobre
-   fondo degradado), implementación separada por plataforma.
+1. **`resumen-jugadores` es un endpoint aparte**, `GET /partidos/{id}/resumen-jugadores`.
+   El plan es por equipo y el resumen es del partido entero; embebrlo obligaría a
+   recalcular por cada equipo. Se pide una vez por partido.
+2. **Punto de entrada de la vista del árbitro:** se define con precisión al mapear
+   la navegación en el plan de ejecución (RefLiveScreen vs. menú del partido).
+3. **Fallback de avatar:** mismo diseño conceptual (inicial sobre fondo degradado)
+   con **implementaciones nativas separadas** por plataforma (CSS en web, componente
+   RN en móvil). No se comparte código entre plataformas.
 
 ## Fuera de alcance
 
