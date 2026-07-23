@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import { apiGet, apiPut } from "../../api";
 import { lp, ls } from "../../publicTheme";
+import Avatar from "../../components/Avatar";
 
 // Cada formación se describe por líneas, de la defensa al ataque.
 const FORMACIONES = {
@@ -146,9 +147,16 @@ export default function LineupScreen({ route, navigation }) {
               ]}
               onPress={() => setSlotActivo(s)}
             >
-              <Text style={jug ? cancha.slotTextoLleno : cancha.slotTextoVacio}>
-                {jug ? (jug.dorsal != null ? jug.dorsal : (jug.nombre || "?").charAt(0)) : "+"}
-              </Text>
+              {jug ? (
+                <>
+                  <Avatar usuarioId={jug.jugador_id} nombre={jug.nombre} size={40} />
+                  <Text style={cancha.slotEtiqueta} numberOfLines={1}>
+                    {jug.dorsal != null ? `#${jug.dorsal} ` : ""}{jug.nombre}
+                  </Text>
+                </>
+              ) : (
+                <Text style={cancha.slotTextoVacio}>+</Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -216,9 +224,13 @@ const cancha = {
     transform: [{ translateX: -18 }, { translateY: -18 }],
   },
   slotVacio: { borderWidth: 2, borderColor: "rgba(255,255,255,0.7)", borderStyle: "dashed", backgroundColor: "rgba(0,0,0,0.15)" },
-  slotLleno: { backgroundColor: "#FBFAF6" },
+  slotLleno: {},
   slotTextoVacio: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  slotTextoLleno: { color: "#123D2A", fontWeight: "800", fontSize: 14 },
+  slotEtiqueta: {
+    position: "absolute", top: 44, left: -18, width: 72, textAlign: "center",
+    color: "#fff", fontWeight: "700", fontSize: 10,
+    textShadowColor: "rgba(0,0,0,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
+  },
 };
 
 const hoja = {

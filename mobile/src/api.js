@@ -19,6 +19,11 @@ function _urlDesdeExpo() {
 export const API_URL =
   _urlDesdeExpo() || Constants.expoConfig?.extra?.apiUrl || `http://localhost:${API_PORT}`;
 
+// URL de la foto de perfil de un usuario (requiere Authorization: Bearer <token>).
+export function urlFoto(usuarioId) {
+  return `${API_URL}/usuarios/${usuarioId}/foto`;
+}
+
 const TOKEN_KEY = "token";
 
 export async function guardarToken(token) {
