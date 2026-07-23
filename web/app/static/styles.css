@@ -246,3 +246,50 @@ table { width: 100%; border-collapse: collapse; }
 .filter-bar select { background: var(--pitch-900); border: 1px solid var(--line); color: var(--chalk);
   padding: 10px 14px; border-radius: 10px; font-family: inherit; font-size: 14px; min-width: 220px; }
 .filter-bar select:focus { outline: none; border-color: var(--lime); }
+
+/* ---------- Alineación en cancha ---------- */
+.cancha-wrap { max-width: 520px; margin: 0 auto; }
+.cancha { position: relative; width: 100%; aspect-ratio: 2/3; background: #1d4a30;
+          border-radius: 10px; overflow: hidden; }
+.cancha-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cancha-fila { position: absolute; left: 0; right: 0; display: flex;
+               justify-content: space-evenly; transform: translateY(-50%); }
+/* Posiciones fijas por línea: las 3 formaciones del sistema (4-4-2, 4-3-3,
+   3-5-2) siempre producen 4 filas (arquero + 3 líneas), así que el reparto
+   vertical es estático -> sin cálculos ni atributos de estilo inline. */
+.cancha-fila-l0 { top: 94%; } .cancha-fila-l1 { top: 79%; }
+.cancha-fila-l2 { top: 64%; } .cancha-fila-l3 { top: 51%; }
+.cancha-fila-v0 { top: 6%; }  .cancha-fila-v1 { top: 21%; }
+.cancha-fila-v2 { top: 36%; } .cancha-fila-v3 { top: 49%; }
+.cancha-pl { text-align: center; width: 60px; }
+.cancha-avw { position: relative; width: 36px; height: 36px; margin: 0 auto 4px; }
+.cancha-avatar { position: absolute; inset: 0; width: 36px; height: 36px;
+                 border-radius: 9px; object-fit: cover; border: 1px solid rgba(255,255,255,.35); }
+.cancha-inicial { position: absolute; inset: 0; display: flex; align-items: center;
+                  justify-content: center; border-radius: 9px; font-size: 16px; color: #dfe9e2;
+                  background: linear-gradient(135deg,#5b7d66,#31513d); border: 1px solid rgba(255,255,255,.35); }
+.cancha-nm { font-size: 9.5px; line-height: 1.25; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.bg { position: absolute; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; font-size: 8px; font-weight: 800; box-shadow: 0 1px 3px rgba(0,0,0,.55); }
+.bg-gol { right: -6px; top: -5px; background: var(--chalk); color: var(--pitch-900); min-width: 16px; height: 16px; padding: 0 3px; }
+.bg-asis { left: -6px; bottom: -4px; background: var(--pitch-800); width: 16px; height: 16px; color: var(--chalk); border: 1px solid rgba(255,255,255,.35); }
+.bg-tar { right: -6px; bottom: -4px; width: 11px; height: 14px; border-radius: 2px; }
+.bg-amarilla { background: #f2b53c; } .bg-roja { background: var(--danger); }
+.bg-out { left: -6px; top: -5px; background: #e0393e; color: #fff; width: 15px; height: 15px; font-size: 9px; }
+.bg-in { left: -6px; top: -5px; background: #22a06b; color: #fff; width: 15px; height: 15px; font-size: 9px; }
+.cancha-aviso { position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: center; z-index: 2; }
+.cancha-aviso-local { top: 50%; height: 50%; }
+.cancha-aviso-visitante { top: 0; height: 50%; }
+.cancha-aviso span { background: rgba(7,20,13,.72); border: 1px dashed rgba(198,255,0,.35);
+                     color: var(--lime); border-radius: 10px; padding: 9px 16px; font-size: 12px; font-weight: 600; }
+/* ---------- Banca ---------- */
+.banca-h { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 16px 0 6px; }
+.banca-h .c { color: var(--muted); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; }
+.banca { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.banca-i { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.banca-i.r { flex-direction: row-reverse; text-align: right; }
+/* ---------- Eventos por grupo ---------- */
+.evgrupo { display: grid; grid-template-columns: 1fr 30px 1fr; gap: 10px; align-items: center; padding: 7px 0; }
+.evgrupo + .evgrupo { border-top: 1px solid rgba(255,255,255,.06); }
+.evgrupo .l { text-align: right; } .evgrupo .r { text-align: left; }
+.evgrupo .i { display: flex; align-items: center; justify-content: center; }
