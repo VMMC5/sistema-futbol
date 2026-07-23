@@ -22,6 +22,7 @@ def _to_out(u: models.Usuario) -> UsuarioAdminOut:
     return UsuarioAdminOut(
         id=u.id, nombre=u.nombre, correo=u.correo,
         rol=u.rol.nombre, telefono=u.telefono, activo=u.activo,
+        tiene_foto=u.foto_nombre is not None,
     )
 
 

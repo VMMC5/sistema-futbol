@@ -52,6 +52,7 @@ def registrar(datos: RegistroUsuario, db: Session = Depends(get_db)):
     return UsuarioOut(
         id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
         rol=rol.nombre, activo=usuario.activo,
+        tiene_foto=usuario.foto_nombre is not None,
     )
 
 
@@ -82,6 +83,7 @@ def yo(usuario: models.Usuario = Depends(get_current_user)):
     return UsuarioOut(
         id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
         rol=usuario.rol.nombre, activo=usuario.activo, telefono=usuario.telefono,
+        tiene_foto=usuario.foto_nombre is not None,
     )
 
 
@@ -102,6 +104,7 @@ def actualizar_perfil(
     return UsuarioOut(
         id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
         rol=usuario.rol.nombre, activo=usuario.activo, telefono=usuario.telefono,
+        tiene_foto=usuario.foto_nombre is not None,
     )
 
 
