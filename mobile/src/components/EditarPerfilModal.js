@@ -1,7 +1,13 @@
 // Modal de "Editar datos personales" (nombre y teléfono) contra PUT /auth/me.
 // Los valores iniciales llegan por props: useAuth().usuario ya trae ambos, así
 // que el modal no pide nada al abrirse.
-import React, { useEffect, useState } from "react";
+//
+// El padre lo monta condicionalmente ({editar && <EditarPerfilModal .../>}), así
+// que cada apertura es un montaje nuevo y el estado se inicializa una sola vez.
+// NO uses un useEffect de sincronización: guardar() llama a refrescar(), que
+// cambia nombreInicial mientras el modal sigue abierto, y un efecto que dependa
+// de esa prop pisaría lo que el usuario está escribiendo.
+import React, { useState } from "react";
 import { Alert, Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { apiPut } from "../api";
 import { useAuth } from "../auth";
@@ -11,17 +17,9 @@ export default function EditarPerfilModal({
   visible, nombreInicial, telefonoInicial, acento = lp.accent, onCerrar, onGuardado,
 }) {
   const { refrescar } = useAuth();
-  const [nombre, setNombre] = useState("");
-  const [telefono, setTelefono] = useState("");
+  const [nombre, setNombre] = useState(nombreInicial || "");
+  const [telefono, setTelefono] = useState(telefonoInicial || "");
   const [guardando, setGuardando] = useState(false);
-
-  // Al abrirse, parte siempre de los valores actuales.
-  useEffect(() => {
-    if (visible) {
-      setNombre(nombreInicial || "");
-      setTelefono(telefonoInicial || "");
-    }
-  }, [visible, nombreInicial, telefonoInicial]);
 
   async function guardar() {
     if (nombre.trim().length < 2) {
@@ -31,8 +29,10 @@ export default function EditarPerfilModal({
     setGuardando(true);
     try {
       const actualizado = await apiPut("/auth/me", { nombre: nombre.trim(), telefono: telefono.trim() });
-      await refrescar();
+      // Primero el padre, luego el refresco global: así el nombre en pantalla
+      // cambia sin esperar el round-trip extra de refrescar() (orden del original).
       onGuardado?.(actualizado);
+      await refrescar();
       onCerrar();
     } catch (e) {
       Alert.alert("Error", e.message || "No se pudo guardar");
