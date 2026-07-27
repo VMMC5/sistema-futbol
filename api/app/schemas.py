@@ -463,6 +463,7 @@ class PlanItemOut(BaseModel):
     dorsal: int | None = None
     posicion: str | None = None
     orden: int = 0
+    tiene_foto: bool = False        # el panel web solo pinta <img> si es True
 
 
 class PlanOut(BaseModel):

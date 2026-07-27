@@ -122,3 +122,32 @@ def test_se_puede_reemplazar_un_plan_existente(client, auth_admin, auth_entrenad
                     json={**base, "jugadores": [{"jugador_equipo_id": b["je_id"], "posicion": "DEL", "orden": 9}]})
     assert r2.status_code == 200 and len(r2.json()["jugadores"]) == 1
     assert r2.json()["jugadores"][0]["nombre"] == "Dos"
+
+
+def test_plan_marca_tiene_foto(client, db_session, auth_admin, auth_entrenador,
+                               torneo_id, agregar_miembro):
+    """El plan expone tiene_foto por jugador; el panel web solo pinta <img> con True.
+    Regresión del bug donde la inicial tapaba la foto (se resolvió no pintando
+    <img> para quien no tiene foto)."""
+    from app import models
+    pid = _partido(client, auth_admin, torneo_id)
+    con = agregar_miembro(auth_entrenador, 1, "Con Foto", "conf@demo.com")
+    sin = agregar_miembro(auth_entrenador, 1, "Sin Foto", "sinf@demo.com")
+
+    db = db_session()
+    db.get(models.Usuario, con["jugador_id"]).foto_nombre = "abc.jpg"
+    db.commit()
+    db.close()
+
+    client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
+        "equipo_id": 1, "formacion": "4-4-2",
+        "jugadores": [
+            {"jugador_equipo_id": con["je_id"], "posicion": "POR", "orden": 0},
+            {"jugador_equipo_id": sin["je_id"], "posicion": "DEF", "orden": 1},
+        ],
+    })
+    r = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_entrenador)
+    assert r.status_code == 200
+    flags = {j["jugador_id"]: j["tiene_foto"] for j in r.json()["jugadores"]}
+    assert flags[con["jugador_id"]] is True
+    assert flags[sin["jugador_id"]] is False

@@ -269,13 +269,16 @@ table { width: 100%; border-collapse: collapse; }
 .cancha-fila-v2 { top: 36%; } .cancha-fila-v3 { top: 49%; }
 .cancha-pl { text-align: center; width: 60px; }
 .cancha-avw { position: relative; width: 36px; height: 36px; margin: 0 auto 4px; }
-.cancha-avatar { position: absolute; inset: 0; width: 36px; height: 36px;
+/* La inicial es el fondo (z-index base); la foto va encima cuando existe, y los
+   distintivos por encima de la foto. Sin esto la inicial (más tardía en el DOM)
+   tapaba la foto. */
+.cancha-avatar { position: absolute; inset: 0; width: 36px; height: 36px; z-index: 1;
                  border-radius: 9px; object-fit: cover; border: 1px solid rgba(255,255,255,.35); }
 .cancha-inicial { position: absolute; inset: 0; display: flex; align-items: center;
                   justify-content: center; border-radius: 9px; font-size: 16px; color: #dfe9e2;
                   background: linear-gradient(135deg,#5b7d66,#31513d); border: 1px solid rgba(255,255,255,.35); }
 .cancha-nm { font-size: 9.5px; line-height: 1.25; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
-.bg { position: absolute; display: flex; align-items: center; justify-content: center;
+.bg { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center;
       border-radius: 50%; font-size: 8px; font-weight: 800; box-shadow: 0 1px 3px rgba(0,0,0,.55); }
 .bg-gol { right: -6px; top: -5px; background: var(--chalk); color: var(--pitch-900); min-width: 16px; height: 16px; padding: 0 3px; }
 .bg-asis { left: -6px; bottom: -4px; background: var(--pitch-800); width: 16px; height: 16px; color: var(--chalk); border: 1px solid rgba(255,255,255,.35); }

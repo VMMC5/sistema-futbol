@@ -457,12 +457,29 @@ def _plan_a_salida(db: Session, partido_id: int, equipo_id: int, plan: models.Al
                     "posicion": je.posicion,
                     "orden": -1,
                 })
+
+    # tiene_foto por jugador, en UNA sola consulta para todo el plan (el panel web
+    # solo pinta el <img> cuando es True, así evita imágenes rotas para los que no
+    # tienen foto). No se mutan los dicts persistidos: se construyen copias.
+    ids = {j.get("jugador_id") for j in titulares if j.get("jugador_id")}
+    ids |= {s["jugador_id"] for s in suplentes if s["jugador_id"]}
+    con_foto = set()
+    if ids:
+        con_foto = {
+            uid for (uid,) in db.query(models.Usuario.id)
+            .filter(models.Usuario.id.in_(ids), models.Usuario.foto_nombre.isnot(None))
+            .all()
+        }
+
+    def _con_foto(d):
+        return {**d, "tiene_foto": d.get("jugador_id") in con_foto}
+
     return PlanOut(
         partido_id=partido_id,
         equipo_id=equipo_id,
         formacion=plan.formacion if plan else "4-4-2",
-        jugadores=titulares,
-        suplentes=suplentes,
+        jugadores=[_con_foto(j) for j in titulares],
+        suplentes=[_con_foto(s) for s in suplentes],
     )
 
 
