@@ -405,7 +405,13 @@ Crea `mobile/src/components/EditarPerfilModal.js`. Es el modal de `PlayerProfile
 // Modal de "Editar datos personales" (nombre y teléfono) contra PUT /auth/me.
 // Los valores iniciales llegan por props: useAuth().usuario ya trae ambos, así
 // que el modal no pide nada al abrirse.
-import React, { useEffect, useState } from "react";
+//
+// El padre lo monta condicionalmente ({editar && <EditarPerfilModal .../>}), así
+// que cada apertura es un montaje nuevo y el estado se inicializa una sola vez.
+// NO uses un useEffect de sincronización: guardar() llama a refrescar(), que
+// cambia nombreInicial mientras el modal sigue abierto, y un efecto que dependa
+// de esa prop pisaría lo que el usuario está escribiendo.
+import React, { useState } from "react";
 import { Alert, Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { apiPut } from "../api";
 import { useAuth } from "../auth";
@@ -415,17 +421,9 @@ export default function EditarPerfilModal({
   visible, nombreInicial, telefonoInicial, acento = lp.accent, onCerrar, onGuardado,
 }) {
   const { refrescar } = useAuth();
-  const [nombre, setNombre] = useState("");
-  const [telefono, setTelefono] = useState("");
+  const [nombre, setNombre] = useState(nombreInicial || "");
+  const [telefono, setTelefono] = useState(telefonoInicial || "");
   const [guardando, setGuardando] = useState(false);
-
-  // Al abrirse, parte siempre de los valores actuales.
-  useEffect(() => {
-    if (visible) {
-      setNombre(nombreInicial || "");
-      setTelefono(telefonoInicial || "");
-    }
-  }, [visible, nombreInicial, telefonoInicial]);
 
   async function guardar() {
     if (nombre.trim().length < 2) {
@@ -435,8 +433,10 @@ export default function EditarPerfilModal({
     setGuardando(true);
     try {
       const actualizado = await apiPut("/auth/me", { nombre: nombre.trim(), telefono: telefono.trim() });
-      await refrescar();
+      // Primero el padre, luego el refresco global: así el nombre en pantalla
+      // cambia sin esperar el round-trip extra de refrescar() (orden del original).
       onGuardado?.(actualizado);
+      await refrescar();
       onCerrar();
     } catch (e) {
       Alert.alert("Error", e.message || "No se pudo guardar");
@@ -595,14 +595,18 @@ export default function PlayerProfileScreen({ navigation }) {
       <OpcionMenu icono="lock" texto="Cambiar contraseña" onPress={() => navigation.navigate("ChangePassword")} />
       <OpcionMenu icono="logout" texto="Cerrar sesión" color={lp.danger} onPress={cerrarSesion} />
 
-      <EditarPerfilModal
-        visible={editar}
-        nombreInicial={me?.nombre || ""}
-        telefonoInicial={me?.telefono || ""}
-        acento={lp.accent}
-        onCerrar={() => setEditar(false)}
-        onGuardado={(actualizado) => setMe(actualizado)}
-      />
+      {/* Montaje condicional: cada apertura arranca con los valores actuales
+          sin necesitar un useEffect que pise lo que el usuario escribe. */}
+      {editar && (
+        <EditarPerfilModal
+          visible
+          nombreInicial={me?.nombre || ""}
+          telefonoInicial={me?.telefono || ""}
+          acento={lp.accent}
+          onCerrar={() => setEditar(false)}
+          onGuardado={(actualizado) => setMe(actualizado)}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -723,14 +727,17 @@ export default function PerfilScreen({ navigation }) {
       <OpcionMenu icono="lock" texto="Cambiar contraseña" onPress={() => navigation.navigate("ChangePassword")} />
       <OpcionMenu icono="logout" texto="Cerrar sesión" color={lp.danger} onPress={cerrarSesion} />
 
-      <EditarPerfilModal
-        visible={editar}
-        nombreInicial={usuario?.nombre || ""}
-        telefonoInicial={usuario?.telefono || ""}
-        acento={acento}
-        onCerrar={() => setEditar(false)}
-        onGuardado={() => {}}
-      />
+      {/* Montaje condicional: ver la nota en EditarPerfilModal. */}
+      {editar && (
+        <EditarPerfilModal
+          visible
+          nombreInicial={usuario?.nombre || ""}
+          telefonoInicial={usuario?.telefono || ""}
+          acento={acento}
+          onCerrar={() => setEditar(false)}
+          onGuardado={() => {}}
+        />
+      )}
     </ScrollView>
   );
 }
