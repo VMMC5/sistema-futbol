@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_iconos.html" import icono %}
 {% set active = 'estadisticas' %}
 {% block title %}Estadísticas{% endblock %}
 {% block heading %}Estadísticas{% endblock %}
@@ -46,7 +47,11 @@
     {% if tarjetas %}
     <div class="panel-table">
       <table>
-        <thead><tr><th>Jugador</th><th class="num">🟨</th><th class="num">🟥</th></tr></thead>
+        <thead><tr>
+          <th>Jugador</th>
+          <th class="num"><span title="Tarjetas amarillas">{{ icono("tarjeta", 20, "ic-amarilla") }}</span></th>
+          <th class="num"><span title="Tarjetas rojas">{{ icono("tarjeta", 20, "ic-roja") }}</span></th>
+        </tr></thead>
         <tbody>
           {% for t in tarjetas %}
           <tr>

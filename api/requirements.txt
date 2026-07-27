@@ -22,6 +22,9 @@ slowapi==0.1.9                  # rate limiting (anti fuerza bruta en /auth/logi
 # Migraciones de base de datos
 alembic==1.14.0
 
+# Procesamiento de imagenes (fotos de perfil)
+Pillow>=10
+
 # --- Solo para desarrollo / pruebas ---
 pytest==8.3.4
 httpx==0.28.1

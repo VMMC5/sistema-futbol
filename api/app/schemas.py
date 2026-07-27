@@ -28,6 +28,7 @@ class UsuarioOut(BaseModel):
     rol: str
     activo: bool
     telefono: str | None = None
+    tiene_foto: bool = False
 
     # Permite construir el esquema desde un objeto SQLAlchemy
     model_config = {"from_attributes": True}
@@ -352,6 +353,7 @@ class UsuarioAdminOut(BaseModel):
     rol: str
     telefono: str | None = None
     activo: bool
+    tiene_foto: bool = False
 
 
 # ======================================================================
@@ -461,6 +463,7 @@ class PlanItemOut(BaseModel):
     dorsal: int | None = None
     posicion: str | None = None
     orden: int = 0
+    tiene_foto: bool = False        # el panel web solo pinta <img> si es True
 
 
 class PlanOut(BaseModel):

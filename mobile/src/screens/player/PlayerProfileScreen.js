@@ -1,16 +1,14 @@
-// MI PERFIL: avatar con iniciales, datos, cajas de stats y accesos a editar
-// datos personales, métodos de pago (próximamente), contraseña y cerrar sesión.
+// MI PERFIL: avatar (foto o iniciales), datos, cajas de stats y accesos a
+// editar datos personales, métodos de pago (próximamente), contraseña y
+// cerrar sesión.
 import React, { useCallback, useState } from "react";
 import { useFocusEffect, CommonActions } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { apiGet, apiPut } from "../../api";
+import Avatar from "../../components/Avatar";
+import { apiGet, apiPut, borrarFoto, subirFoto } from "../../api";
 import { useAuth } from "../../auth";
 import { lp, ls } from "../../publicTheme";
-
-function iniciales(nombre = "") {
-  const p = nombre.trim().split(/\s+/);
-  return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "?";
-}
 
 export default function PlayerProfileScreen({ navigation }) {
   const { usuario, logout, refrescar } = useAuth();
@@ -21,6 +19,8 @@ export default function PlayerProfileScreen({ navigation }) {
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [fotoV, setFotoV] = useState(0);  // sube en cada cambio de foto -> refresca el Avatar
 
   const cargar = useCallback(async () => {
     try {
@@ -50,6 +50,53 @@ export default function PlayerProfileScreen({ navigation }) {
     }
   }
 
+  async function cambiarFoto() {
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) {
+      Alert.alert("Permiso necesario", "Habilita el acceso a tus fotos para cambiar la imagen de perfil.");
+      return;
+    }
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (resultado.canceled) return;
+    setSubiendoFoto(true);
+    try {
+      await subirFoto(resultado.assets[0].uri);
+      await refrescar();
+      setFotoV((v) => v + 1);
+    } catch (e) {
+      Alert.alert("Error", e.message || "No se pudo subir la foto");
+    } finally {
+      setSubiendoFoto(false);
+    }
+  }
+
+  function quitarFoto() {
+    Alert.alert("Quitar foto", "¿Quitar tu foto de perfil?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Quitar",
+        style: "destructive",
+        onPress: async () => {
+          setSubiendoFoto(true);
+          try {
+            await borrarFoto();
+            await refrescar();
+            setFotoV((v) => v + 1);
+          } catch (e) {
+            Alert.alert("Error", e.message || "No se pudo quitar la foto");
+          } finally {
+            setSubiendoFoto(false);
+          }
+        },
+      },
+    ]);
+  }
+
   async function cerrarSesion() {
     await logout();
     navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: "Public" }] }));
@@ -65,9 +112,18 @@ export default function PlayerProfileScreen({ navigation }) {
     <ScrollView style={ls.screen} contentContainerStyle={ls.content}>
       {/* Encabezado */}
       <View style={{ alignItems: "center", marginVertical: 12 }}>
-        <View style={avatar.circ}><Text style={avatar.txt}>{iniciales(nombreMostrar)}</Text></View>
+        <Avatar usuarioId={me?.id || usuario?.id} nombre={nombreMostrar} size={72} version={fotoV} />
         <Text style={{ color: lp.textDark, fontSize: 20, fontWeight: "800", marginTop: 12 }}>{nombreMostrar}</Text>
         <Text style={[ls.badge, { backgroundColor: lp.surface, color: lp.green, borderWidth: 1, borderColor: lp.surfaceBorder, marginTop: 6 }]}>JUGADOR</Text>
+        {subiendoFoto && <ActivityIndicator color={lp.green} style={{ marginTop: 10 }} />}
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+          <TouchableOpacity style={fotoBtn} onPress={cambiarFoto} disabled={subiendoFoto}>
+            <Text style={fotoBtnTxt}>Cambiar foto</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[fotoBtn, { borderColor: lp.danger }]} onPress={quitarFoto} disabled={subiendoFoto}>
+            <Text style={[fotoBtnTxt, { color: lp.danger }]}>Quitar foto</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Stats */}
@@ -118,10 +174,8 @@ function Opcion({ icono, texto, onPress, color }) {
   );
 }
 
-const avatar = {
-  circ: { width: 88, height: 88, borderRadius: 44, backgroundColor: lp.accent, alignItems: "center", justifyContent: "center" },
-  txt: { color: lp.white, fontSize: 30, fontWeight: "800" },
-};
+const fotoBtn = { borderColor: lp.surfaceBorder, borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 };
+const fotoBtnTxt = { color: lp.green, fontWeight: "700", fontSize: 13 };
 const box = { flex: 1, borderRadius: 14, paddingVertical: 18, alignItems: "center" };
 const boxNum = { color: lp.white, fontSize: 26, fontWeight: "800" };
 const boxLbl = { color: "rgba(255,255,255,0.9)", fontSize: 11, fontWeight: "700", letterSpacing: 1, marginTop: 2 };

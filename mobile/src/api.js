@@ -19,6 +19,11 @@ function _urlDesdeExpo() {
 export const API_URL =
   _urlDesdeExpo() || Constants.expoConfig?.extra?.apiUrl || `http://localhost:${API_PORT}`;
 
+// URL de la foto de perfil de un usuario (requiere Authorization: Bearer <token>).
+export function urlFoto(usuarioId) {
+  return `${API_URL}/usuarios/${usuarioId}/foto`;
+}
+
 const TOKEN_KEY = "token";
 
 export async function guardarToken(token) {
@@ -110,6 +115,25 @@ export async function apiDelete(path, conAuth = true) {
   // 204 sin cuerpo
   if (res.status === 204) return true;
   return _manejar(res);
+}
+
+// Sube la foto de perfil del usuario autenticado (multipart).
+export async function subirFoto(uri) {
+  const t = await leerToken();
+  const form = new FormData();
+  form.append("foto", { uri, name: "perfil.jpg", type: "image/jpeg" });
+  const res = await fetch(`${API_URL}/usuarios/me/foto`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${t}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "No se pudo subir la foto");
+  return res.json();
+}
+
+// Quita la foto de perfil del usuario autenticado.
+export async function borrarFoto() {
+  return apiDelete("/usuarios/me/foto");
 }
 
 import * as FileSystem from "expo-file-system";

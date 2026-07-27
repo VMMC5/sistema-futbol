@@ -65,6 +65,7 @@ class Usuario(Base):
     telefono = Column(String(20))
     activo = Column(Boolean, default=True, nullable=False)
     debe_cambiar_password = Column(Boolean, default=False, nullable=False)
+    foto_nombre = Column(String(255))  # NULL = sin foto; "{uuid}.jpg" si tiene
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
     rol = relationship("Rol", back_populates="usuarios")

@@ -1,0 +1,94 @@
+{# Cancha reutilizable (alineaciones visuales).
+
+   Contrato (lo llena la vista en Task 7, este macro solo pinta):
+   - filas_local / filas_visitante = [[jugador, ...], ...] de arquero a ataque,
+     una fila por línea de la formación (siempre 4 líneas: las 3 formaciones
+     del sistema -4-4-2, 4-3-3, 3-5-2- tienen arquero+3 líneas). None cuando
+     el equipo no tiene plan cargado -> se pinta el aviso de media_cancha_vacia.
+   - banca_local / banca_visitante = [jugador, ...] (suplentes), opcional.
+   - Cada jugador: {id, nombre, dorsal, ev:{goles,asistencias,amarillas,rojas,salio,entro}}
+
+   El SVG de líneas es estático (cumple CSP). Las posiciones de cada línea
+   dentro de la cancha usan clases fijas (cancha-fila-l0..l3 / v0..v3) en vez
+   de estilos calculados: como siempre hay 4 líneas por equipo, no hace falta
+   nada dinámico y así se evita cualquier `style=""` inline. #}
+
+{% macro _avatar(j) -%}
+<div class="cancha-pl">
+  <div class="cancha-avw">
+    {% if j.id and j.tiene_foto %}<img class="cancha-avatar" src="{{ url_for('usuario_foto', usuario_id=j.id) }}" alt="">{% endif %}
+    <span class="cancha-inicial">{{ (j.nombre or '?')[0] }}</span>
+    {% if j.ev %}
+      {% if j.ev.goles %}<span class="bg bg-gol">{{ j.ev.goles }}</span>{% endif %}
+      {% if j.ev.asistencias %}<span class="bg bg-asis">A</span>{% endif %}
+      {% if j.ev.rojas %}<span class="bg bg-tar bg-roja"></span>{% elif j.ev.amarillas %}<span class="bg bg-tar bg-amarilla"></span>{% endif %}
+      {% if j.ev.salio %}<span class="bg bg-out">↓</span>{% elif j.ev.entro %}<span class="bg bg-in">↑</span>{% endif %}
+    {% endif %}
+  </div>
+  <div class="cancha-nm">{{ j.dorsal or '' }} {{ (j.nombre or '').split(' ')[0] }}</div>
+</div>
+{%- endmacro %}
+
+{% macro _banca_item(j, lado) -%}
+<div class="banca-i{{ ' r' if lado == 'visitante' else '' }}">
+  <div class="cancha-avw">
+    {% if j.id and j.tiene_foto %}<img class="cancha-avatar" src="{{ url_for('usuario_foto', usuario_id=j.id) }}" alt="">{% endif %}
+    <span class="cancha-inicial">{{ (j.nombre or '?')[0] }}</span>
+  </div>
+  <span>{{ j.dorsal or '' }} {{ j.nombre or '' }}</span>
+</div>
+{%- endmacro %}
+
+{% macro media_cancha_vacia(lado) -%}
+<div class="cancha-aviso cancha-aviso-{{ lado }}">
+  <span>Alineación no registrada</span>
+</div>
+{%- endmacro %}
+
+{% macro cancha(filas_local, filas_visitante, banca_local=none, banca_visitante=none) -%}
+<div class="cancha-wrap">
+  <div class="cancha">
+    <svg class="cancha-lines" viewBox="0 0 200 300" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <rect x="4" y="4" width="192" height="292" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+      <line x1="4" y1="150" x2="196" y2="150" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+      <circle cx="100" cy="150" r="26" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+      <rect x="46" y="4" width="108" height="34" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+      <rect x="46" y="262" width="108" height="34" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+    </svg>
+
+    {% if filas_visitante %}
+      {% for fila in filas_visitante %}
+      <div class="cancha-fila cancha-fila-v{{ [loop.index0, 3]|min }}">
+        {% for j in fila %}{{ _avatar(j) }}{% endfor %}
+      </div>
+      {% endfor %}
+    {% else %}
+      {{ media_cancha_vacia('visitante') }}
+    {% endif %}
+
+    {% if filas_local %}
+      {% for fila in filas_local %}
+      <div class="cancha-fila cancha-fila-l{{ [loop.index0, 3]|min }}">
+        {% for j in fila %}{{ _avatar(j) }}{% endfor %}
+      </div>
+      {% endfor %}
+    {% else %}
+      {{ media_cancha_vacia('local') }}
+    {% endif %}
+  </div>
+
+  {% if banca_local or banca_visitante %}
+  <div class="banca-h">
+    <span class="c">Local</span><span class="c">Banca</span><span class="c">Visitante</span>
+  </div>
+  <div class="banca">
+    <div>
+      {% for j in (banca_local or []) %}{{ _banca_item(j, 'local') }}{% endfor %}
+    </div>
+    <div>
+      {% for j in (banca_visitante or []) %}{{ _banca_item(j, 'visitante') }}{% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{%- endmacro %}

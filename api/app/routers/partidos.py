@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models
+from app import eventos_resumen, models
 from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
@@ -239,6 +239,16 @@ def listar_eventos(
     )
 
 
+@router.get("/{partido_id}/resumen-jugadores")
+def resumen_jugadores(
+    partido_id: int,
+    db: Session = Depends(get_db),
+    _usuario: models.Usuario = Depends(get_current_user),
+):
+    _obtener_partido(db, partido_id)  # 404 si no existe
+    return eventos_resumen.resumen_por_jugador(db, partido_id)
+
+
 @router.post("/{partido_id}/eventos", response_model=EventoOut, status_code=status.HTTP_201_CREATED)
 def registrar_evento(
     partido_id: int,
@@ -447,12 +457,29 @@ def _plan_a_salida(db: Session, partido_id: int, equipo_id: int, plan: models.Al
                     "posicion": je.posicion,
                     "orden": -1,
                 })
+
+    # tiene_foto por jugador, en UNA sola consulta para todo el plan (el panel web
+    # solo pinta el <img> cuando es True, así evita imágenes rotas para los que no
+    # tienen foto). No se mutan los dicts persistidos: se construyen copias.
+    ids = {j.get("jugador_id") for j in titulares if j.get("jugador_id")}
+    ids |= {s["jugador_id"] for s in suplentes if s["jugador_id"]}
+    con_foto = set()
+    if ids:
+        con_foto = {
+            uid for (uid,) in db.query(models.Usuario.id)
+            .filter(models.Usuario.id.in_(ids), models.Usuario.foto_nombre.isnot(None))
+            .all()
+        }
+
+    def _con_foto(d):
+        return {**d, "tiene_foto": d.get("jugador_id") in con_foto}
+
     return PlanOut(
         partido_id=partido_id,
         equipo_id=equipo_id,
         formacion=plan.formacion if plan else "4-4-2",
-        jugadores=titulares,
-        suplentes=suplentes,
+        jugadores=[_con_foto(j) for j in titulares],
+        suplentes=[_con_foto(s) for s in suplentes],
     )
 
 

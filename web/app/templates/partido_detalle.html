@@ -1,13 +1,15 @@
 {% extends "base.html" %}
+{% from "_iconos.html" import icono %}
+{% from "_cancha.html" import cancha %}
 {% set active = 'partidos' %}
 {% block title %}Partido{% endblock %}
 {% block heading %}Detalle del partido{% endblock %}
 
 {% block content %}
-<a href="{{ url_for('partidos') }}" class="btn ghost" style="margin-bottom:18px;">← Volver a partidos</a>
+<a href="{{ url_for('partidos') }}" class="btn ghost mb-18">← Volver a partidos</a>
 
-<!-- Marcador -->
-<div class="card" style="margin-bottom:22px;">
+<!-- Marcador + eventos -->
+<div class="card mb-22">
   <div class="scoreboard">
     <div class="team"><div class="team-name">{{ partido.equipo_local_nombre or '?' }}</div><div class="team-tag">Local</div></div>
     <div class="score">
@@ -25,7 +27,7 @@
     {% if partido.fecha_hora %}<span>· {{ partido.fecha_hora.replace('T', ' ')[:16] }}</span>{% endif %}
   </div>
 
-  <div class="form-actions" style="margin-top:18px;">
+  <div class="form-actions mt-18">
     {% if partido.estado == 'programado' %}
     <form method="post" action="{{ url_for('partido_accion', partido_id=partido.id, accion='iniciar') }}">
       <button type="submit" class="btn">▶ Iniciar partido</button>
@@ -38,54 +40,59 @@
     <span class="card-note">Partido finalizado.</span>
     {% endif %}
   </div>
+
+  <div class="section-head mt-24"><h2>Eventos</h2></div>
+  {% if eventos %}
+  {% set goles = eventos | selectattr('tipo', 'equalto', 'gol') | list %}
+  {% set tarjetas = eventos | selectattr('tipo', 'in', ['tarjeta_amarilla', 'tarjeta_roja']) | list %}
+  {% set cambios = eventos | selectattr('tipo', 'equalto', 'cambio') | list %}
+
+  {% if goles %}
+  <h3 class="evgrupo-titulo">{{ icono("football", 16) }} Goles</h3>
+  <div class="panel-table">
+    {% for e in goles %}
+    <div class="evgrupo">
+      <div class="l">{% if e.equipo_id == partido.equipo_local_id %}{{ e.jugador_nombre or 'Sin jugador' }}{% if e.subtipo == 'autogol' %} (autogol){% endif %} <span class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</span>{% endif %}</div>
+      <div class="i">{{ icono("football", 18) }}</div>
+      <div class="r">{% if e.equipo_id == partido.equipo_visitante_id %}{{ e.jugador_nombre or 'Sin jugador' }}{% if e.subtipo == 'autogol' %} (autogol){% endif %} <span class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</span>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if tarjetas %}
+  <h3 class="evgrupo-titulo">{{ icono("tarjeta", 16) }} Tarjetas</h3>
+  <div class="panel-table">
+    {% for e in tarjetas %}
+    <div class="evgrupo">
+      <div class="l">{% if e.equipo_id == partido.equipo_local_id %}{{ e.jugador_nombre or 'Sin jugador' }} <span class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</span>{% endif %}</div>
+      <div class="i">{% if e.tipo == 'tarjeta_roja' %}{{ icono("tarjeta", 18, "ic-roja") }}{% else %}{{ icono("tarjeta", 18, "ic-amarilla") }}{% endif %}</div>
+      <div class="r">{% if e.equipo_id == partido.equipo_visitante_id %}{{ e.jugador_nombre or 'Sin jugador' }} <span class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</span>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if cambios %}
+  <h3 class="evgrupo-titulo">{{ icono("transfer", 16) }} Cambios</h3>
+  <div class="panel-table">
+    {% for e in cambios %}
+    <div class="evgrupo">
+      <div class="l">{% if e.equipo_id == partido.equipo_local_id %}↓ {{ e.jugador_nombre or 'Sin jugador' }}{% if e.jugador_secundario_nombre %}<br>↑ {{ e.jugador_secundario_nombre }}{% endif %} <span class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</span>{% endif %}</div>
+      <div class="i">{{ icono("transfer", 18) }}</div>
+      <div class="r">{% if e.equipo_id == partido.equipo_visitante_id %}↓ {{ e.jugador_nombre or 'Sin jugador' }}{% if e.jugador_secundario_nombre %}<br>↑ {{ e.jugador_secundario_nombre }}{% endif %} <span class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</span>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="panel-table"><div class="empty">Sin eventos registrados.</div></div>
+  {% endif %}
 </div>
 
-<div class="grid" style="grid-template-columns: 1fr 1fr; align-items:start;">
-  <!-- Eventos -->
-  <div>
-    <div class="section-head"><h2>Eventos</h2></div>
-    {% if eventos %}
-    <div class="timeline">
-      {% for e in eventos %}
-      <div class="event">
-        <div class="event-min">{{ e.minuto if e.minuto is not none else '–' }}'</div>
-        <div class="event-icon {{ e.tipo }}">
-          {% if e.tipo == 'gol' %}⚽{% elif e.tipo == 'tarjeta_amarilla' %}🟨{% elif e.tipo == 'tarjeta_roja' %}🟥{% else %}🔁{% endif %}
-        </div>
-        <div class="event-body">
-          <div class="event-type">{{ e.tipo | replace('_', ' ') }}</div>
-          <div class="event-sub">{{ e.jugador_nombre or 'Sin jugador' }} · {{ e.equipo_nombre or '—' }}</div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="panel-table"><div class="empty">Sin eventos registrados.</div></div>
-    {% endif %}
-  </div>
-
-  <!-- Alineación -->
-  <div>
-    <div class="section-head"><h2>Alineación</h2></div>
-    {% if alineacion %}
-    <div class="panel-table">
-      <table>
-        <thead><tr><th>Jugador</th><th>Equipo</th><th>Posición</th><th>Titular</th></tr></thead>
-        <tbody>
-          {% for a in alineacion %}
-          <tr>
-            <td><strong>{{ a.jugador_nombre or ('#' ~ a.jugador_id) }}</strong></td>
-            <td>{{ a.equipo_nombre or '—' }}</td>
-            <td>{{ a.posicion or '—' }}</td>
-            <td>{{ 'Sí' if a.titular else 'No' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="panel-table"><div class="empty">Sin alineación registrada.</div></div>
-    {% endif %}
-  </div>
+<!-- Alineaciones -->
+<div class="card">
+  <div class="section-head"><h2>Alineaciones</h2></div>
+  {{ cancha(filas_local, filas_visitante, banca_local, banca_visitante) }}
 </div>
 {% endblock %}

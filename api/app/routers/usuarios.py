@@ -6,22 +6,39 @@ listarlos, editarlos y activarlos/desactivarios. Los usuarios NO se eliminan
 (están referenciados por muchas tablas): se desactivan poniendo activo=False,
 y el login rechaza las cuentas inactivas.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import uuid
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import audit, models
-from app.deps import get_current_user, require_roles
-from app.schemas import UsuarioAdminCreate, UsuarioAdminOut, UsuarioAdminUpdate
+from app import audit, fotos_service, models
+from app.deps import es_admin, get_current_user, require_roles
+from app.schemas import UsuarioAdminCreate, UsuarioAdminOut, UsuarioAdminUpdate, UsuarioOut
 from app.security import hash_password
 
 router = APIRouter()
+
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/code/uploads")
+FOTOS_DIR = os.path.join(UPLOAD_DIR, "fotos")
+TIPOS_FOTO = {"image/png", "image/jpeg"}
+MAX_FOTO_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+def _borrar_foto_de(usuario: models.Usuario) -> None:
+    if usuario.foto_nombre:
+        ruta = os.path.join(FOTOS_DIR, usuario.foto_nombre)
+        if os.path.exists(ruta):
+            os.remove(ruta)
 
 
 def _to_out(u: models.Usuario) -> UsuarioAdminOut:
     return UsuarioAdminOut(
         id=u.id, nombre=u.nombre, correo=u.correo,
         rol=u.rol.nombre, telefono=u.telefono, activo=u.activo,
+        tiene_foto=u.foto_nombre is not None,
     )
 
 
@@ -50,6 +67,87 @@ def listar_usuarios(
     if rol:
         consulta = consulta.join(models.Rol).filter(models.Rol.nombre == rol)
     return [_to_out(u) for u in consulta.order_by(models.Usuario.nombre).all()]
+
+
+@router.post("/me/foto", response_model=UsuarioOut)
+async def subir_mi_foto(
+    foto: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    if foto.content_type not in TIPOS_FOTO:
+        raise HTTPException(status_code=400, detail="La foto debe ser PNG o JPG")
+    datos = await foto.read()
+    if len(datos) > MAX_FOTO_BYTES:
+        raise HTTPException(status_code=400, detail="La foto supera el tamaño máximo (5 MB)")
+    try:
+        jpeg = fotos_service.normalizar_a_jpeg(datos)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="No se pudo procesar la imagen")
+
+    os.makedirs(FOTOS_DIR, exist_ok=True)
+    _borrar_foto_de(usuario)  # reemplazo: fuera la anterior
+    nombre = f"{uuid.uuid4().hex}.jpg"
+    with open(os.path.join(FOTOS_DIR, nombre), "wb") as f:
+        f.write(jpeg)
+    usuario.foto_nombre = nombre
+    db.commit()
+    db.refresh(usuario)
+    return UsuarioOut(
+        id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
+        rol=usuario.rol.nombre, activo=usuario.activo, telefono=usuario.telefono,
+        tiene_foto=True,
+    )
+
+
+@router.delete("/me/foto", response_model=UsuarioOut)
+def borrar_mi_foto(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_current_user),
+):
+    _borrar_foto_de(usuario)
+    usuario.foto_nombre = None
+    db.commit()
+    db.refresh(usuario)
+    return UsuarioOut(
+        id=usuario.id, nombre=usuario.nombre, correo=usuario.correo,
+        rol=usuario.rol.nombre, activo=usuario.activo, telefono=usuario.telefono,
+        tiene_foto=False,
+    )
+
+
+@router.get("/{usuario_id}/foto")
+def ver_foto(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    _usuario: models.Usuario = Depends(get_current_user),
+):
+    u = db.get(models.Usuario, usuario_id)
+    if u is None or not u.foto_nombre:
+        raise HTTPException(status_code=404, detail="El usuario no tiene foto")
+    ruta = os.path.join(FOTOS_DIR, u.foto_nombre)
+    if not os.path.exists(ruta):
+        raise HTTPException(status_code=404, detail="La foto ya no está disponible")
+    return FileResponse(ruta, media_type="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.delete("/{usuario_id}/foto", response_model=UsuarioAdminOut)
+def borrar_foto_ajena(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    actor: models.Usuario = Depends(get_current_user),
+):
+    if not es_admin(actor):
+        raise HTTPException(status_code=403, detail="Solo un administrador puede borrar la foto de otro usuario")
+    u = db.get(models.Usuario, usuario_id)
+    if u is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    _borrar_foto_de(u)
+    u.foto_nombre = None
+    db.commit()
+    db.refresh(u)
+    return _to_out(u)
 
 
 @router.get("/{usuario_id}", response_model=UsuarioAdminOut)
