@@ -20,6 +20,7 @@ export default function PlayerProfileScreen({ navigation }) {
   const [telefono, setTelefono] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [fotoV, setFotoV] = useState(0);  // sube en cada cambio de foto -> refresca el Avatar
 
   const cargar = useCallback(async () => {
     try {
@@ -66,6 +67,7 @@ export default function PlayerProfileScreen({ navigation }) {
     try {
       await subirFoto(resultado.assets[0].uri);
       await refrescar();
+      setFotoV((v) => v + 1);
     } catch (e) {
       Alert.alert("Error", e.message || "No se pudo subir la foto");
     } finally {
@@ -84,6 +86,7 @@ export default function PlayerProfileScreen({ navigation }) {
           try {
             await borrarFoto();
             await refrescar();
+            setFotoV((v) => v + 1);
           } catch (e) {
             Alert.alert("Error", e.message || "No se pudo quitar la foto");
           } finally {
@@ -109,7 +112,7 @@ export default function PlayerProfileScreen({ navigation }) {
     <ScrollView style={ls.screen} contentContainerStyle={ls.content}>
       {/* Encabezado */}
       <View style={{ alignItems: "center", marginVertical: 12 }}>
-        <Avatar usuarioId={me?.id || usuario?.id} nombre={nombreMostrar} size={72} />
+        <Avatar usuarioId={me?.id || usuario?.id} nombre={nombreMostrar} size={72} version={fotoV} />
         <Text style={{ color: lp.textDark, fontSize: 20, fontWeight: "800", marginTop: 12 }}>{nombreMostrar}</Text>
         <Text style={[ls.badge, { backgroundColor: lp.surface, color: lp.green, borderWidth: 1, borderColor: lp.surfaceBorder, marginTop: 6 }]}>JUGADOR</Text>
         {subiendoFoto && <ActivityIndicator color={lp.green} style={{ marginTop: 10 }} />}

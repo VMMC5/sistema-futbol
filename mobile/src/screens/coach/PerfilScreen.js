@@ -10,6 +10,7 @@ import { cs, lp, ls } from "../../publicTheme";
 export default function PerfilScreen({ navigation }) {
   const { usuario, logout, refrescar } = useAuth();
   const [subiendo, setSubiendo] = useState(false);
+  const [fotoV, setFotoV] = useState(0);  // sube en cada cambio de foto -> refresca el Avatar
 
   async function salir() {
     await logout();
@@ -33,6 +34,7 @@ export default function PerfilScreen({ navigation }) {
     try {
       await subirFoto(resultado.assets[0].uri);
       await refrescar();
+      setFotoV((v) => v + 1);
     } catch (e) {
       Alert.alert("Error", e.message || "No se pudo subir la foto");
     } finally {
@@ -51,6 +53,7 @@ export default function PerfilScreen({ navigation }) {
           try {
             await borrarFoto();
             await refrescar();
+            setFotoV((v) => v + 1);
           } catch (e) {
             Alert.alert("Error", e.message || "No se pudo quitar la foto");
           } finally {
@@ -65,7 +68,7 @@ export default function PerfilScreen({ navigation }) {
     <ScrollView style={ls.screen} contentContainerStyle={ls.content}>
       <View style={cs.featureGold}>
         <View style={{ alignItems: "center", marginBottom: 12 }}>
-          <Avatar usuarioId={usuario?.id} nombre={usuario?.nombre} size={72} />
+          <Avatar usuarioId={usuario?.id} nombre={usuario?.nombre} size={72} version={fotoV} />
         </View>
         <Text style={cs.featureGoldName}>{usuario?.nombre || "Usuario"}</Text>
         <Text style={cs.featureGoldMeta}>{usuario?.correo}</Text>
