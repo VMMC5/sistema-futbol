@@ -38,6 +38,10 @@ icono esté puesto en la pestaña equivocada. Por eso hay que mirar las cuatro b
 - [ ] **RESERVAR CANCHA**: el buscador muestra un **marcador de mapa** a la
       izquierda y el texto gris "Buscar sede". Al escribir, el texto no se monta
       sobre el icono y el filtrado de sedes sigue funcionando.
+- [ ] **INICIO del entrenador**: la cabecera dice **INICIO** y la pestaña también,
+      no "HOLA, DEMO ENTRENADOR" ni una etiqueta truncada. El saludo con tu nombre
+      aparece ahora en una tarjeta clara al principio de la pantalla, sobre la
+      tarjeta dorada del equipo.
 - [ ] **INICIO del entrenador**: la rejilla muestra gente / documento con pluma /
       portapapeles con lista / calendario, en ese orden. "Inscribir" y "Reservar"
       siguen avisando "Disponible en la próxima entrega.".
