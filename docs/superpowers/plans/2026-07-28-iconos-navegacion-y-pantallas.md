@@ -35,6 +35,8 @@ Once claves nuevas repartidas por cuatro barras y cuatro pantallas. **Una errata
 | `mobile/scripts/generar-iconos.cjs` | **Crear.** Genera las 11 entradas nuevas desde el macro web y el paquete reicon. |
 | `mobile/src/components/iconos-datos.json` | **Modificar.** De 5 a 16 iconos. |
 | `mobile/scripts/verificar-iconos.cjs` | **Modificar.** `ESPERADOS` de 5 a 16 claves. |
+| `mobile/scripts/verificar-nombres-iconos.cjs` | **Crear.** Valida que todo `nombre=` usado exista en el catálogo. |
+| `mobile/package.json` | **Modificar.** Script npm `verificar-nombres`. |
 | `mobile/App.js` | **Modificar.** Se elimina `Punto`; cada `Tab.Screen` declara su `tabBarIcon`. |
 | `mobile/src/screens/public/TorneosScreen.js` | **Modificar.** `🏆` → `cuptrophy`. |
 | `mobile/src/screens/player/PlayerHomeScreen.js` | **Modificar.** `📊`→`chart`, `📅`→`calendar`; los dos botones pasan a fila. |
@@ -186,18 +188,80 @@ const ESPERADOS = [
 
 No toques el resto del script: sus aserciones (path no vacío, empieza por `M`, sin colores incrustados, sin claves de más) siguen valiendo.
 
-- [ ] **Step 6: Ejecutar los verificadores**
+- [ ] **Step 6: Crear el verificador de nombres de icono**
 
-```bash
-cd mobile && npm run verificar-iconos && npm run verificar -- scripts/generar-iconos.cjs
+Esta es la red contra el riesgo dominante de la tanda: una errata en un `nombre=` no da error, da un hueco invisible. Las Tasks 2, 3 y 5 lo invocan.
+
+Crea `mobile/scripts/verificar-nombres-iconos.cjs`:
+
+```js
+// Comprueba que todo nombre= usado con <Icono> exista en iconos-datos.json.
+// Una errata no lanza error en ejecucion: pinta un hueco vacio. Esto lo caza.
+// Uso: node scripts/verificar-nombres-iconos.cjs   (o npm run verificar-nombres)
+const fs = require("fs");
+const path = require("path");
+
+const RAIZ = path.join(__dirname, "..");
+const iconos = new Set(Object.keys(require(path.join(RAIZ, "src/components/iconos-datos.json"))));
+
+const archivos = [];
+(function recorrer(dir) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) recorrer(p);
+    else if (p.endsWith(".js")) archivos.push(p);
+  }
+})(path.join(RAIZ, "src"));
+archivos.push(path.join(RAIZ, "App.js"));
+
+let malos = 0;
+for (const archivo of archivos) {
+  const txt = fs.readFileSync(archivo, "utf8");
+  for (const m of txt.matchAll(/nombre="([a-z]+)"/g)) {
+    if (!iconos.has(m[1])) {
+      console.log(`FALLO ${path.relative(RAIZ, archivo)}: nombre="${m[1]}" no existe en iconos-datos.json`);
+      malos++;
+    }
+  }
+}
+console.log(malos ? `${malos} nombres inválidos` : "OK: todos los nombres de icono existen");
+process.exit(malos ? 1 : 0);
 ```
 
-Esperado: `OK: 16 iconos válidos` y `OK scripts/generar-iconos.cjs`.
+Añade el script a `mobile/package.json`, junto a `verificar` y `verificar-iconos`, sin borrar los que ya hay:
 
-- [ ] **Step 7: Commit**
+```json
+    "verificar-nombres": "node scripts/verificar-nombres-iconos.cjs"
+```
+
+- [ ] **Step 7: Ejecutar los tres verificadores**
 
 ```bash
-git add mobile/scripts/generar-iconos.cjs mobile/scripts/verificar-iconos.cjs mobile/src/components/iconos-datos.json
+cd mobile && npm run verificar-iconos && npm run verificar-nombres && \
+  npm run verificar -- scripts/generar-iconos.cjs scripts/verificar-nombres-iconos.cjs
+```
+
+Esperado: `OK: 16 iconos válidos`, `OK: todos los nombres de icono existen` (aún no hay nombres nuevos en uso, así que pasa trivialmente) y dos `OK` de sintaxis.
+
+- [ ] **Step 8: Comprobar que el verificador de nombres detecta una errata**
+
+Sin esto no sabes si sirve de algo:
+
+```bash
+cd mobile
+printf 'import Icono from "./components/Icono";\nexport const X = <Icono nombre="noexiste" />;\n' > src/_prueba-errata.js
+npm run verificar-nombres; echo "exit=$? (debe ser 1)"
+rm -f src/_prueba-errata.js
+npm run verificar-nombres
+```
+
+Esperado: primero `FALLO _prueba-errata.js: nombre="noexiste" no existe` con `exit=1`; tras borrar el archivo, `OK`. Si el archivo con la errata sale `OK`, **para**: el verificador no está validando nada.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add mobile/scripts/generar-iconos.cjs mobile/scripts/verificar-iconos.cjs \
+  mobile/scripts/verificar-nombres-iconos.cjs mobile/package.json mobile/src/components/iconos-datos.json
 git commit -m "feat(movil): amplia el catalogo de iconos de 5 a 16"
 ```
 
@@ -296,33 +360,13 @@ Esperado: sin coincidencias de `Punto` (`exit=1`), y **13** ocurrencias de `tabB
 
 - [ ] **Step 5: Comprobación cruzada — todo nombre de icono usado existe**
 
-Esta es la red contra la errata invisible. Ejecútala desde `mobile/`:
+Red contra la errata invisible: los siete nombres que acabas de escribir se validan contra el catálogo.
 
 ```bash
-cd mobile
-node -e '
-const fs = require("fs"), path = require("path");
-const iconos = new Set(Object.keys(require("./src/components/iconos-datos.json")));
-const archivos = [];
-(function walk(d) {
-  for (const f of fs.readdirSync(d, { withFileTypes: true })) {
-    const p = path.join(d, f.name);
-    if (f.isDirectory()) walk(p); else if (p.endsWith(".js")) archivos.push(p);
-  }
-})("src");
-archivos.push("App.js");
-let malos = 0;
-for (const a of archivos) {
-  const txt = fs.readFileSync(a, "utf8");
-  for (const m of txt.matchAll(/nombre=\"([a-z]+)\"/g)) {
-    if (!iconos.has(m[1])) { console.log(`FALLO ${a}: nombre=\"${m[1]}\" no existe en iconos-datos.json`); malos++; }
-  }
-}
-console.log(malos ? `${malos} nombres invalidos` : "OK: todos los nombres de icono existen");
-process.exit(malos ? 1 : 0);'
+cd mobile && npm run verificar-nombres
 ```
 
-Esperado: `OK: todos los nombres de icono existen`.
+Esperado: `OK: todos los nombres de icono existen`. Si sale `FALLO … no existe en iconos-datos.json`, corrige la errata en `App.js`: el nombre no está mal en el catálogo, está mal escrito en la pestaña.
 
 - [ ] **Step 6: Verificar sintaxis y commitear**
 
@@ -457,7 +501,11 @@ echo "exit=$? (1 = sin emojis, correcto)"
 
 - [ ] **Step 5: Comprobación cruzada de nombres de icono**
 
-Repite exactamente el mismo comando del Step 5 de la Task 2 (el script de `node -e` que recorre `src/` y `App.js`). Esperado: `OK: todos los nombres de icono existen`.
+```bash
+cd mobile && npm run verificar-nombres
+```
+
+Esperado: `OK: todos los nombres de icono existen`.
 
 - [ ] **Step 6: Verificar sintaxis y commitear**
 
@@ -562,7 +610,11 @@ Esperado: seis `OK`, `sintaxis exit=0`, y `OK: 16 iconos válidos`.
 
 - [ ] **Step 2: Comprobación cruzada final de nombres de icono**
 
-Repite el script de `node -e` del Step 5 de la Task 2. Esperado: `OK: todos los nombres de icono existen`.
+```bash
+cd mobile && npm run verificar-nombres
+```
+
+Esperado: `OK: todos los nombres de icono existen`. Es la pasada definitiva: cubre las cuatro barras y las cuatro pantallas a la vez.
 
 - [ ] **Step 3: Confirmar que no se tocó el backend**
 
