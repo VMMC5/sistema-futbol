@@ -1,6 +1,6 @@
 // Punto de entrada: navegación + contexto de autenticación.
 import React, { useEffect } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { Text, TouchableOpacity } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme, useNavigation, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -9,6 +9,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AuthProvider, useAuth, rutaPanel } from "./src/auth";
 import { colors } from "./src/theme";
 import { lp, ls } from "./src/publicTheme";
+import Icono from "./src/components/Icono";
 
 // Pantallas públicas (tema claro)
 import InicioScreen from "./src/screens/public/InicioScreen";
@@ -71,11 +72,6 @@ function LoginButton() {
   );
 }
 
-// Indicador (puntito) de cada pestaña, como en el mockup.
-function Punto({ focused }) {
-  return <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: focused ? lp.accent : "#C7C2B5" }} />;
-}
-
 const lightHeader = {
   headerStyle: { backgroundColor: lp.bg },
   headerTintColor: lp.textDark,
@@ -92,11 +88,10 @@ function PublicTabs() {
         tabBarActiveTintColor: lp.accent,
         tabBarInactiveTintColor: lp.textMuted,
         tabBarStyle: { backgroundColor: lp.bg, borderTopColor: lp.surfaceBorder },
-        tabBarIcon: ({ focused }) => <Punto focused={focused} />,
       }}
     >
-      <Tab.Screen name="Inicio" component={InicioScreen} options={{ title: "INICIO" }} />
-      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS" }} />
+      <Tab.Screen name="Inicio" component={InicioScreen} options={{ title: "INICIO", tabBarIcon: ({ color }) => <Icono nombre="home" size={22} color={color} /> }} />
+      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS", tabBarIcon: ({ color }) => <Icono nombre="cuptrophy" size={22} color={color} /> }} />
     </Tab.Navigator>
   );
 }
@@ -124,13 +119,12 @@ function CoachTabs() {
         tabBarActiveTintColor: lp.accent,
         tabBarInactiveTintColor: lp.textMuted,
         tabBarStyle: { backgroundColor: lp.bg, borderTopColor: lp.surfaceBorder },
-        tabBarIcon: ({ focused }) => <Punto focused={focused} />,
       }}
     >
-      <Tab.Screen name="Inicio" component={CoachHomeScreen} options={{ title: "INICIO" }} />
-      <Tab.Screen name="Equipos" component={TeamListScreen} options={{ title: "MIS EQUIPOS" }} />
-      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS" }} />
-      <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: "PERFIL" }} />
+      <Tab.Screen name="Inicio" component={CoachHomeScreen} options={{ title: "INICIO", tabBarIcon: ({ color }) => <Icono nombre="home" size={22} color={color} /> }} />
+      <Tab.Screen name="Equipos" component={TeamListScreen} options={{ title: "MIS EQUIPOS", tabBarIcon: ({ color }) => <Icono nombre="people" size={22} color={color} /> }} />
+      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS", tabBarIcon: ({ color }) => <Icono nombre="cuptrophy" size={22} color={color} /> }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: "PERFIL", tabBarIcon: ({ color }) => <Icono nombre="user" size={22} color={color} /> }} />
     </Tab.Navigator>
   );
 }
@@ -151,12 +145,11 @@ function RefereeTabs() {
         tabBarActiveTintColor: lp.accent,
         tabBarInactiveTintColor: lp.textMuted,
         tabBarStyle: { backgroundColor: lp.bg, borderTopColor: lp.surfaceBorder },
-        tabBarIcon: ({ focused }) => <Punto focused={focused} />,
       }}
     >
-      <Tab.Screen name="Partidos" component={RefMatchesScreen} options={{ title: "PARTIDOS ASIGNADOS" }} />
-      <Tab.Screen name="Historial" component={RefHistoryScreen} options={{ title: "HISTORIAL" }} />
-      <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: "PERFIL" }} />
+      <Tab.Screen name="Partidos" component={RefMatchesScreen} options={{ title: "PARTIDOS ASIGNADOS", tabBarIcon: ({ color }) => <Icono nombre="football" size={22} color={color} /> }} />
+      <Tab.Screen name="Historial" component={RefHistoryScreen} options={{ title: "HISTORIAL", tabBarIcon: ({ color }) => <Icono nombre="history" size={22} color={color} /> }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: "PERFIL", tabBarIcon: ({ color }) => <Icono nombre="user" size={22} color={color} /> }} />
     </Tab.Navigator>
   );
 }
@@ -177,13 +170,12 @@ function PlayerTabs() {
         tabBarActiveTintColor: lp.accent,
         tabBarInactiveTintColor: lp.textMuted,
         tabBarStyle: { backgroundColor: lp.bg, borderTopColor: lp.surfaceBorder },
-        tabBarIcon: ({ focused }) => <Punto focused={focused} />,
       }}
     >
-      <Tab.Screen name="Inicio" component={PlayerHomeScreen} options={{ title: "INICIO" }} />
-      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS" }} />
-      <Tab.Screen name="Reservar" component={ReservarScreen} options={{ title: "RESERVAR CANCHA" }} />
-      <Tab.Screen name="Perfil" component={PlayerProfileScreen} options={{ title: "MI PERFIL" }} />
+      <Tab.Screen name="Inicio" component={PlayerHomeScreen} options={{ title: "INICIO", tabBarIcon: ({ color }) => <Icono nombre="home" size={22} color={color} /> }} />
+      <Tab.Screen name="Torneos" component={TorneosScreen} options={{ title: "TORNEOS", tabBarIcon: ({ color }) => <Icono nombre="cuptrophy" size={22} color={color} /> }} />
+      <Tab.Screen name="Reservar" component={ReservarScreen} options={{ title: "RESERVAR CANCHA", tabBarIcon: ({ color }) => <Icono nombre="calendar" size={22} color={color} /> }} />
+      <Tab.Screen name="Perfil" component={PlayerProfileScreen} options={{ title: "MI PERFIL", tabBarIcon: ({ color }) => <Icono nombre="user" size={22} color={color} /> }} />
     </Tab.Navigator>
   );
 }
