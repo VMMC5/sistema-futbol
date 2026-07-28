@@ -21,7 +21,7 @@ import CoachHomeScreen from "./src/screens/coach/CoachHomeScreen";
 import TeamListScreen from "./src/screens/coach/TeamListScreen";
 import TeamEditScreen from "./src/screens/coach/TeamEditScreen";
 import TeamStatsScreen from "./src/screens/coach/TeamStatsScreen";
-import PerfilScreen from "./src/screens/coach/PerfilScreen";
+import PerfilScreen from "./src/screens/PerfilScreen";
 import LineupMatchesScreen from "./src/screens/coach/LineupMatchesScreen";
 import LineupScreen from "./src/screens/coach/LineupScreen";
 import InvitePlayersScreen from "./src/screens/coach/InvitePlayersScreen";
