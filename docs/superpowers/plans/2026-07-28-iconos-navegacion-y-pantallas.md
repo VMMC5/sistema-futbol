@@ -50,10 +50,13 @@ Once claves nuevas repartidas por cuatro barras y cuatro pantallas. **Una errata
 
 **Files:**
 - Create: `mobile/scripts/generar-iconos.cjs`
+- Create: `mobile/scripts/verificar-nombres-iconos.cjs`
 - Modify: `mobile/src/components/iconos-datos.json`
 - Modify: `mobile/scripts/verificar-iconos.cjs`
+- Modify: `mobile/package.json` (script npm `verificar-nombres`)
 
 **Interfaces:**
+- Produces: `npm run verificar-nombres` — falla con exit 1 si algún `nombre=` usado con `<Icono>` no existe en el catálogo. Lo invocan las Tasks 2, 3 y 5.
 - Produces: `iconos-datos.json` con 16 claves. Las 11 nuevas: `cuptrophy`, `chart`, `calendar`, `people`, `football`, `home`, `user`, `history`, `clipboardlist`, `docadd`, `location`. Formato por entrada: `{ d: string[], trazo?: true, parImpar?: true }`.
 
 **Por qué un generador y no transcripción a mano:** `calendar` trae 7 paths y `people` 6, algunos de más de 1000 caracteres. Perder uno al copiar no da error — da un icono incompleto que ninguna verificación estática detecta. El script elimina ese riesgo y deja constancia de la procedencia de cada icono.
