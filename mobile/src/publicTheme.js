@@ -40,7 +40,6 @@ export const ls = StyleSheet.create({
   rowSub: { color: lp.textMuted, fontSize: 13, marginTop: 2 },
 
   iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: lp.green, alignItems: "center", justifyContent: "center", marginRight: 12 },
-  iconText: { color: lp.greenText, fontSize: 18 },
 
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, fontSize: 11, fontWeight: "800", letterSpacing: 0.5, overflow: "hidden" },
   badgeOn: { backgroundColor: lp.accent, color: lp.white },

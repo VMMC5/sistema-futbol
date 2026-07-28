@@ -61,11 +61,13 @@ export default function PlayerHomeScreen({ navigation }) {
       </View>
 
       <TouchableOpacity style={btn.primary} onPress={() => navigation.navigate("PlayerStats")}>
-        <Text style={btn.primaryText}>📊 Ver mis estadísticas</Text>
+        <Icono nombre="chart" size={18} color={lp.white} />
+        <Text style={btn.primaryText}>Ver mis estadísticas</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={btn.ghost} onPress={() => navigation.navigate("PlayerCalendar")}>
-        <Text style={btn.ghostText}>📅 Próximos partidos</Text>
+        <Icono nombre="calendar" size={18} color={lp.green} />
+        <Text style={btn.ghostText}>Próximos partidos</Text>
       </TouchableOpacity>
 
       <Text style={[ls.sectionTitle, { marginTop: 22 }]}>Tu próximo partido</Text>
@@ -94,8 +96,8 @@ const tarjeta = {
   rol: { color: lp.accent, fontWeight: "800", letterSpacing: 1, marginTop: 8, fontSize: 12 },
 };
 const btn = {
-  primary: { backgroundColor: lp.accent, borderRadius: 12, paddingVertical: 15, alignItems: "center", marginBottom: 10 },
+  primary: { backgroundColor: lp.accent, borderRadius: 12, paddingVertical: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 },
   primaryText: { color: lp.white, fontWeight: "800", fontSize: 15 },
-  ghost: { backgroundColor: lp.surface, borderColor: lp.surfaceBorder, borderWidth: 1, borderRadius: 12, paddingVertical: 15, alignItems: "center" },
+  ghost: { backgroundColor: lp.surface, borderColor: lp.surfaceBorder, borderWidth: 1, borderRadius: 12, paddingVertical: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   ghostText: { color: lp.green, fontWeight: "800", fontSize: 15 },
 };

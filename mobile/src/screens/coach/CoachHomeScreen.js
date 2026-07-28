@@ -4,14 +4,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet } from "../../api";
 import { useAuth } from "../../auth";
+import Icono from "../../components/Icono";
 import { fechaHora } from "../../format";
 import { cs, lp, ls } from "../../publicTheme";
 
 const ACCIONES = [
-  { icon: "👥", label: "Mis equipos", destino: "Equipos" },
-  { icon: "📝", label: "Inscribir", proximamente: true },
-  { icon: "📋", label: "Alineación", destino: "LineupMatches" },
-  { icon: "📅", label: "Reservar", proximamente: true },
+  { icono: "people", label: "Mis equipos", destino: "Equipos" },
+  { icono: "docadd", label: "Inscribir", proximamente: true },
+  { icono: "clipboardlist", label: "Alineación", destino: "LineupMatches" },
+  { icono: "calendar", label: "Reservar", proximamente: true },
 ];
 
 export default function CoachHomeScreen({ navigation }) {
@@ -69,7 +70,7 @@ export default function CoachHomeScreen({ navigation }) {
       <View style={cs.grid}>
         {ACCIONES.map((a) => (
           <TouchableOpacity key={a.label} style={cs.gridItem} onPress={() => tocar(a)}>
-            <Text style={cs.gridIcon}>{a.icon}</Text>
+            <View style={{ marginBottom: 8 }}><Icono nombre={a.icono} size={24} color={lp.gold} /></View>
             <Text style={cs.gridLabel}>{a.label}</Text>
           </TouchableOpacity>
         ))}

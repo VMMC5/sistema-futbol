@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet } from "../../api";
+import Icono from "../../components/Icono";
 import { fecha } from "../../format";
 import { lp, ls } from "../../publicTheme";
 
@@ -50,7 +51,7 @@ export default function TorneosScreen({ navigation }) {
       ) : (
         lista.map((t) => (
           <TouchableOpacity key={t.id} style={ls.row} onPress={() => abrir(t)}>
-            <View style={ls.iconCircle}><Text style={ls.iconText}>🏆</Text></View>
+            <View style={ls.iconCircle}><Icono nombre="cuptrophy" size={18} color={lp.greenText} /></View>
             <View style={{ flex: 1 }}>
               <Text style={ls.rowTitle}>{t.nombre}</Text>
               <Text style={ls.rowSub}>
