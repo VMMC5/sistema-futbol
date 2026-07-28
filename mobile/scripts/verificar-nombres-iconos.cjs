@@ -1,6 +1,12 @@
 // Comprueba que todo nombre= usado con <Icono> exista en iconos-datos.json.
 // Una errata no lanza error en ejecucion: pinta un hueco vacio. Esto lo caza.
 // Uso: node scripts/verificar-nombres-iconos.cjs   (o npm run verificar-nombres)
+//
+// Limite conocido: la regex /nombre="([a-z]+)"/ solo detecta literales, no
+// cubre usos dinamicos. Se le escapan al menos estos dos patrones, que hay
+// que revisar a mano:
+//   - nombre={a.icono}  en src/screens/coach/CoachHomeScreen.js (4 iconos de la rejilla)
+//   - nombre={icono}    en src/components/OpcionMenu.js (4 del menu de perfil)
 const fs = require("fs");
 const path = require("path");
 

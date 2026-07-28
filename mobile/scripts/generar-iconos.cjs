@@ -7,6 +7,12 @@
 // Ej.:  node scripts/generar-iconos.cjs /tmp/reicon-gen/package
 //
 // Imprime el JSON por stdout. No escribe nada: revisa y redirige tu mismo.
+//
+// Los datos actuales de iconos-datos.json se generaron con reicon@1.1.103.
+// Re-ejecutar este script con otra version del paquete puede cambiar los
+// paths en silencio (verificar-iconos.cjs solo comprueba que no esten
+// vacios, que empiecen por "M" y que no lleven color hex: no detecta un
+// cambio de version). Si regeneras, deja constancia de la version usada.
 const fs = require("fs");
 const path = require("path");
 

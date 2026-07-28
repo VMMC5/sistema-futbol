@@ -38,15 +38,23 @@ icono esté puesto en la pestaña equivocada. Por eso hay que mirar las cuatro b
 - [ ] **RESERVAR CANCHA**: el buscador muestra un **marcador de mapa** a la
       izquierda y el texto gris "Buscar sede". Al escribir, el texto no se monta
       sobre el icono y el filtrado de sedes sigue funcionando.
-- [ ] **INICIO del entrenador**: la rejilla muestra gente / documento con "+" /
+- [ ] **INICIO del entrenador**: la rejilla muestra gente / documento con pluma /
       portapapeles con lista / calendario, en ese orden. "Inscribir" y "Reservar"
       siguen avisando "Disponible en la próxima entrega.".
+      Nota: "Mis equipos" (gente) es un icono de trazo; sus tres vecinos son de
+      relleno, así que se verá visiblemente más fino y ligero — es lo esperado,
+      no un defecto.
 
 ## Si algo falla
 Anota **rol, pantalla y qué viste** (o captura). Lo más probable:
 1. Hueco vacío donde va un icono → nombre mal escrito; comprueba la clave contra
    `mobile/src/components/iconos-datos.json`.
 2. Icono correcto pero en la pestaña equivocada → revisa `tabBarIcon` en `App.js`.
-3. Icono incompleto o deformado → falta un path; vuelve a generar con
-   `node scripts/generar-iconos.cjs`.
+3. Icono incompleto o deformado → falta un path; vuelve a generar. Desde
+   `mobile/`:
+   ```
+   npm pack reicon@1.1.103 --pack-destination /tmp/reicon-gen
+   mkdir -p /tmp/reicon-gen/package && tar -xzf /tmp/reicon-gen/reicon-1.1.103.tgz -C /tmp/reicon-gen/package --strip-components=1
+   node scripts/generar-iconos.cjs /tmp/reicon-gen/package
+   ```
 4. "Unable to resolve module" → caché de Metro; `npx expo start -c`.
