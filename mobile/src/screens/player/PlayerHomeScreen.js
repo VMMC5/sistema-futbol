@@ -4,6 +4,7 @@ import React, { useCallback, useLayoutEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet } from "../../api";
+import Icono from "../../components/Icono";
 import { useAuth } from "../../auth";
 import { fechaHora } from "../../format";
 import { lp, ls } from "../../publicTheme";
@@ -11,7 +12,8 @@ import { lp, ls } from "../../publicTheme";
 function Campanita({ onPress, hayNuevas }) {
   return (
     <TouchableOpacity onPress={onPress} style={{ paddingHorizontal: 14 }}>
-      <Text style={{ fontSize: 20 }}>🔔</Text>
+      {/* La cabecera del panel del jugador es verde, así que la campana va en blanco. */}
+      <Icono nombre="bell" size={20} color={lp.white} />
       {hayNuevas && <View style={{ position: "absolute", right: 10, top: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: lp.red }} />}
     </TouchableOpacity>
   );
