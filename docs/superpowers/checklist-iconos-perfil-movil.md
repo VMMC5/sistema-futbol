@@ -8,10 +8,19 @@ rendericen y que los tres roles vean su menú.
 
 ## Preparación
 1. Backend arriba: `docker compose up -d`.
-2. `mobile/app.json` → `extra.apiUrl` apuntando a la IP LAN de tu PC.
-3. `cd mobile && npx expo start --tunnel` y escanea el QR con Expo Go.
+2. `cd mobile && npx expo start` (modo LAN, **sin** `--tunnel`) y escanea el QR
+   con Expo Go. En este modo `_urlDesdeExpo()` (`mobile/src/api.js`) deriva la
+   IP de la API del `hostUri` de Expo automáticamente: no hace falta tocar
+   `extra.apiUrl` en `app.json`.
 
 > `react-native-svg` viene incluido en Expo Go: no hace falta build personalizado.
+
+> Si el teléfono y la PC no están en la misma red y necesitas `--tunnel`,
+> `hostUri` pasa a ser un dominio `exp.direct` (no una IPv4), así que
+> `_urlDesdeExpo()` devuelve `null` y la app cae a `extra.apiUrl` de
+> `app.json`. En ese caso sí toca poner ahí la IP LAN correcta de tu PC antes
+> de probar; un login fallido en modo túnel es un problema de conectividad,
+> no de esta rama.
 
 ## 1. Jugador — jugador@demo.com / demo1234
 - [ ] **INICIO**: la campana de la cabecera es un icono de línea blanco, no un emoji.
@@ -45,3 +54,7 @@ Anota **rol, pantalla y qué viste** (o captura). Lo más probable:
 2. Icono negro sólido donde debería ser de línea → falta `trazo: true` en
    `iconos-datos.json`.
 3. Pantalla en blanco al abrir Perfil → import roto tras mover `PerfilScreen`.
+4. "Unable to resolve module react-native-svg" pese a estar instalado →
+   caché de Metro; arranca con `npx expo start -c`.
+5. Login falla o las listas salen vacías → problema de conectividad con la
+   API (revisa modo túnel/LAN arriba), no de los iconos.

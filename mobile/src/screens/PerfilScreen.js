@@ -17,10 +17,11 @@ const ACENTO = { entrenador: lp.gold, arbitro: lp.maroon };
 export default function PerfilScreen({ navigation }) {
   const { usuario, logout } = useAuth();
   const [editar, setEditar] = useState(false);
+  const [perfil, setPerfil] = useState(null);
   const { subiendo, fotoV, cambiarFoto, quitarFoto } = useFotoPerfil();
 
   const acento = ACENTO[usuario?.rol] || lp.accent;
-  const nombreMostrar = usuario?.nombre || "Usuario";
+  const nombreMostrar = perfil?.nombre || usuario?.nombre || "Usuario";
 
   async function cerrarSesion() {
     await logout();
@@ -37,7 +38,7 @@ export default function PerfilScreen({ navigation }) {
           {(usuario?.rol || "").toUpperCase()}
         </Text>
         {/* El jugador no muestra el correo; aquí sí estaba antes y no se le quita. */}
-        <Text style={{ color: lp.textMuted, fontSize: 13, marginTop: 6 }}>{usuario?.correo}</Text>
+        <Text style={{ color: lp.textMuted, fontSize: 13, marginTop: 6 }}>{perfil?.correo || usuario?.correo}</Text>
         {subiendo && <ActivityIndicator color={acento} style={{ marginTop: 10 }} />}
         <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
           <TouchableOpacity style={fotoBtn} onPress={cambiarFoto} disabled={subiendo}>
@@ -59,11 +60,11 @@ export default function PerfilScreen({ navigation }) {
       {editar && (
         <EditarPerfilModal
           visible
-          nombreInicial={usuario?.nombre || ""}
-          telefonoInicial={usuario?.telefono || ""}
+          nombreInicial={perfil?.nombre || usuario?.nombre || ""}
+          telefonoInicial={perfil?.telefono || usuario?.telefono || ""}
           acento={acento}
           onCerrar={() => setEditar(false)}
-          onGuardado={() => {}}
+          onGuardado={(actualizado) => setPerfil(actualizado)}
         />
       )}
     </ScrollView>
