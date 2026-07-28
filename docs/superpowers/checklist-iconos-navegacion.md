@@ -10,9 +10,11 @@ icono esté puesto en la pestaña equivocada. Por eso hay que mirar las cuatro b
 
 ## Preparación
 1. Backend arriba: `docker compose up -d`.
-2. `cd mobile && npx expo start` (modo LAN, **sin** `--tunnel`) y escanea el QR con
+2. Si es una BD nueva, siembra los datos demo:
+   `docker compose exec api python -m app.seed`
+3. `cd mobile && npx expo start` (modo LAN, **sin** `--tunnel`) y escanea el QR con
    Expo Go. En modo LAN la IP de la API se deriva sola; no toques `app.json`.
-3. Si tras instalar iconos nuevos el bundle falla, arranca con `npx expo start -c`.
+4. Si tras instalar iconos nuevos el bundle falla, arranca con `npx expo start -c`.
 
 ## 1. Barra de navegación — los cuatro roles
 - [ ] **Sin sesión** (pública): dos pestañas, INICIO con una **casa** y TORNEOS con
@@ -38,7 +40,7 @@ icono esté puesto en la pestaña equivocada. Por eso hay que mirar las cuatro b
       sobre el icono y el filtrado de sedes sigue funcionando.
 - [ ] **INICIO del entrenador**: la rejilla muestra gente / documento con "+" /
       portapapeles con lista / calendario, en ese orden. "Inscribir" y "Reservar"
-      siguen avisando "Disponible próximamente".
+      siguen avisando "Disponible en la próxima entrega.".
 
 ## Si algo falla
 Anota **rol, pantalla y qué viste** (o captura). Lo más probable:
