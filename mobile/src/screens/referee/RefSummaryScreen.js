@@ -126,7 +126,10 @@ const final = {
   score: { color: lp.white, fontSize: 38, fontWeight: "800", marginVertical: 6 },
   teams: { color: lp.white, opacity: 0.9 },
 };
-const tx = { color: lp.textDark, marginTop: 6 };
+// Usado solo dentro de filaEvento (alignItems: "center"): sin marginTop para
+// no desalinear el texto respecto al icono. Si se reutiliza fuera de una fila
+// centrada, revisa si necesita su propio espaciado.
+const tx = { color: lp.textDark };
 const filaEvento = { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 2 };
 const check = { width: 26, height: 26, borderRadius: 6, borderWidth: 2, borderColor: lp.surfaceBorder, alignItems: "center", justifyContent: "center", marginRight: 12 };
 const enviar_btn = { backgroundColor: lp.red, borderRadius: 12, paddingVertical: 15, alignItems: "center", marginTop: 18 };

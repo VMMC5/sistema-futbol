@@ -84,7 +84,18 @@ la hace el generador, no una transcripción a mano.
 ### Paleta
 
 Se añade `amarilla: "#f2b53c"` a `lp` en `mobile/src/publicTheme.js`, copiado de
-`.ic-amarilla` del panel. La roja usa el `lp.danger` que ya existe.
+`.ic-amarilla` del panel. La roja **no** siempre reutiliza `lp.danger`
+(`#c0392b`): sobre el verde de la cancha (`#1C6B3A`) ese rojo da ~1.45:1 de
+contraste, insuficiente. Se añade un segundo tono, `rojaClara: "#ff5a5a"`,
+para ese caso. En resumen, hay dos rojos con usos distintos:
+
+- `lp.danger` (`#c0392b`) — listas de eventos sobre fondo claro (`RefLiveScreen`,
+  `RefSummaryScreen`): ahí el rojo original sí contrasta bien.
+- `lp.rojaClara` (`#ff5a5a`) — distintivos de `LineupPitch` (`Distintivos`),
+  calibrado para el verde oscuro de la cancha. Se reutiliza tal cual también en
+  la banca (fondo claro) porque, a diferencia del tinte por defecto de los
+  distintivos sin color propio, el rojo de tarjeta se distingue bien en ambos
+  fondos y no necesita variar con el contenedor.
 
 ## Cambios por pantalla
 

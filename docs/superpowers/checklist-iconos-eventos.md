@@ -64,6 +64,11 @@ que puede romper comportamiento, no solo aspecto.
       balón y la "A" van en blanco con sombra, la amarilla en amarillo y la roja en
       un rojo claro, a propósito. Si alguno se pierde contra el fondo, dilo: los
       emoji de antes traían su propio color y estos no.
+- [ ] **Banca:** baja a la lista de **Banca** y revisa a un suplente que haya
+      entrado en un cambio (`entro: true`). Su distintivo **↑** debe leerse
+      oscuro sobre el fondo claro de la banca, no blanco (blanco sobre casi
+      blanco desaparece). Comprueba también que los distintivos no se salgan
+      de la tarjeta del jugador ni se solapen con la fila de abajo.
 
 ## 4. Resumen del partido — ÁRBITRO
 - [ ] Firma el acta y abre el resumen. Las secciones **Goles** y **Tarjetas**

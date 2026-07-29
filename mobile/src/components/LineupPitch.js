@@ -25,16 +25,22 @@ function badgesDe(resumen, jugadorId) {
   return out;
 }
 
-function Distintivos({ badges }) {
+// `tinte` es el color base para distintivos sin color propio (flechas, "A",
+// balón): blanco sobre la cancha oscura, lp.textDark sobre la banca clara.
+// Los colores propios de la tarjeta (b.color: amarilla/rojaClara) siempre
+// mandan porque se distinguen en ambos fondos. La sombra de texto solo tiene
+// sentido cuando el tinte es claro (texto oscuro sobre banca clara ensucia
+// la sombra negra); sobre la cancha el tinte es blanco y sí la necesita.
+function Distintivos({ badges, tinte = "#fff", enCancha = false }) {
   if (!badges.length) return null;
   return (
-    <View style={estilos.badgesFila}>
+    <View style={enCancha ? estilos.badgesFilaCancha : estilos.badgesFila}>
       {badges.map((b) => (
         <View key={b.key} style={estilos.badge}>
           {b.icono
-            ? <Icono nombre={b.icono} size={11} color={b.color || "#fff"} />
-            : <Text style={estilos.badgeTexto}>{b.letra || b.texto}</Text>}
-          {b.veces > 1 && <Text style={estilos.badgeTexto}>×{b.veces}</Text>}
+            ? <Icono nombre={b.icono} size={11} color={b.color || tinte} />
+            : <Text style={[estilos.badgeTexto, { color: b.color || tinte }, enCancha && estilos.badgeTextoSombra]}>{b.letra || b.texto}</Text>}
+          {b.veces > 1 && <Text style={[estilos.badgeTexto, { color: b.color || tinte }, enCancha && estilos.badgeTextoSombra]}>×{b.veces}</Text>}
         </View>
       ))}
     </View>
@@ -76,7 +82,7 @@ export default function LineupPitch({ equipoId, plan, resumen }) {
                   <Text style={estilos.slotEtiqueta} numberOfLines={1}>
                     {jug.dorsal != null ? `#${jug.dorsal} ` : ""}{jug.nombre}
                   </Text>
-                  <Distintivos badges={badgesDe(resumen, jug.jugador_id)} />
+                  <Distintivos badges={badgesDe(resumen, jug.jugador_id)} tinte="#fff" enCancha />
                 </>
               ) : null}
             </View>
@@ -95,7 +101,7 @@ export default function LineupPitch({ equipoId, plan, resumen }) {
                 <Text style={estilos.bancaNombre} numberOfLines={1}>
                   {j.dorsal != null ? `#${j.dorsal} ` : ""}{j.nombre}
                 </Text>
-                <Distintivos badges={badges} />
+                <Distintivos badges={badges} tinte={lp.textDark} />
               </View>
             );
           })}
@@ -127,13 +133,22 @@ const estilos = {
     color: "#fff", fontWeight: "700", fontSize: 10,
     textShadowColor: "rgba(0,0,0,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
   },
+  // Banca: los distintivos fluyen dentro de bancaFila (fila normal, no
+  // absoluta) a la derecha del nombre.
   badgesFila: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
+  },
+  // Cancha: coordenadas absolutas pensadas para el hueco de 36px del slot,
+  // debajo de slotEtiqueta. Solo tiene sentido ahí, nunca en la banca.
+  badgesFilaCancha: {
     position: "absolute", top: 58, left: -24, width: 84, flexDirection: "row", flexWrap: "wrap",
     justifyContent: "center",
   },
   badge: { flexDirection: "row", alignItems: "center", marginHorizontal: 1 },
-  badgeTexto: {
-    fontSize: 11, color: "#fff", fontWeight: "700",
+  badgeTexto: { fontSize: 11, fontWeight: "700" },
+  // Solo se aplica sobre la cancha (tinte claro/blanco): sobre la banca clara
+  // una sombra negra alrededor de texto oscuro se ve sucia.
+  badgeTextoSombra: {
     textShadowColor: "rgba(0,0,0,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
   },
   avisoTexto: { color: "#fff", fontWeight: "700", fontSize: 14 },
