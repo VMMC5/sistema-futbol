@@ -209,9 +209,9 @@ Y el bucle de detección pasa de un `matchAll` a tres:
 
 ```js
 const PATRONES = [
-  [/<Icono\b[^>]*?\snombre="([a-z]+)"/g, 'nombre='],
-  [/\sicono="([a-z]+)"/g, 'icono='],
-  [/\bicono:\s*"([a-z]+)"/g, 'icono:'],
+  [/<Icono\b[^>]*?\snombre="([a-z0-9]+)"/g, 'nombre='],
+  [/\sicono="([a-z0-9]+)"/g, 'icono='],
+  [/\bicono:\s*"([a-z0-9]+)"/g, 'icono:'],
 ];
 
 let malos = 0;
@@ -236,11 +236,15 @@ process.exit(malos ? 1 : 0);
 
 Sin esto no sabes si la ampliación sirve. Cada bloque debe dar `exit=1`:
 
+**Los nombres de prueba NO deben llevar dígitos.** Las regex usan `[a-z0-9]+`, pero
+si escribes `noexiste1` y el patrón fuera `[a-z]+`, no habría coincidencia y la
+prueba pasaría en verde sin probar nada. Usa nombres solo de letras:
+
 ```bash
 cd mobile
-for caso in 'export const A = <Icono nombre="noexiste1" />;' \
-            'export const B = <OpcionMenu icono="noexiste2" />;' \
-            'export const C = { icono: "noexiste3" };'; do
+for caso in 'export const A = <Icono nombre="noexiste" />;' \
+            'export const B = <OpcionMenu icono="tampoco" />;' \
+            'export const C = { icono: "inventado" };'; do
   echo "$caso" > src/_prueba.js
   npm run verificar-nombres --silent >/dev/null 2>&1; echo "$caso -> exit=$?"
   rm -f src/_prueba.js
