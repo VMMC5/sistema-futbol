@@ -7,9 +7,6 @@ import { apiGet, apiPost } from "../../api";
 import { lp, ls } from "../../publicTheme";
 import Icono from "../../components/Icono";
 
-// Iconos de los botones 2x2 (fuera del alcance de este cambio: siguen en emoji plano).
-const ICONO = { gol: "⚽", tarjeta_amarilla: "🟨", tarjeta_roja: "🟥", cambio: "🔁" };
-
 // Marca visual por tipo de evento para la caja de eventos. La tarjeta es el mismo icono en ambos
 // colores, como en el panel web (clases .ic-amarilla / .ic-roja).
 const MARCA = {
@@ -128,7 +125,9 @@ export default function RefLiveScreen({ route, navigation }) {
             style={[evBtn.box, { backgroundColor: b.bg }, b.borde && { borderWidth: 1, borderColor: lp.surfaceBorder }]}
             onPress={() => abrirEvento(b.tipo)}
           >
-            <Text style={[evBtn.icon]}>{ICONO[b.tipo]}</Text>
+            <View style={{ marginBottom: 6 }}>
+              <Icono nombre={MARCA[b.tipo].icono} size={22} color={b.fg} />
+            </View>
             <Text style={[evBtn.label, { color: b.fg }]}>{b.label}</Text>
           </TouchableOpacity>
         ))}
@@ -159,7 +158,6 @@ const marcador = {
 };
 const evBtn = {
   box: { width: "48%", borderRadius: 14, paddingVertical: 22, alignItems: "center", marginBottom: 12 },
-  icon: { fontSize: 22, marginBottom: 6 },
   label: { fontWeight: "800", fontSize: 15 },
 };
 const btn = {
