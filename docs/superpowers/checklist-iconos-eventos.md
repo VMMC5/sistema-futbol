@@ -25,7 +25,9 @@ que puede romper comportamiento, no solo aspecto.
 >    un gol: así X suma también una asistencia.
 > 4. Tarjeta amarilla al **jugador X**: queda con tres distintivos acumulados
 >    (dos goles, una asistencia, una amarilla).
-> 5. Tarjeta roja a **otro jugador** (jugador Y, distinto de X).
+> 5. Tarjeta roja al **mismo jugador X**: la pantalla no lo excluye de la lista
+>    por tener ya una amarilla, así que queda con **cuatro** distintivos
+>    acumulados.
 > 6. Un cambio (cualquier titular por uno de la banca).
 
 ## 1. Botones de evento (2x2) — ÁRBITRO
@@ -49,16 +51,14 @@ que puede romper comportamiento, no solo aspecto.
 
 ## 3. Alineaciones (distintivos) — ÁRBITRO
 - [ ] Abre **Ver alineaciones** desde el partido en vivo.
-- [ ] El **jugador X** acumula **tres** distintivos (dos goles, una asistencia,
-      una amarilla) sin salirse de la foto ni solaparse de forma ilegible.
-      Nota: tres es el número que sí se alcanza con el flujo real de la
-      pantalla; forzar un cuarto tipo sobre el mismo jugador (por ejemplo
-      sumarle también una salida) exigiría otro evento más sin aportar más
-      cobertura de solapamiento.
+- [ ] El **jugador X** acumula **cuatro** distintivos (dos goles, una
+      asistencia, una amarilla y una roja) sin salirse de la foto ni
+      solaparse de forma ilegible.
 - [ ] El balón del jugador X muestra **×2**, no dos balones ni "⚽×2".
 - [ ] La asistencia del jugador X muestra la **"A"** (sin ×N, porque es una sola).
-- [ ] El amonestado (jugador X) muestra el **rectángulo amarillo**; el expulsado
-      (jugador Y), el **rojo**.
+- [ ] El jugador X muestra **los dos rectángulos de tarjeta, adyacentes**: el
+      amarillo y el rojo se distinguen bien entre sí y no se confunden pese a
+      ser el mismo icono en dos colores.
 - [ ] Las flechas **↑ ↓** de entra/sale siguen siendo flechas: no se tocaron.
 - [ ] **Contraste:** todos los distintivos se leen sobre el verde de la cancha. El
       balón y la "A" van en blanco con sombra, la amarilla en amarillo y la roja en
