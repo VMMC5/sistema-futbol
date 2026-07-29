@@ -6,6 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { apiPostForm } from "../api";
 import { validarSolicitudStaff } from "../validacion";
 import { colors, styles } from "../theme";
+import Icono from "../components/Icono";
 
 export default function RegisterStaffScreen() {
   const [form, setForm] = useState({ nombre: "", correo: "", telefono: "" });
@@ -109,10 +110,9 @@ export default function RegisterStaffScreen() {
         placeholderTextColor={colors.muted} value={form.telefono} onChangeText={set("telefono")} />
 
       <Text style={styles.label}>Documento de acreditación (PDF o imagen)</Text>
-      <TouchableOpacity style={styles.btnGhost} onPress={elegirDocumento}>
-        <Text style={styles.btnGhostText}>
-          {archivo ? `📎 ${archivo.name}` : "Adjuntar documento"}
-        </Text>
+      <TouchableOpacity style={[styles.btnGhost, { flexDirection: "row", justifyContent: "center", gap: 8 }]} onPress={elegirDocumento}>
+        {!!archivo && <Icono nombre="paperclip" size={16} color={colors.chalk} />}
+        <Text style={styles.btnGhostText}>{archivo ? archivo.name : "Adjuntar documento"}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.btn, { marginTop: 20 }]} onPress={enviar} disabled={cargando}>
