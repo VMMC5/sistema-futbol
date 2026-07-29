@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity
 import { apiGet, apiPost } from "../../api";
 import { lp, ls } from "../../publicTheme";
 import { useNavigation } from "@react-navigation/native";
+import Icono from "../../components/Icono";
 
 const SLOTS = ["16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
 const DIAS_CORTOS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
@@ -85,10 +86,12 @@ export default function ReservarScreen() {
   return (
     <ScrollView style={ls.screen} contentContainerStyle={ls.content} keyboardShouldPersistTaps="handled">
       {/* Buscador de sede */}
-      <View style={{ backgroundColor: lp.white, borderColor: lp.surfaceBorder, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 4, marginBottom: 8 }}>
+      {/* El icono va fuera del TextInput: placeholder solo admite texto. */}
+      <View style={{ backgroundColor: lp.white, borderColor: lp.surfaceBorder, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 4, marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <Icono nombre="location" size={18} color={lp.textMuted} />
         <TextInput
-          style={{ color: lp.textDark, paddingVertical: 12, fontSize: 15 }}
-          placeholder="📍 Buscar sede" placeholderTextColor={lp.textMuted}
+          style={{ flex: 1, color: lp.textDark, paddingVertical: 12, fontSize: 15 }}
+          placeholder="Buscar sede" placeholderTextColor={lp.textMuted}
           value={buscar} onChangeText={(t) => { setBuscar(t); setSedeSel(null); }}
         />
       </View>

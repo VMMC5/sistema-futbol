@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "verificar": "node scripts/verificar-sintaxis.cjs",
-    "verificar-iconos": "node scripts/verificar-iconos.cjs"
+    "verificar-iconos": "node scripts/verificar-iconos.cjs",
+    "verificar-nombres": "node scripts/verificar-nombres-iconos.cjs"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^6.5.20",

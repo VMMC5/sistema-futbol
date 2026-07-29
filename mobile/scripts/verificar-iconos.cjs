@@ -2,7 +2,11 @@
 // Uso: node scripts/verificar-iconos.cjs
 const ICONOS = require("../src/components/iconos-datos.json");
 
-const ESPERADOS = ["edit", "creditcard", "lock", "logout", "bell"];
+const ESPERADOS = [
+  "edit", "creditcard", "lock", "logout", "bell",
+  "cuptrophy", "chart", "calendar", "people", "football",
+  "home", "user", "history", "clipboardlist", "docadd", "location",
+];
 const fallos = [];
 
 for (const nombre of ESPERADOS) {

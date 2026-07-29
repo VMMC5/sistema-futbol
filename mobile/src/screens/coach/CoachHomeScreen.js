@@ -4,14 +4,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet } from "../../api";
 import { useAuth } from "../../auth";
+import Icono from "../../components/Icono";
 import { fechaHora } from "../../format";
 import { cs, lp, ls } from "../../publicTheme";
 
 const ACCIONES = [
-  { icon: "👥", label: "Mis equipos", destino: "Equipos" },
-  { icon: "📝", label: "Inscribir", proximamente: true },
-  { icon: "📋", label: "Alineación", destino: "LineupMatches" },
-  { icon: "📅", label: "Reservar", proximamente: true },
+  { icono: "people", label: "Mis equipos", destino: "Equipos" },
+  { icono: "docadd", label: "Inscribir", proximamente: true },
+  { icono: "clipboardlist", label: "Alineación", destino: "LineupMatches" },
+  { icono: "calendar", label: "Reservar", proximamente: true },
 ];
 
 export default function CoachHomeScreen({ navigation }) {
@@ -19,9 +20,10 @@ export default function CoachHomeScreen({ navigation }) {
   const [resumen, setResumen] = useState(null);
   const [cargando, setCargando] = useState(true);
 
+  // No se toca el título: la pestaña y la cabecera dicen "INICIO" desde App.js,
+  // igual que en el panel del jugador. El saludo vive en la tarjeta de abajo.
   useFocusEffect(
     useCallback(() => {
-      navigation.setOptions({ title: `HOLA, ${(usuario?.nombre || "COACH").toUpperCase()}` });
       (async () => {
         try {
           setResumen(await apiGet("/equipos/resumen"));
@@ -31,7 +33,7 @@ export default function CoachHomeScreen({ navigation }) {
           setCargando(false);
         }
       })();
-    }, [navigation, usuario])
+    }, [])
   );
 
   function tocar(a) {
@@ -51,6 +53,13 @@ export default function CoachHomeScreen({ navigation }) {
 
   return (
     <ScrollView style={ls.screen} contentContainerStyle={ls.content}>
+      {/* Saludo: antes estaba en la cabecera y truncaba la etiqueta de la pestaña. */}
+      <View style={saludo.card}>
+        <Text style={saludo.hola}>Hola,</Text>
+        <Text style={saludo.nombre}>{usuario?.nombre || "Entrenador"}</Text>
+        <Text style={saludo.rol}>ENTRENADOR</Text>
+      </View>
+
       {eq ? (
         <View style={cs.featureGold}>
           <Text style={cs.featureGoldName}>{eq.nombre}</Text>
@@ -69,7 +78,7 @@ export default function CoachHomeScreen({ navigation }) {
       <View style={cs.grid}>
         {ACCIONES.map((a) => (
           <TouchableOpacity key={a.label} style={cs.gridItem} onPress={() => tocar(a)}>
-            <Text style={cs.gridIcon}>{a.icon}</Text>
+            <View style={{ marginBottom: 8 }}><Icono nombre={a.icono} size={24} color={lp.gold} /></View>
             <Text style={cs.gridLabel}>{a.label}</Text>
           </TouchableOpacity>
         ))}
@@ -90,3 +99,13 @@ export default function CoachHomeScreen({ navigation }) {
     </ScrollView>
   );
 }
+
+// Tarjeta de saludo. Va en claro y no en dorado a propósito: la tarjeta del
+// equipo, justo debajo, ya es dorada, y dos bloques dorados seguidos se leen
+// como una sola mancha. La insignia de rol conserva el dorado del panel.
+const saludo = {
+  card: { backgroundColor: lp.surface, borderColor: lp.surfaceBorder, borderWidth: 1, borderRadius: 16, padding: 20, marginBottom: 16 },
+  hola: { color: lp.textMuted, fontSize: 14 },
+  nombre: { color: lp.textDark, fontSize: 24, fontWeight: "800", marginTop: 2 },
+  rol: { color: lp.gold, fontWeight: "800", letterSpacing: 1, marginTop: 8, fontSize: 12 },
+};
