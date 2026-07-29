@@ -17,10 +17,29 @@ que puede romper comportamiento, no solo aspecto.
 
 > **Necesitas un partido con eventos.** Sin goles, tarjetas ni cambios no se
 > puede validar nada de lo estructural. Entra como **arbitro@demo.com /
-> demo1234**, abre un partido asignado, inícialo y registra: dos goles del mismo
-> jugador, una tarjeta amarilla, una roja a otro jugador, y un cambio.
+> demo1234**, abre un partido asignado, inícialo y registra, en este orden:
+> 1. Gol del **jugador X** (sin asistencia).
+> 2. Otro gol del **jugador X** (sin asistencia): queda con dos goles.
+> 3. Gol de **otro jugador** del mismo equipo, marcando al **jugador X** en la
+>    lista "Asistencia (opcional)" que aparece debajo del anotador al registrar
+>    un gol: así X suma también una asistencia.
+> 4. Tarjeta amarilla al **jugador X**: queda con tres distintivos acumulados
+>    (dos goles, una asistencia, una amarilla).
+> 5. Tarjeta roja a **otro jugador** (jugador Y, distinto de X).
+> 6. Un cambio (cualquier titular por uno de la banca).
 
-## 1. Lista de eventos en vivo — ÁRBITRO
+## 1. Botones de evento (2x2) — ÁRBITRO
+- [ ] En el partido en vivo, antes de registrar nada, mira los cuatro botones:
+      **Gol**, **Amarilla**, **Roja**, **Cambio**. Cada uno muestra un icono
+      vectorial a color, no un emoji.
+- [ ] Gol lleva el **balón**; Amarilla y Roja llevan el mismo icono de
+      **rectángulo de tarjeta** (solo cambia el color); Cambio lleva las
+      **flechas de intercambio**.
+- [ ] El icono se distingue del fondo de su propio botón: en **Amarilla**
+      (fondo amarillo) el icono va en un tono oscuro de contraste, no en el
+      color de la tarjeta; en **Roja** (fondo rojo) el icono va en blanco.
+
+## 2. Lista de eventos en vivo — ÁRBITRO
 - [ ] Cada evento de la lista muestra su icono a la izquierda: **balón** en goles,
       **rectángulo amarillo** o **rojo** en tarjetas, **flechas de intercambio** en
       cambios.
@@ -28,25 +47,30 @@ que puede romper comportamiento, no solo aspecto.
 - [ ] Ningún renglón muestra `[object Object]`. Si aparece, un consumidor quedó
       con el tipo viejo.
 
-## 2. Alineaciones (distintivos) — ÁRBITRO
+## 3. Alineaciones (distintivos) — ÁRBITRO
 - [ ] Abre **Ver alineaciones** desde el partido en vivo.
-- [ ] El goleador con dos goles muestra **balón ×2**, no "⚽×2" ni solo el balón.
-- [ ] El amonestado muestra el **rectángulo amarillo**; el expulsado, el **rojo**.
-- [ ] Si hay asistencia, aparece una **"A"** (con ×N si hay más de una).
+- [ ] El **jugador X** acumula **tres** distintivos (dos goles, una asistencia,
+      una amarilla) sin salirse de la foto ni solaparse de forma ilegible.
+      Nota: tres es el número que sí se alcanza con el flujo real de la
+      pantalla; forzar un cuarto tipo sobre el mismo jugador (por ejemplo
+      sumarle también una salida) exigiría otro evento más sin aportar más
+      cobertura de solapamiento.
+- [ ] El balón del jugador X muestra **×2**, no dos balones ni "⚽×2".
+- [ ] La asistencia del jugador X muestra la **"A"** (sin ×N, porque es una sola).
+- [ ] El amonestado (jugador X) muestra el **rectángulo amarillo**; el expulsado
+      (jugador Y), el **rojo**.
 - [ ] Las flechas **↑ ↓** de entra/sale siguen siendo flechas: no se tocaron.
-- [ ] Con cuatro distintivos sobre un mismo jugador, no se salen de la foto ni se
-      solapan de forma ilegible.
 - [ ] **Contraste:** todos los distintivos se leen sobre el verde de la cancha. El
       balón y la "A" van en blanco con sombra, la amarilla en amarillo y la roja en
       un rojo claro, a propósito. Si alguno se pierde contra el fondo, dilo: los
       emoji de antes traían su propio color y estos no.
 
-## 3. Resumen del partido — ÁRBITRO
+## 4. Resumen del partido — ÁRBITRO
 - [ ] Firma el acta y abre el resumen. Las secciones **Goles** y **Tarjetas**
       muestran icono a la izquierda y el texto a la derecha, sin partirse.
 - [ ] El `✓` de acta firmada sigue siendo un `✓`: está fuera de alcance.
 
-## 4. Notificaciones — JUGADOR
+## 5. Notificaciones — JUGADOR
 - [ ] Entra como **jugador@demo.com / demo1234** → campana de INICIO.
 - [ ] Los avisos de gol muestran un **balón**, los de torneo una **copa**, y el
       resto una **campana**, dentro de su círculo de color.
@@ -54,7 +78,7 @@ que puede romper comportamiento, no solo aspecto.
       Es lo esperado: no son emoji y quedan fuera de alcance.
 - [ ] La `✕` de descartar sigue siendo una `✕`.
 
-## 5. Los dos sueltos
+## 6. Los dos sueltos
 - [ ] **Mi panel** (jugador): el botón "Mis invitaciones a equipos" lleva un
       **sobre** delante, sobre el fondo lima.
 - [ ] **Crear cuenta → Entrenador/Árbitro**: pulsa "Adjuntar documento" y elige un
