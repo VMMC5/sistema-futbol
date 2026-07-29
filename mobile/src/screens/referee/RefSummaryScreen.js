@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet, apiPost } from "../../api";
 import { lp, ls } from "../../publicTheme";
+import Icono from "../../components/Icono";
 
 export default function RefSummaryScreen({ route, navigation }) {
   const { partidoId } = route.params;
@@ -69,11 +70,14 @@ export default function RefSummaryScreen({ route, navigation }) {
         <Text style={ls.rowTitle}>Goles</Text>
         {goles.length === 0 ? <Text style={ls.muted}>Sin goles.</Text> :
           goles.map((g) => (
-            <Text key={g.id} style={tx}>
-              {g.minuto != null ? `${g.minuto}' ` : ""}⚽ {g.jugador_nombre || "—"}
-              {g.subtipo && g.subtipo !== "normal" ? ` (${g.subtipo})` : ""}
-              {g.jugador_secundario_nombre ? `  · asist. ${g.jugador_secundario_nombre}` : ""}
-            </Text>
+            <View key={g.id} style={filaEvento}>
+              <Icono nombre="football" size={14} color={lp.textDark} />
+              <Text style={[tx, { flex: 1 }]}>
+                {g.minuto != null ? `${g.minuto}' ` : ""}{g.jugador_nombre || "—"}
+                {g.subtipo && g.subtipo !== "normal" ? ` (${g.subtipo})` : ""}
+                {g.jugador_secundario_nombre ? `  · asist. ${g.jugador_secundario_nombre}` : ""}
+              </Text>
+            </View>
           ))}
       </View>
 
@@ -82,9 +86,12 @@ export default function RefSummaryScreen({ route, navigation }) {
         <Text style={ls.rowTitle}>Tarjetas</Text>
         {tarjetas.length === 0 ? <Text style={ls.muted}>Sin tarjetas.</Text> :
           tarjetas.map((t) => (
-            <Text key={t.id} style={tx}>
-              {t.minuto != null ? `${t.minuto}' ` : ""}{t.tipo === "tarjeta_roja" ? "🟥" : "🟨"} {t.jugador_nombre || "—"}
-            </Text>
+            <View key={t.id} style={filaEvento}>
+              <Icono nombre="tarjeta" size={14} color={t.tipo === "tarjeta_roja" ? lp.danger : lp.amarilla} />
+              <Text style={[tx, { flex: 1 }]}>
+                {t.minuto != null ? `${t.minuto}' ` : ""}{t.jugador_nombre || "—"}
+              </Text>
+            </View>
           ))}
       </View>
 
@@ -120,5 +127,6 @@ const final = {
   teams: { color: lp.white, opacity: 0.9 },
 };
 const tx = { color: lp.textDark, marginTop: 6 };
+const filaEvento = { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 2 };
 const check = { width: 26, height: 26, borderRadius: 6, borderWidth: 2, borderColor: lp.surfaceBorder, alignItems: "center", justifyContent: "center", marginRight: 12 };
 const enviar_btn = { backgroundColor: lp.red, borderRadius: 12, paddingVertical: 15, alignItems: "center", marginTop: 18 };
