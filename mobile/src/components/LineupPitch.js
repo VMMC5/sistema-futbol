@@ -8,6 +8,7 @@ import { Text, View } from "react-native";
 import { lp } from "../publicTheme";
 import Avatar from "./Avatar";
 import { huecos } from "../formaciones";
+import Icono from "./Icono";
 
 // Deriva los distintivos visuales de un jugador a partir del resumen del
 // partido: { goles, asistencias, amarillas, rojas, salio, entro }.
@@ -15,10 +16,10 @@ function badgesDe(resumen, jugadorId) {
   const r = resumen ? resumen[String(jugadorId)] : null;
   if (!r) return [];
   const out = [];
-  if (r.goles) out.push({ key: "goles", texto: r.goles > 1 ? `⚽×${r.goles}` : "⚽" });
-  if (r.asistencias) out.push({ key: "asist", texto: r.asistencias > 1 ? `🅰️×${r.asistencias}` : "🅰️" });
-  if (r.amarillas) out.push({ key: "amarilla", texto: r.amarillas > 1 ? `🟨×${r.amarillas}` : "🟨" });
-  if (r.rojas) out.push({ key: "roja", texto: "🟥" });
+  if (r.goles) out.push({ key: "goles", icono: "football", veces: r.goles });
+  if (r.asistencias) out.push({ key: "asist", letra: "A", veces: r.asistencias });
+  if (r.amarillas) out.push({ key: "amarilla", icono: "tarjeta", color: lp.amarilla, veces: r.amarillas });
+  if (r.rojas) out.push({ key: "roja", icono: "tarjeta", color: lp.rojaClara, veces: r.rojas });
   if (r.salio) out.push({ key: "sale", texto: "↓" });
   if (r.entro) out.push({ key: "entra", texto: "↑" });
   return out;
@@ -29,7 +30,12 @@ function Distintivos({ badges }) {
   return (
     <View style={estilos.badgesFila}>
       {badges.map((b) => (
-        <Text key={b.key} style={estilos.badge} numberOfLines={1}>{b.texto}</Text>
+        <View key={b.key} style={estilos.badge}>
+          {b.icono
+            ? <Icono nombre={b.icono} size={11} color={b.color || "#fff"} />
+            : <Text style={estilos.badgeTexto}>{b.letra || b.texto}</Text>}
+          {b.veces > 1 && <Text style={estilos.badgeTexto}>×{b.veces}</Text>}
+        </View>
       ))}
     </View>
   );
@@ -125,7 +131,11 @@ const estilos = {
     position: "absolute", top: 58, left: -24, width: 84, flexDirection: "row", flexWrap: "wrap",
     justifyContent: "center",
   },
-  badge: { fontSize: 11, marginHorizontal: 1 },
+  badge: { flexDirection: "row", alignItems: "center", marginHorizontal: 1 },
+  badgeTexto: {
+    fontSize: 11, color: "#fff", fontWeight: "700",
+    textShadowColor: "rgba(0,0,0,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
+  },
   avisoTexto: { color: "#fff", fontWeight: "700", fontSize: 14 },
   banca: {
     marginTop: 14, backgroundColor: lp.surface, borderColor: lp.surfaceBorder, borderWidth: 1,
