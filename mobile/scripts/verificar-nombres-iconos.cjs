@@ -9,6 +9,13 @@
 // La primera va acotada a <Icono> a proposito: <Avatar> tiene una prop `nombre`
 // que no es un icono, y sin acotar daria falsos positivos.
 //
+// El patron acepta letras y digitos ([a-z0-9]+): hoy ningun icono del catalogo
+// lleva digito, pero reicon tiene nombres como Home2 o User4, y si alguno asi
+// entra al catalogo su uso quedaria sin verificar en silencio con un patron
+// mas estrecho. Por eso: si alguna vez se vuelve a estrechar el patron, los
+// nombres de prueba usados para comprobar este script NO deben llevar digitos,
+// o la prueba dara verde aunque el detector este roto.
+//
 // Limite que PERMANECE: un valor calculado en tiempo de ejecucion sigue siendo
 // invisible. Esto cubre lo literal, que es todo lo que el proyecto usa hoy.
 const fs = require("fs");
@@ -28,9 +35,9 @@ const archivos = [];
 archivos.push(path.join(RAIZ, "App.js"));
 
 const PATRONES = [
-  [/<Icono\b[^>]*?\snombre="([a-z]+)"/g, 'nombre='],
-  [/\sicono="([a-z]+)"/g, 'icono='],
-  [/\bicono:\s*"([a-z]+)"/g, 'icono:'],
+  [/<Icono\b[^>]*?\snombre="([a-z0-9]+)"/g, 'nombre='],
+  [/\sicono="([a-z0-9]+)"/g, 'icono='],
+  [/\bicono:\s*"([a-z0-9]+)"/g, 'icono:'],
 ];
 
 let malos = 0;
