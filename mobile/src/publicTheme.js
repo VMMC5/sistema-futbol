@@ -17,6 +17,8 @@ export const lp = {
   maroon: "#7C2B2B",     // cabecera del panel del árbitro
   red: "#C0392B",        // botones principales del árbitro
   goldText: "#F7F1DF",
+  amarilla: "#f2b53c",    // tarjeta amarilla; mismo valor que .ic-amarilla de la web
+  rojaClara: "#ff5a5a",   // tarjeta roja SOBRE FONDO OSCURO (la cancha, #1C6B3A)
 };
 
 export const ls = StyleSheet.create({

@@ -1,12 +1,16 @@
-// Comprueba que todo nombre= usado con <Icono> exista en iconos-datos.json.
+// Comprueba que todo nombre de icono usado exista en iconos-datos.json.
 // Una errata no lanza error en ejecucion: pinta un hueco vacio. Esto lo caza.
 // Uso: node scripts/verificar-nombres-iconos.cjs   (o npm run verificar-nombres)
 //
-// Limite conocido: la regex /nombre="([a-z]+)"/ solo detecta literales, no
-// cubre usos dinamicos. Se le escapan al menos estos dos patrones, que hay
-// que revisar a mano:
-//   - nombre={a.icono}  en src/screens/coach/CoachHomeScreen.js (4 iconos de la rejilla)
-//   - nombre={icono}    en src/components/OpcionMenu.js (4 del menu de perfil)
+// Reconoce tres formas, que juntas cubren todos los usos literales del proyecto:
+//   <Icono nombre="football">      render directo
+//   <OpcionMenu icono="edit">      prop que otro componente pasa a <Icono>
+//   { icono: "people", ... }       clave de objeto (ACCIONES, ICONO de eventos)
+// La primera va acotada a <Icono> a proposito: <Avatar> tiene una prop `nombre`
+// que no es un icono, y sin acotar daria falsos positivos.
+//
+// Limite que PERMANECE: un valor calculado en tiempo de ejecucion sigue siendo
+// invisible. Esto cubre lo literal, que es todo lo que el proyecto usa hoy.
 const fs = require("fs");
 const path = require("path");
 
@@ -23,15 +27,25 @@ const archivos = [];
 })(path.join(RAIZ, "src"));
 archivos.push(path.join(RAIZ, "App.js"));
 
+const PATRONES = [
+  [/<Icono\b[^>]*?\snombre="([a-z]+)"/g, 'nombre='],
+  [/\sicono="([a-z]+)"/g, 'icono='],
+  [/\bicono:\s*"([a-z]+)"/g, 'icono:'],
+];
+
 let malos = 0;
+let vistos = 0;
 for (const archivo of archivos) {
   const txt = fs.readFileSync(archivo, "utf8");
-  for (const m of txt.matchAll(/nombre="([a-z]+)"/g)) {
-    if (!iconos.has(m[1])) {
-      console.log(`FALLO ${path.relative(RAIZ, archivo)}: nombre="${m[1]}" no existe en iconos-datos.json`);
-      malos++;
+  for (const [patron, etiqueta] of PATRONES) {
+    for (const m of txt.matchAll(patron)) {
+      vistos++;
+      if (!iconos.has(m[1])) {
+        console.log(`FALLO ${path.relative(RAIZ, archivo)}: ${etiqueta}"${m[1]}" no existe en iconos-datos.json`);
+        malos++;
+      }
     }
   }
 }
-console.log(malos ? `${malos} nombres inválidos` : "OK: todos los nombres de icono existen");
+console.log(malos ? `${malos} nombres inválidos` : `OK: ${vistos} usos de icono, todos existen`);
 process.exit(malos ? 1 : 0);

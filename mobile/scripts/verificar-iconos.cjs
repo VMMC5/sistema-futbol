@@ -6,6 +6,7 @@ const ESPERADOS = [
   "edit", "creditcard", "lock", "logout", "bell",
   "cuptrophy", "chart", "calendar", "people", "football",
   "home", "user", "history", "clipboardlist", "docadd", "location",
+  "transfer", "tarjeta", "envelope", "paperclip",
 ];
 const fallos = [];
 

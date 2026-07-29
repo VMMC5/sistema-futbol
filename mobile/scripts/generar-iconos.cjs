@@ -24,7 +24,7 @@ if (!dirReicon) {
 }
 
 // Del macro de la web: mismo concepto, mismo path que el panel.
-const DESDE_WEB = ["cuptrophy", "chart", "calendar", "people", "football"];
+const DESDE_WEB = ["cuptrophy", "chart", "calendar", "people", "football", "transfer"];
 // De reicon: clave en el JSON -> nombre del archivo del paquete.
 const DESDE_REICON = {
   home: "Home",
@@ -33,6 +33,8 @@ const DESDE_REICON = {
   clipboardlist: "ClipboardList",
   docadd: "DocAdd",
   location: "Pin",   // el "location" del macro web usa circle/line/g: no vale aqui
+  envelope: "Envelope",
+  paperclip: "Paperclip",
 };
 
 function paths(svg) {
@@ -45,6 +47,17 @@ function entrada(svg) {
   if (svg.includes('fill-rule="evenodd"')) e.parImpar = true;
   return e;
 }
+
+// Iconos cuyo dato NO se puede extraer de la fuente porque no es un <path>.
+// El "tarjeta" del macro web es <rect x="6" y="2.5" width="12" height="19" rx="2.2"/>.
+// A diferencia de "location" (que mezcla circle/line/g y por eso se tomó de reicon),
+// un rectangulo redondeado se expresa EXACTAMENTE como path, sin perdida:
+// esquinas (6,2.5)-(18,21.5) y radio 2.2 en las cuatro.
+const LITERALES = {
+  tarjeta: {
+    d: ["M8.2 2.5 H15.8 A2.2 2.2 0 0 1 18 4.7 V19.3 A2.2 2.2 0 0 1 15.8 21.5 H8.2 A2.2 2.2 0 0 1 6 19.3 V4.7 A2.2 2.2 0 0 1 8.2 2.5 Z"],
+  },
+};
 
 const macro = fs.readFileSync(path.join(RAIZ_REPO, "web/app/templates/_iconos.html"), "utf8");
 const salida = {};
@@ -61,5 +74,7 @@ for (const [clave, archivo] of Object.entries(DESDE_REICON)) {
   if (!b64) { console.error(`No encontre el SVG de ${archivo}`); process.exit(1); }
   salida[clave] = entrada(Buffer.from(b64[1], "base64").toString("utf8"));
 }
+
+Object.assign(salida, LITERALES);
 
 console.log(JSON.stringify(salida, null, 2));
