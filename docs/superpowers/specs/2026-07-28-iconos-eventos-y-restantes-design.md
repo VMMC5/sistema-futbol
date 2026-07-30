@@ -85,17 +85,41 @@ la hace el generador, no una transcripción a mano.
 
 Se añade `amarilla: "#f2b53c"` a `lp` en `mobile/src/publicTheme.js`, copiado de
 `.ic-amarilla` del panel. La roja **no** siempre reutiliza `lp.danger`
-(`#c0392b`): sobre el verde de la cancha (`#1C6B3A`) ese rojo da ~1.45:1 de
-contraste, insuficiente. Se añade un segundo tono, `rojaClara: "#ff5a5a"`,
-para ese caso. En resumen, hay dos rojos con usos distintos:
+(`#c0392b`): sobre el verde de la cancha (`#1C6B3A`) ese rojo da **1.20:1** de
+contraste, inservible. Se añade un segundo tono, `rojaClara: "#ff5a5a"`, para ese
+caso. Hay entonces dos rojos con usos distintos:
 
 - `lp.danger` (`#c0392b`) — listas de eventos sobre fondo claro (`RefLiveScreen`,
-  `RefSummaryScreen`): ahí el rojo original sí contrasta bien.
-- `lp.rojaClara` (`#ff5a5a`) — distintivos de `LineupPitch` (`Distintivos`),
-  calibrado para el verde oscuro de la cancha. Se reutiliza tal cual también en
-  la banca (fondo claro) porque, a diferencia del tinte por defecto de los
-  distintivos sin color propio, el rojo de tarjeta se distingue bien en ambos
-  fondos y no necesita variar con el contenedor.
+  `RefSummaryScreen`), donde da 5.21:1.
+- `lp.rojaClara` (`#ff5a5a`) — distintivos de `LineupPitch`, calibrado para el
+  verde de la cancha. Se reutiliza tal cual en la banca.
+
+**Contraste medido, sin adornos.** Ratios WCAG de cada tono contra los dos fondos
+donde aparece (cancha `#1C6B3A`, banca `#FBFAF6`):
+
+| Tono | Cancha | Banca |
+|---|---|---|
+| `amarilla` `#f2b53c` | 3.56:1 | **1.76:1** |
+| `rojaClara` `#ff5a5a` | **2.14:1** | 2.93:1 |
+| `danger` `#c0392b` | 1.20:1 | 5.21:1 |
+| tinte blanco | 6.53:1 | — |
+| tinte `textDark` | — | 14.40:1 |
+
+Los dos valores en negrita quedan por debajo del 3:1 que se pide a un objeto
+gráfico. **Se acepta a sabiendas**, por tres razones: el color de la tarjeta
+identifica su tipo y atarlo al fondo lo volvería ambiguo; son rectángulos
+rellenos de 11 px, cuya forma se lee por el borde y no por la luminancia; y el
+emoji anterior (`🟨`, `🟥`) tenía el mismo tono sobre el mismo fondo, así que no
+hay regresión respecto a lo que ya había.
+
+Lo que **sí** era una regresión, y está corregido, es el **tinte base** de los
+distintivos sin color propio (balón, `A`, `×N`, flechas): un blanco fijo dejaba
+1.04:1 sobre la banca. Ahora el tinte lo decide el contenedor: blanco en la
+cancha, `lp.textDark` en la banca.
+
+Si en la validación en dispositivo alguno de los dos tonos flojos estorba, la
+corrección es recalibrar ese tono en `publicTheme.js`, no hacerlo depender del
+fondo.
 
 ## Cambios por pantalla
 

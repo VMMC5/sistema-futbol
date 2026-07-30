@@ -27,10 +27,16 @@ function badgesDe(resumen, jugadorId) {
 
 // `tinte` es el color base para distintivos sin color propio (flechas, "A",
 // balón): blanco sobre la cancha oscura, lp.textDark sobre la banca clara.
-// Los colores propios de la tarjeta (b.color: amarilla/rojaClara) siempre
-// mandan porque se distinguen en ambos fondos. La sombra de texto solo tiene
-// sentido cuando el tinte es claro (texto oscuro sobre banca clara ensucia
-// la sombra negra); sobre la cancha el tinte es blanco y sí la necesita.
+// Los colores propios de la tarjeta (b.color) NO varían con el fondo, a
+// propósito: el amarillo y el rojo identifican el tipo de tarjeta y cambiarlos
+// por contenedor los volvería ambiguos. El precio es un contraste flojo en dos
+// cruces, medido: amarilla sobre banca 1.76:1 y roja sobre cancha 2.14:1. Se
+// acepta porque son rectángulos rellenos de 11px (la forma se lee por su borde,
+// no por luminancia) y porque el emoji anterior tenía el mismo tono sobre el
+// mismo fondo: no es una regresión. Si en dispositivo estorba, la corrección es
+// recalibrar esos dos tonos en publicTheme.js, no atar el color al fondo.
+// La sombra de texto solo tiene sentido cuando el tinte es claro (texto oscuro
+// sobre banca clara ensucia la sombra negra); sobre la cancha sí la necesita.
 function Distintivos({ badges, tinte = "#fff", enCancha = false }) {
   if (!badges.length) return null;
   return (
