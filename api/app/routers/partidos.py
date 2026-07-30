@@ -323,6 +323,24 @@ def registrar_evento(
     )
     db.add(evento)
 
+    # Segunda amarilla = expulsión. Se crea un evento de roja APARTE porque los
+    # distintivos, el acta y las estadísticas ya cuentan rojas leyendo eventos:
+    # marcar la amarilla obligaría a cambiar los cuatro consumidores.
+    # `estado` se calculó antes de añadir esta amarilla, así que cuenta las previas.
+    if (
+        datos.tipo == "tarjeta_amarilla"
+        and datos.jugador_id is not None
+        and estado["amarillas"].get(datos.jugador_id, 0) >= 1
+    ):
+        db.add(models.EventoPartido(
+            partido_id=partido_id,
+            equipo_id=datos.equipo_id,
+            jugador_id=datos.jugador_id,
+            tipo="tarjeta_roja",
+            minuto=datos.minuto,
+            detalle="Doble amarilla",
+        ))
+
     # Si es gol, actualizar el marcador. Un autogol cuenta para el rival.
     if datos.tipo == "gol":
         anota = _equipo_que_anota(partido, datos.equipo_id, datos.subtipo)

@@ -214,3 +214,47 @@ def test_evento_sin_jugador_sigue_siendo_valido(client, auth_admin, auth_arbitro
     r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
         "tipo": "gol", "equipo_id": 1, "subtipo": "autogol", "minuto": 30})
     assert r.status_code == 201
+
+
+def test_segunda_amarilla_genera_roja_automatica(client, auth_admin, auth_arbitro, arbitro_id,
+                                                 torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Doble Amarilla", "doble@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 65})
+    # El endpoint devuelve la amarilla, que es lo que se pidió crear
+    assert r.status_code == 201 and r.json()["tipo"] == "tarjeta_amarilla"
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    rojas = [e for e in eventos
+             if e["tipo"] == "tarjeta_roja" and e["jugador_id"] == m["jugador_id"]]
+    assert len(rojas) == 1
+    assert rojas[0]["minuto"] == 65
+    assert "doble" in (rojas[0]["detalle"] or "").lower()
+
+
+def test_una_sola_amarilla_no_genera_roja(client, auth_admin, auth_arbitro, arbitro_id,
+                                          torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Una Amarilla", "unaamarilla@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert not any(e["tipo"] == "tarjeta_roja" for e in eventos)
+
+
+def test_tras_la_doble_amarilla_el_jugador_no_recibe_mas_eventos(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Fuera Ya", "fuueraya@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    for minuto in (20, 65):
+        client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+            "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": minuto})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 80})
+    assert r.status_code == 409
