@@ -321,3 +321,77 @@ def test_cambio_no_permite_reingresar_a_un_jugador_ya_salido(
         "tipo": "cambio", "equipo_id": 1, "jugador_id": tit_b["jugador_id"],
         "jugador_secundario_id": tit_a["jugador_id"], "minuto": 60})
     assert r2.status_code == 409
+
+
+def test_borrar_la_segunda_amarilla_borra_la_roja_automatica(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Doble Borrada", "dobleborrada@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 65})
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    segunda_amarilla = next(e for e in eventos
+                             if e["tipo"] == "tarjeta_amarilla" and e["minuto"] == 65)
+    r = client.delete(f"/partidos/{pid}/eventos/{segunda_amarilla['id']}", headers=auth_arbitro)
+    assert r.status_code == 204
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert not any(e["tipo"] == "tarjeta_roja" and e["jugador_id"] == m["jugador_id"] for e in eventos)
+    assert sum(1 for e in eventos if e["tipo"] == "tarjeta_amarilla") == 1
+
+    # El jugador vuelve a ser elegible
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 80})
+    assert r.status_code == 201
+
+
+def test_borrar_la_primera_amarilla_tambien_borra_la_roja_automatica(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Doble Borrada Primera", "dobleborradaprimera@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 65})
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    primera_amarilla = next(e for e in eventos
+                             if e["tipo"] == "tarjeta_amarilla" and e["minuto"] == 20)
+    r = client.delete(f"/partidos/{pid}/eventos/{primera_amarilla['id']}", headers=auth_arbitro)
+    assert r.status_code == 204
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert not any(e["tipo"] == "tarjeta_roja" and e["jugador_id"] == m["jugador_id"] for e in eventos)
+    assert sum(1 for e in eventos if e["tipo"] == "tarjeta_amarilla") == 1
+
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 80})
+    assert r.status_code == 201
+
+
+def test_borrar_amarilla_no_toca_una_roja_directa(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    """Una roja directa (sin doble amarilla) no tiene el detalle que marca la
+    roja automática, así que borrar una amarilla suelta no debe tocarla."""
+    m = agregar_miembro(auth_entrenador, 1, "Roja Directa", "rojadirecta@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    r_roja = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_roja", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 40})
+    assert r_roja.status_code == 201
+    roja_id = r_roja.json()["id"]
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    amarilla = next(e for e in eventos if e["tipo"] == "tarjeta_amarilla")
+    r = client.delete(f"/partidos/{pid}/eventos/{amarilla['id']}", headers=auth_arbitro)
+    assert r.status_code == 204
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert any(e["id"] == roja_id for e in eventos)

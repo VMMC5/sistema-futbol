@@ -381,6 +381,35 @@ def eliminar_evento(
         elif anota == partido.equipo_visitante_id and partido.goles_visitante > 0:
             partido.goles_visitante -= 1
 
+    # Si se borra una amarilla y al jugador le quedan menos de dos, la roja
+    # automática de la doble amarilla (si la hay) queda huérfana: sin esto el
+    # jugador seguiría expulsado sin tener la segunda amarilla que lo justifique.
+    # No toca una roja directa: esa no tiene el detalle "Doble amarilla".
+    if evento.tipo == "tarjeta_amarilla" and evento.jugador_id is not None:
+        amarillas_restantes = (
+            db.query(models.EventoPartido)
+            .filter(
+                models.EventoPartido.partido_id == partido_id,
+                models.EventoPartido.tipo == "tarjeta_amarilla",
+                models.EventoPartido.jugador_id == evento.jugador_id,
+                models.EventoPartido.id != evento.id,
+            )
+            .count()
+        )
+        if amarillas_restantes < 2:
+            roja_automatica = (
+                db.query(models.EventoPartido)
+                .filter(
+                    models.EventoPartido.partido_id == partido_id,
+                    models.EventoPartido.tipo == "tarjeta_roja",
+                    models.EventoPartido.jugador_id == evento.jugador_id,
+                    models.EventoPartido.detalle == "Doble amarilla",
+                )
+                .first()
+            )
+            if roja_automatica is not None:
+                db.delete(roja_automatica)
+
     db.delete(evento)
     db.commit()
 
