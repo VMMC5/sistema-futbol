@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import eventos_resumen, models
+from app import campo, eventos_resumen, models
 from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
@@ -249,6 +249,45 @@ def resumen_jugadores(
     return eventos_resumen.resumen_por_jugador(db, partido_id)
 
 
+def _exigir_en_campo(estado: dict, jugador_id: int):
+    """409 con el motivo concreto si el jugador no puede recibir eventos."""
+    if jugador_id in estado["en_campo"]:
+        return
+    if jugador_id in estado["expulsados"]:
+        raise HTTPException(status_code=409, detail="El jugador está expulsado")
+    if jugador_id in estado["salidos"]:
+        raise HTTPException(status_code=409, detail="El jugador ya salió de cambio")
+    raise HTTPException(status_code=409, detail="El jugador no está en el campo")
+
+
+def _validar_jugadores(estado: dict, datos: EventoCreate):
+    """
+    Un evento puede no llevar jugador y eso es legal: el autogol atribuido solo
+    al equipo va sin jugador_id, y la asistencia de un gol es opcional. Cuando
+    el campo viene vacío no hay nada que comprobar. Solo el cambio exige los dos.
+    """
+    if datos.tipo == "cambio":
+        if datos.jugador_id is None or datos.jugador_secundario_id is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Un cambio necesita el jugador que sale y el que entra",
+            )
+        _exigir_en_campo(estado, datos.jugador_id)          # el que sale
+        entra = datos.jugador_secundario_id
+        if entra in estado["expulsados"]:
+            raise HTTPException(status_code=409, detail="El jugador que entra está expulsado")
+        # Sin plan, la plantilla entera cuenta como "en el campo", así que esta
+        # comprobación no se puede aplicar: dejaría todo cambio en 409.
+        if estado["hay_plan"] and entra in estado["en_campo"]:
+            raise HTTPException(status_code=409, detail="El jugador que entra ya está en el campo")
+        return
+
+    if datos.jugador_id is not None:
+        _exigir_en_campo(estado, datos.jugador_id)
+    if datos.tipo == "gol" and datos.jugador_secundario_id is not None:
+        _exigir_en_campo(estado, datos.jugador_secundario_id)   # asistente
+
+
 @router.post("/{partido_id}/eventos", response_model=EventoOut, status_code=status.HTTP_201_CREATED)
 def registrar_evento(
     partido_id: int,
@@ -268,6 +307,9 @@ def registrar_evento(
     # El equipo del evento debe ser uno de los dos que disputan el partido
     if datos.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
         raise HTTPException(status_code=400, detail="El equipo no participa en este partido")
+
+    estado = campo.estado_campo(db, partido_id, datos.equipo_id)
+    _validar_jugadores(estado, datos)
 
     evento = models.EventoPartido(
         partido_id=partido_id,

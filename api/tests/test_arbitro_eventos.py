@@ -112,3 +112,105 @@ def test_evento_con_minuto_fuera_de_rango_es_422(client, auth_admin, auth_arbitr
         r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
             "tipo": "gol", "equipo_id": 1, "minuto": minuto})
         assert r.status_code == 422
+
+
+def _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id, torneo_id, je_ids):
+    """Partido con plan del equipo 1 y en juego. El plan se guarda ANTES de
+    iniciar: después de iniciar, PUT /plan responde 409."""
+    pid = client.post("/partidos", headers=auth_admin, json={
+        "torneo_id": torneo_id, "equipo_local_id": 1, "equipo_visitante_id": 2,
+        "arbitro_id": arbitro_id}).json()["id"]
+    r_plan = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
+        "equipo_id": 1, "formacion": "4-4-2",
+        "jugadores": [{"jugador_equipo_id": je, "posicion": "DEF", "orden": i}
+                      for i, je in enumerate(je_ids)]})
+    assert r_plan.status_code == 200, r_plan.text
+    r_iniciar = client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    assert r_iniciar.status_code == 200, r_iniciar.text
+    return pid
+
+
+def test_evento_sobre_expulsado_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                       torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Expulsado", "expulsado@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_roja", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 40})
+    assert r.status_code == 409
+    assert "expulsado" in r.json()["detail"].lower()
+
+
+def test_evento_sobre_jugador_que_ya_salio_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                                  torneo_id, auth_entrenador, agregar_miembro):
+    sale = agregar_miembro(auth_entrenador, 1, "Salio Ya", "salioya@demo.com")
+    entra = agregar_miembro(auth_entrenador, 1, "Entro Ya", "entroya@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [sale["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": sale["jugador_id"],
+        "jugador_secundario_id": entra["jugador_id"], "minuto": 60})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": sale["jugador_id"], "minuto": 70})
+    assert r.status_code == 409
+
+
+def test_evento_sobre_el_que_entro_de_cambio_se_acepta(client, auth_admin, auth_arbitro, arbitro_id,
+                                                       torneo_id, auth_entrenador, agregar_miembro):
+    sale = agregar_miembro(auth_entrenador, 1, "Sale Ok", "saleok@demo.com")
+    entra = agregar_miembro(auth_entrenador, 1, "Entra Ok", "entraok@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [sale["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": sale["jugador_id"],
+        "jugador_secundario_id": entra["jugador_id"], "minuto": 60})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": entra["jugador_id"], "minuto": 70})
+    assert r.status_code == 201
+
+
+def test_cambio_con_el_que_sale_fuera_del_campo_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                                       torneo_id, auth_entrenador, agregar_miembro):
+    titular = agregar_miembro(auth_entrenador, 1, "Titular Cbio", "titcbio@demo.com")
+    banca_a = agregar_miembro(auth_entrenador, 1, "Banca A", "bancaa@demo.com")
+    banca_b = agregar_miembro(auth_entrenador, 1, "Banca B", "bancab@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [titular["je_id"]])
+    # banca_a no está en el campo: no puede "salir"
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": banca_a["jugador_id"],
+        "jugador_secundario_id": banca_b["jugador_id"], "minuto": 55})
+    assert r.status_code == 409
+
+
+def test_cambio_con_el_que_entra_ya_en_el_campo_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                                       torneo_id, auth_entrenador, agregar_miembro):
+    uno = agregar_miembro(auth_entrenador, 1, "Titular Uno", "tituno@demo.com")
+    dos = agregar_miembro(auth_entrenador, 1, "Titular Dos", "titdos@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [uno["je_id"], dos["je_id"]])
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": uno["jugador_id"],
+        "jugador_secundario_id": dos["jugador_id"], "minuto": 55})
+    assert r.status_code == 409
+
+
+def test_cambio_sin_los_dos_jugadores_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                             torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Solo Uno", "solouno@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 55})
+    assert r.status_code == 409
+
+
+def test_evento_sin_jugador_sigue_siendo_valido(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    """El autogol atribuido solo al equipo no lleva jugador: no hay nada que validar."""
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "subtipo": "autogol", "minuto": 30})
+    assert r.status_code == 201
