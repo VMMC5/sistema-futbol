@@ -86,13 +86,29 @@ export default function RefEventScreen({ route, navigation }) {
   function elegirEquipo(id) { setEquipoSel(id); setPrincipal(null); setSecundario(null); }
 
   const datosEquipo = planes[equipoSel] || { titulares: [], suplentes: [] };
-  // Pool para anotador/tarjeta: titulares; si no hay alineación, la banca
-  const enCancha = datosEquipo.titulares.length ? datosEquipo.titulares : datosEquipo.suplentes;
+  const plantilla = useMemo(
+    () => [...datosEquipo.titulares, ...datosEquipo.suplentes],
+    [datosEquipo]
+  );
+  // Sin alineación del entrenador el servidor marca en_campo a toda la plantilla:
+  // ahí la banca sigue siendo la lista de quién puede entrar.
+  const sinPlan = datosEquipo.titulares.length === 0;
+
+  // El servidor decide quién está en el campo (titulares − expulsados − salidos
+  // + entrados). Aquí solo se lee la bandera: si la regla cambia, cambia allá.
+  const enCancha = useMemo(() => plantilla.filter((j) => j.en_campo), [plantilla]);
 
   const asistentes = useMemo(
     () => enCancha.filter((j) => j.jugador_id !== principal),
     [enCancha, principal]
   );
+
+  // Quién puede entrar en un cambio: los que no están en el campo y no están
+  // expulsados. Sin plan, la banca entera menos los expulsados.
+  const entrantes = useMemo(() => {
+    const base = sinPlan ? datosEquipo.suplentes : plantilla.filter((j) => !j.en_campo);
+    return base.filter((j) => !j.expulsado && j.jugador_id !== principal);
+  }, [plantilla, datosEquipo, sinPlan, principal]);
 
   async function confirmar() {
     if (!esGol && !esCambio && principal == null) {
@@ -101,13 +117,17 @@ export default function RefEventScreen({ route, navigation }) {
     if (esCambio && (principal == null || secundario == null)) {
       Alert.alert("Falta seleccionar", "Elige quién sale y quién entra."); return;
     }
+    // Antes se omitía el minuto en silencio si el campo estaba vacío: así se
+    // colaban eventos sin saber cuándo ocurrieron. Ahora el API lo exige (422).
+    const m = parseInt(minuto, 10);
+    if (Number.isNaN(m) || m < 0 || m > 130) {
+      Alert.alert("Falta el minuto", "Escribe el minuto del partido (entre 0 y 130)."); return;
+    }
     setGuardando(true);
-    const cuerpo = { tipo, equipo_id: equipoSel };
+    const cuerpo = { tipo, equipo_id: equipoSel, minuto: m };
     if (principal != null) cuerpo.jugador_id = principal;
     if (secundario != null) cuerpo.jugador_secundario_id = secundario;
     if (esGol) cuerpo.subtipo = subtipo;
-    const m = parseInt(minuto, 10);
-    if (!Number.isNaN(m)) cuerpo.minuto = m;
     try {
       await apiPost(`/partidos/${partidoId}/eventos`, cuerpo);
       navigation.goBack();
@@ -136,11 +156,11 @@ export default function RefEventScreen({ route, navigation }) {
       {esCambio ? (
         <>
           <Text style={ls.sectionTitle}>Jugador que sale (en cancha)</Text>
-          <ListaJugadores jugadores={datosEquipo.titulares.length ? datosEquipo.titulares : enCancha}
-            seleccion={principal} onSelect={setPrincipal} vacio="Sin alineación titular cargada." />
+          <ListaJugadores jugadores={enCancha} seleccion={principal} onSelect={setPrincipal}
+            vacio="No hay jugadores en el campo." />
           <Text style={ls.sectionTitle}>Jugador que entra (banca)</Text>
-          <ListaJugadores jugadores={datosEquipo.suplentes} seleccion={secundario} onSelect={setSecundario}
-            vacio="No hay suplentes en la banca." />
+          <ListaJugadores jugadores={entrantes} seleccion={secundario} onSelect={setSecundario}
+            vacio="No hay suplentes disponibles." />
         </>
       ) : (
         <>
