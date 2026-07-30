@@ -15,6 +15,8 @@ campo**.
    tarjetas: nada lo impide, ni en la app ni en el API.
 3. **El que entra en un cambio no aparece en las listas del árbitro**, así que no se
    le puede registrar nada. Y su reverso: **el que sale sigue apareciendo**.
+4. **El minuto es opcional**, así que se pueden guardar eventos sin saber cuándo
+   ocurrieron. Ya hay uno así en la base de desarrollo (`eventos_partido.id = 12`).
 
 La causa común está en dos sitios. En el móvil, `RefEventScreen.js:90` calcula el
 pool de jugadores como `datosEquipo.titulares` — la alineación que registró el
@@ -31,6 +33,7 @@ el equipo participe; no mira al jugador.
 - Rechazo en el API de eventos sobre jugadores que no están en el campo.
 - Filtrado de las listas de `RefEventScreen` para que el árbitro no vea a quien no
   puede elegir.
+- **`minuto` obligatorio** al registrar un evento, en el API y en la app.
 
 **Fuera:**
 
@@ -38,7 +41,12 @@ el equipo participe; no mira al jugador.
   usuario y va en su propio spec: no comparte archivos ni concepto con esto, y su
   parte cara está en generar los avisos en el backend, no en la pantalla.
 - **Corrección de datos históricos.** Si en partidos ya jugados hay alguien con dos
-  amarillas y sin roja, se queda así. La regla aplica de aquí en adelante.
+  amarillas y sin roja, se queda así. La regla aplica de aquí en adelante. Lo mismo
+  con el evento sin minuto que ya existe (`id = 12`): se conserva.
+- **Restricción `NOT NULL` en la base para `minuto`.** Decisión explícita del
+  usuario: la obligatoriedad se queda en el API y la app. Añadirla a la columna
+  exigiría una migración y decidir qué hacer con esa fila —rellenarla con un valor
+  inventado o borrar el evento—, y ambas alteran datos existentes.
 - **Límite de jugadores por equipo.** En el fútbol real un expulsado no se
   reemplaza y el equipo juega con diez. Este sistema no lleva la cuenta de cuántos
   hay en el campo y añadirlo no es lo que se pidió.
@@ -52,6 +60,7 @@ el equipo participe; no mira al jugador.
 | Cómo llega al cliente | Campo `en_campo` en la salida del plan | `RefEventScreen` ya pide `/partidos/{id}/plan?equipo_id=` para cada equipo. Añadirlo ahí le da el dato **sin una llamada extra** y sin recalcular nada. |
 | Forma de la expulsión automática | Un evento `tarjeta_roja` adicional | Los distintivos, el acta y las estadísticas ya cuentan `rojas` leyendo eventos: no hay que tocar ninguno. La alternativa (marcar la amarilla) obligaría a cambiar los cuatro consumidores. |
 | Datos históricos | No se tocan | Corregirlos es una decisión aparte, no un efecto colateral de esta. |
+| Obligatoriedad del minuto | API **y** app, sin tocar la base | Elección del usuario. En la app sola no sería una validación: se salta llamando al API, el mismo patrón que el PR #15 encontró y corrigió. En la base exigiría migración y alterar la fila que ya existe. |
 
 ## Arquitectura
 
@@ -124,6 +133,23 @@ El endpoint sigue devolviendo la amarilla, que es lo que se pidió crear.
 Intentar registrar una roja a alguien ya expulsado queda rechazado por la regla
 general del apartado anterior; no necesita un caso propio.
 
+### Servidor y cliente: el minuto deja de ser opcional
+
+En `api/app/schemas.py:196`, `EventoCreate.minuto` pasa de
+`int | None = Field(default=None, ge=0, le=130)` a **requerido**, conservando el
+rango: `int = Field(ge=0, le=130)`. Sin él, FastAPI responde **422** por validación
+de Pydantic, sin llegar al router.
+
+En `RefEventScreen.js:109-110` el cliente hace hoy
+`const m = parseInt(minuto, 10); if (!Number.isNaN(m)) cuerpo.minuto = m;` — si el
+campo está vacío **lo omite en silencio**, que es justo cómo se cuelan los eventos sin
+minuto. Pasa a avisar al árbitro y no enviar, igual que ya hace con el jugador
+sancionado o con los dos jugadores de un cambio.
+
+La columna de la base **no cambia**: sigue admitiendo nulos, y la fila que ya existe
+se conserva. La barrera está en la entrada del API, que es por donde entra todo lo que
+registra el árbitro.
+
 ### Cliente: `RefEventScreen` filtra
 
 `RefEventScreen.js:90` pasa de `datosEquipo.titulares` a los jugadores con
@@ -166,8 +192,30 @@ la suite de Python cubre `api/`. Casos previstos:
 - `cambio` sin uno de los dos jugadores: 409.
 - Equipo sin alineación registrada: la plantilla entera es elegible.
 - `en_campo` en la salida del plan refleja la regla tras cada tipo de evento.
+- Evento sin `minuto`: **422**.
+- Evento con `minuto` fuera de rango (negativo, o mayor que 130): 422, como ya hoy.
 
-La suite pasa de **233** a unos **243**. Todo lo demás debe seguir en verde: la
+### Cuatro tests existentes hay que actualizarlos, y es trabajo previsto
+
+Hacer `minuto` obligatorio rompe cuatro tests que hoy registran eventos sin él.
+Están localizados:
+
+| Archivo | Línea |
+|---|---|
+| `api/tests/test_partidos.py` | 82, 89, 96 |
+| `api/tests/test_estadisticas.py` | 93 |
+
+Añadirles un `"minuto": N` cualquiera los arregla: ninguno está probando el
+comportamiento del minuto, solo lo omitían porque se podía. **No los conviertas en
+tests de que el minuto es opcional**: eso contradiría la regla nueva.
+
+**Ojo con `test_partidos.py:89`.** Ese envía `"equipo_id": 99` y afirma un **400**
+("el equipo no participa en este partido"). La validación de Pydantic corre **antes**
+que el router, así que sin el minuto fallaría con 422 y el test dejaría de probar lo
+que pretende: parecería seguir en verde por el motivo equivocado si alguien relaja la
+aserción. Necesita el minuto para llegar al 400 que comprueba.
+
+La suite pasa de **233** a unos **245**. Todo lo demás debe seguir en verde: la
 regla nueva no debe romper los tests de partidos, alineaciones ni estadísticas que ya
 existen.
 
