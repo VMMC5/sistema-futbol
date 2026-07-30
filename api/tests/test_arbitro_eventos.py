@@ -300,3 +300,24 @@ def test_plan_tras_un_cambio_intercambia_las_banderas(client, auth_admin, auth_a
     e = next(j for j in plan["suplentes"] if j["jugador_id"] == entra["jugador_id"])
     assert s["en_campo"] is False
     assert e["en_campo"] is True
+
+
+def test_cambio_no_permite_reingresar_a_un_jugador_ya_salido(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    """Un jugador sustituido no puede volver a entrar (regla real de fútbol);
+    además, dejarlo entrar de nuevo deja a DOS jugadores varados fuera del campo."""
+    tit_a = agregar_miembro(auth_entrenador, 1, "Tit A", "tita@demo.com")
+    tit_b = agregar_miembro(auth_entrenador, 1, "Tit B", "titb@demo.com")
+    banca_c = agregar_miembro(auth_entrenador, 1, "Banca C", "bancac@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [tit_a["je_id"], tit_b["je_id"]])
+    # Cambio 1: Tit A sale, Banca C entra
+    r1 = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": tit_a["jugador_id"],
+        "jugador_secundario_id": banca_c["jugador_id"], "minuto": 30})
+    assert r1.status_code == 201
+    # Cambio 2: Tit B sale, Tit A (ya salió) intenta volver a entrar
+    r2 = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": tit_b["jugador_id"],
+        "jugador_secundario_id": tit_a["jugador_id"], "minuto": 60})
+    assert r2.status_code == 409

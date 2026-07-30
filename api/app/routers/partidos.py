@@ -276,6 +276,11 @@ def _validar_jugadores(estado: dict, datos: EventoCreate):
         entra = datos.jugador_secundario_id
         if entra in estado["expulsados"]:
             raise HTTPException(status_code=409, detail="El jugador que entra está expulsado")
+        # Un jugador que ya salió de cambio no puede volver a entrar: el fútbol
+        # no permite reingresos, y además dejaría a DOS jugadores fuera del
+        # campo sin forma de recibir eventos (el que ya salió y el que "entraría" en su lugar).
+        if entra in estado["salidos"]:
+            raise HTTPException(status_code=409, detail="El jugador ya salió de cambio y no puede volver a entrar")
         # Sin plan, la plantilla entera cuenta como "en el campo", así que esta
         # comprobación no se puede aplicar: dejaría todo cambio en 409.
         if estado["hay_plan"] and entra in estado["en_campo"]:
