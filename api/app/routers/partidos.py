@@ -531,15 +531,23 @@ def _plan_a_salida(db: Session, partido_id: int, equipo_id: int, plan: models.Al
             .all()
         }
 
-    def _con_foto(d):
-        return {**d, "tiene_foto": d.get("jugador_id") in con_foto}
+    estado = campo.estado_campo(db, partido_id, equipo_id)
+
+    def _enriquecer(d):
+        jid = d.get("jugador_id")
+        return {
+            **d,
+            "tiene_foto": jid in con_foto,
+            "en_campo": jid is not None and jid in estado["en_campo"],
+            "expulsado": jid is not None and jid in estado["expulsados"],
+        }
 
     return PlanOut(
         partido_id=partido_id,
         equipo_id=equipo_id,
         formacion=plan.formacion if plan else "4-4-2",
-        jugadores=[_con_foto(j) for j in titulares],
-        suplentes=[_con_foto(s) for s in suplentes],
+        jugadores=[_enriquecer(j) for j in titulares],
+        suplentes=[_enriquecer(s) for s in suplentes],
     )
 
 

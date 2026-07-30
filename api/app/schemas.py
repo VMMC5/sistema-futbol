@@ -464,6 +464,8 @@ class PlanItemOut(BaseModel):
     posicion: str | None = None
     orden: int = 0
     tiene_foto: bool = False        # el panel web solo pinta <img> si es True
+    en_campo: bool = False          # puede recibir eventos ahora mismo
+    expulsado: bool = False         # tiene al menos una roja en este partido
 
 
 class PlanOut(BaseModel):

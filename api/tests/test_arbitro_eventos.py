@@ -258,3 +258,45 @@ def test_tras_la_doble_amarilla_el_jugador_no_recibe_mas_eventos(
     r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
         "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 80})
     assert r.status_code == 409
+
+
+def test_plan_marca_quien_esta_en_el_campo(client, auth_admin, auth_arbitro, arbitro_id,
+                                           torneo_id, auth_entrenador, agregar_miembro):
+    titular = agregar_miembro(auth_entrenador, 1, "En Campo", "encampo@demo.com")
+    banca = agregar_miembro(auth_entrenador, 1, "En Banca", "enbanca@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [titular["je_id"]])
+    plan = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_arbitro).json()
+
+    t = next(j for j in plan["jugadores"] if j["jugador_id"] == titular["jugador_id"])
+    b = next(s for s in plan["suplentes"] if s["jugador_id"] == banca["jugador_id"])
+    assert t["en_campo"] is True and t["expulsado"] is False
+    assert b["en_campo"] is False and b["expulsado"] is False
+
+
+def test_plan_marca_al_expulsado(client, auth_admin, auth_arbitro, arbitro_id,
+                                 torneo_id, auth_entrenador, agregar_miembro):
+    titular = agregar_miembro(auth_entrenador, 1, "Va Fuera", "vafuera@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [titular["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_roja", "equipo_id": 1, "jugador_id": titular["jugador_id"], "minuto": 30})
+    plan = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_arbitro).json()
+    t = next(j for j in plan["jugadores"] if j["jugador_id"] == titular["jugador_id"])
+    assert t["en_campo"] is False and t["expulsado"] is True
+
+
+def test_plan_tras_un_cambio_intercambia_las_banderas(client, auth_admin, auth_arbitro, arbitro_id,
+                                                      torneo_id, auth_entrenador, agregar_miembro):
+    sale = agregar_miembro(auth_entrenador, 1, "Sale Plan", "saleplan@demo.com")
+    entra = agregar_miembro(auth_entrenador, 1, "Entra Plan", "entraplan@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [sale["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": sale["jugador_id"],
+        "jugador_secundario_id": entra["jugador_id"], "minuto": 60})
+    plan = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_arbitro).json()
+    s = next(j for j in plan["jugadores"] if j["jugador_id"] == sale["jugador_id"])
+    e = next(j for j in plan["suplentes"] if j["jugador_id"] == entra["jugador_id"])
+    assert s["en_campo"] is False
+    assert e["en_campo"] is True
