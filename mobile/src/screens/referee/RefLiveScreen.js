@@ -5,17 +5,40 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet, apiPost } from "../../api";
 import { lp, ls } from "../../publicTheme";
+import Icono from "../../components/Icono";
 
-const ICONO = { gol: "⚽", tarjeta_amarilla: "🟨", tarjeta_roja: "🟥", cambio: "🔁" };
+// Marca visual por tipo de evento para la caja de eventos. La tarjeta es el mismo icono en ambos
+// colores, como en el panel web (clases .ic-amarilla / .ic-roja).
+const MARCA = {
+  gol: { icono: "football" },
+  tarjeta_amarilla: { icono: "tarjeta", color: lp.amarilla },
+  tarjeta_roja: { icono: "tarjeta", color: lp.danger },
+  cambio: { icono: "transfer" },
+};
 
+// Devuelve { icono?, color?, texto }. Un tipo no contemplado sale sin icono,
+// solo con su texto, igual que antes salía sin emoji.
 function resumenEvento(e) {
   const min = e.minuto != null ? `${e.minuto}' ` : "";
+  const marca = MARCA[e.tipo] || {};
   if (e.tipo === "gol") {
     const extra = e.subtipo && e.subtipo !== "normal" ? ` (${e.subtipo})` : "";
-    return `${min}⚽ ${e.jugador_nombre || "Gol"}${extra}`;
+    return { ...marca, texto: `${min}${e.jugador_nombre || "Gol"}${extra}` };
   }
-  if (e.tipo === "cambio") return `${min}🔁 ${e.jugador_secundario_nombre || "?"} por ${e.jugador_nombre || "?"}`;
-  return `${min}${ICONO[e.tipo] || ""} ${e.jugador_nombre || ""}`;
+  if (e.tipo === "cambio") {
+    return { ...marca, texto: `${min}${e.jugador_secundario_nombre || "?"} por ${e.jugador_nombre || "?"}` };
+  }
+  return { ...marca, texto: `${min}${e.jugador_nombre || ""}` };
+}
+
+function FilaEvento({ evento }) {
+  const ev = resumenEvento(evento);
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginVertical: 3 }}>
+      {!!ev.icono && <Icono nombre={ev.icono} size={14} color={ev.color || lp.textDark} />}
+      <Text style={{ color: lp.textDark, flex: 1 }}>{ev.texto}</Text>
+    </View>
+  );
 }
 
 export default function RefLiveScreen({ route, navigation }) {
@@ -102,7 +125,9 @@ export default function RefLiveScreen({ route, navigation }) {
             style={[evBtn.box, { backgroundColor: b.bg }, b.borde && { borderWidth: 1, borderColor: lp.surfaceBorder }]}
             onPress={() => abrirEvento(b.tipo)}
           >
-            <Text style={[evBtn.icon]}>{ICONO[b.tipo]}</Text>
+            <View style={{ marginBottom: 6 }}>
+              <Icono nombre={MARCA[b.tipo].icono} size={22} color={b.fg} />
+            </View>
             <Text style={[evBtn.label, { color: b.fg }]}>{b.label}</Text>
           </TouchableOpacity>
         ))}
@@ -114,7 +139,7 @@ export default function RefLiveScreen({ route, navigation }) {
           <Text style={ls.muted}>Aún no hay eventos registrados.</Text>
         ) : (
           eventos.map((e) => (
-            <Text key={e.id} style={{ color: lp.textDark, marginVertical: 3 }}>{resumenEvento(e)}</Text>
+            <FilaEvento key={e.id} evento={e} />
           ))
         )}
       </View>
@@ -133,7 +158,6 @@ const marcador = {
 };
 const evBtn = {
   box: { width: "48%", borderRadius: 14, paddingVertical: 22, alignItems: "center", marginBottom: 12 },
-  icon: { fontSize: 22, marginBottom: 6 },
   label: { fontWeight: "800", fontSize: 15 },
 };
 const btn = {

@@ -5,14 +5,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet, apiPost, apiDelete } from "../../api";
 import { lp, ls } from "../../publicTheme";
+import Icono from "../../components/Icono";
 
 const ICONO = (titulo = "") => {
   const t = titulo.toLowerCase();
-  if (t.includes("gol")) return { e: "⚽", bg: lp.green };
-  if (t.includes("pago")) return { e: "$", bg: "#E6C84F" };
-  if (t.includes("torneo")) return { e: "🏆", bg: lp.green };
-  if (t.includes("convocatoria")) return { e: "!", bg: lp.red };
-  return { e: "🔔", bg: lp.accent };
+  if (t.includes("gol")) return { icono: "football", bg: lp.green };
+  if (t.includes("pago")) return { texto: "$", bg: "#E6C84F" };
+  if (t.includes("torneo")) return { icono: "cuptrophy", bg: lp.green };
+  if (t.includes("convocatoria")) return { texto: "!", bg: lp.red };
+  return { icono: "bell", bg: lp.accent };
 };
 
 export default function NotificationsScreen() {
@@ -80,7 +81,9 @@ export default function NotificationsScreen() {
           return (
             <View key={n.id} style={[ls.row, { alignItems: "center" }]}>
               <View style={[circ, { backgroundColor: ic.bg }]}>
-                <Text style={{ color: lp.white, fontWeight: "800" }}>{ic.e}</Text>
+                {ic.icono
+                  ? <Icono nombre={ic.icono} size={16} color={lp.white} />
+                  : <Text style={{ color: lp.white, fontWeight: "800" }}>{ic.texto}</Text>}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={ls.rowTitle}>{n.titulo || "Aviso"}</Text>

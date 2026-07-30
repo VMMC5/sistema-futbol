@@ -8,6 +8,7 @@ import { Text, View } from "react-native";
 import { lp } from "../publicTheme";
 import Avatar from "./Avatar";
 import { huecos } from "../formaciones";
+import Icono from "./Icono";
 
 // Deriva los distintivos visuales de un jugador a partir del resumen del
 // partido: { goles, asistencias, amarillas, rojas, salio, entro }.
@@ -15,21 +16,38 @@ function badgesDe(resumen, jugadorId) {
   const r = resumen ? resumen[String(jugadorId)] : null;
   if (!r) return [];
   const out = [];
-  if (r.goles) out.push({ key: "goles", texto: r.goles > 1 ? `⚽×${r.goles}` : "⚽" });
-  if (r.asistencias) out.push({ key: "asist", texto: r.asistencias > 1 ? `🅰️×${r.asistencias}` : "🅰️" });
-  if (r.amarillas) out.push({ key: "amarilla", texto: r.amarillas > 1 ? `🟨×${r.amarillas}` : "🟨" });
-  if (r.rojas) out.push({ key: "roja", texto: "🟥" });
+  if (r.goles) out.push({ key: "goles", icono: "football", veces: r.goles });
+  if (r.asistencias) out.push({ key: "asist", letra: "A", veces: r.asistencias });
+  if (r.amarillas) out.push({ key: "amarilla", icono: "tarjeta", color: lp.amarilla, veces: r.amarillas });
+  if (r.rojas) out.push({ key: "roja", icono: "tarjeta", color: lp.rojaClara, veces: r.rojas });
   if (r.salio) out.push({ key: "sale", texto: "↓" });
   if (r.entro) out.push({ key: "entra", texto: "↑" });
   return out;
 }
 
-function Distintivos({ badges }) {
+// `tinte` es el color base para distintivos sin color propio (flechas, "A",
+// balón): blanco sobre la cancha oscura, lp.textDark sobre la banca clara.
+// Los colores propios de la tarjeta (b.color) NO varían con el fondo, a
+// propósito: el amarillo y el rojo identifican el tipo de tarjeta y cambiarlos
+// por contenedor los volvería ambiguos. El precio es un contraste flojo en dos
+// cruces, medido: amarilla sobre banca 1.76:1 y roja sobre cancha 2.14:1. Se
+// acepta porque son rectángulos rellenos de 11px (la forma se lee por su borde,
+// no por luminancia) y porque el emoji anterior tenía el mismo tono sobre el
+// mismo fondo: no es una regresión. Si en dispositivo estorba, la corrección es
+// recalibrar esos dos tonos en publicTheme.js, no atar el color al fondo.
+// La sombra de texto solo tiene sentido cuando el tinte es claro (texto oscuro
+// sobre banca clara ensucia la sombra negra); sobre la cancha sí la necesita.
+function Distintivos({ badges, tinte = "#fff", enCancha = false }) {
   if (!badges.length) return null;
   return (
-    <View style={estilos.badgesFila}>
+    <View style={enCancha ? estilos.badgesFilaCancha : estilos.badgesFila}>
       {badges.map((b) => (
-        <Text key={b.key} style={estilos.badge} numberOfLines={1}>{b.texto}</Text>
+        <View key={b.key} style={estilos.badge}>
+          {b.icono
+            ? <Icono nombre={b.icono} size={11} color={b.color || tinte} />
+            : <Text style={[estilos.badgeTexto, { color: b.color || tinte }, enCancha && estilos.badgeTextoSombra]}>{b.letra || b.texto}</Text>}
+          {b.veces > 1 && <Text style={[estilos.badgeTexto, { color: b.color || tinte }, enCancha && estilos.badgeTextoSombra]}>×{b.veces}</Text>}
+        </View>
       ))}
     </View>
   );
@@ -70,7 +88,7 @@ export default function LineupPitch({ equipoId, plan, resumen }) {
                   <Text style={estilos.slotEtiqueta} numberOfLines={1}>
                     {jug.dorsal != null ? `#${jug.dorsal} ` : ""}{jug.nombre}
                   </Text>
-                  <Distintivos badges={badgesDe(resumen, jug.jugador_id)} />
+                  <Distintivos badges={badgesDe(resumen, jug.jugador_id)} tinte="#fff" enCancha />
                 </>
               ) : null}
             </View>
@@ -89,7 +107,7 @@ export default function LineupPitch({ equipoId, plan, resumen }) {
                 <Text style={estilos.bancaNombre} numberOfLines={1}>
                   {j.dorsal != null ? `#${j.dorsal} ` : ""}{j.nombre}
                 </Text>
-                <Distintivos badges={badges} />
+                <Distintivos badges={badges} tinte={lp.textDark} />
               </View>
             );
           })}
@@ -121,11 +139,24 @@ const estilos = {
     color: "#fff", fontWeight: "700", fontSize: 10,
     textShadowColor: "rgba(0,0,0,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
   },
+  // Banca: los distintivos fluyen dentro de bancaFila (fila normal, no
+  // absoluta) a la derecha del nombre.
   badgesFila: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
+  },
+  // Cancha: coordenadas absolutas pensadas para el hueco de 36px del slot,
+  // debajo de slotEtiqueta. Solo tiene sentido ahí, nunca en la banca.
+  badgesFilaCancha: {
     position: "absolute", top: 58, left: -24, width: 84, flexDirection: "row", flexWrap: "wrap",
     justifyContent: "center",
   },
-  badge: { fontSize: 11, marginHorizontal: 1 },
+  badge: { flexDirection: "row", alignItems: "center", marginHorizontal: 1 },
+  badgeTexto: { fontSize: 11, fontWeight: "700" },
+  // Solo se aplica sobre la cancha (tinte claro/blanco): sobre la banca clara
+  // una sombra negra alrededor de texto oscuro se ve sucia.
+  badgeTextoSombra: {
+    textShadowColor: "rgba(0,0,0,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
+  },
   avisoTexto: { color: "#fff", fontWeight: "700", fontSize: 14 },
   banca: {
     marginTop: 14, backgroundColor: lp.surface, borderColor: lp.surfaceBorder, borderWidth: 1,

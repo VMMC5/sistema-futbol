@@ -4,6 +4,7 @@ import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "rea
 import { apiGet } from "../api";
 import { useAuth } from "../auth";
 import { colors, styles } from "../theme";
+import Icono from "../components/Icono";
 
 const MENSAJE_ROL = {
   jugador: "Consulta torneos, tablas de posiciones y tus próximos partidos.",
@@ -49,10 +50,11 @@ export default function HomeScreen({ navigation }) {
 
       {rol === "jugador" && (
         <TouchableOpacity
-          style={[styles.btn, { marginBottom: 8 }]}
+          style={[styles.btn, { marginBottom: 8, flexDirection: "row", justifyContent: "center", gap: 8 }]}
           onPress={() => navigation.navigate("Invitations")}
         >
-          <Text style={styles.btnText}>📨 Mis invitaciones a equipos</Text>
+          <Icono nombre="envelope" size={18} color={colors.pitch900} />
+          <Text style={styles.btnText}>Mis invitaciones a equipos</Text>
         </TouchableOpacity>
       )}
 
