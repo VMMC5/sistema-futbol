@@ -28,20 +28,24 @@ def _plantilla_ids(db: Session, equipo_id: int) -> set[int]:
     return {je.jugador_id for je in equipo.jugadores if je.jugador_id is not None}
 
 
-def _titulares_ids(db: Session, partido_id: int, equipo_id: int) -> set[int]:
-    """Ids de usuario del plan del entrenador. Vacío si no hay plan."""
+def _plan_existe_y_titulares_ids(db: Session, partido_id: int, equipo_id: int) -> tuple[bool, set[int]]:
+    """Devuelve (plan_existe, titulares_con_cuenta).
+    plan_existe es True si el entrenador registró alineación.
+    titulares_con_cuenta son los ids de usuario de los titulares (vacío si no hay plan o
+    si los titulares carecen de cuenta registrada)."""
     plan = (
         db.query(models.AlineacionPlan)
         .filter_by(partido_id=partido_id, equipo_id=equipo_id)
         .first()
     )
     if plan is None:
-        return set()
-    return {
+        return False, set()
+    titulares = {
         j.get("jugador_id")
         for j in (plan.jugadores or [])
         if j.get("jugador_id") is not None
     }
+    return True, titulares
 
 
 def estado_campo(db: Session, partido_id: int, equipo_id: int) -> dict:
@@ -62,14 +66,13 @@ def estado_campo(db: Session, partido_id: int, equipo_id: int) -> dict:
     salidos = {jid for jid, r in resumen.items() if r["salio"]} & plantilla
     entrados = {jid for jid, r in resumen.items() if r["entro"]} & plantilla
 
-    titulares = _titulares_ids(db, partido_id, equipo_id)
-    hay_plan = bool(titulares)
+    hay_plan, titulares = _plan_existe_y_titulares_ids(db, partido_id, equipo_id)
     base = titulares if hay_plan else plantilla
 
     return {
         "en_campo": (base | entrados) - salidos - expulsados,
         "expulsados": expulsados,
         "salidos": salidos,
-        "amarillas": {jid: r["amarillas"] for jid, r in resumen.items()},
+        "amarillas": {jid: r["amarillas"] for jid, r in resumen.items() if jid in plantilla},
         "hay_plan": hay_plan,
     }
