@@ -79,21 +79,23 @@ def test_gol_actualiza_marcador(client, auth_admin, auth_arbitro, arbitro_id, to
 
 def test_evento_solo_en_juego(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
     pid = _crear_partido(client, auth_admin, torneo_id, arbitro_id).json()["id"]
-    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 1})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 1, "minuto": 10})
     assert r.status_code == 409
 
 
 def test_evento_equipo_no_participa(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
     pid = _crear_partido(client, auth_admin, torneo_id, arbitro_id).json()["id"]
     client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
-    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 99})
+    # El minuto va porque Pydantic corre antes que el router: sin él este test
+    # devolvería 422 y dejaría de probar el 400 del equipo que no participa.
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 99, "minuto": 10})
     assert r.status_code == 400
 
 
 def test_borrar_gol_descuenta_marcador(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
     pid = _crear_partido(client, auth_admin, torneo_id, arbitro_id).json()["id"]
     client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
-    eid = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 1}).json()["id"]
+    eid = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 1, "minuto": 10}).json()["id"]
 
     assert client.get(f"/partidos/{pid}", headers=auth_admin).json()["goles_local"] == 1
     assert client.delete(f"/partidos/{pid}/eventos/{eid}", headers=auth_arbitro).status_code == 204

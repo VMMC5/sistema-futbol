@@ -95,3 +95,20 @@ def test_plan_incluye_suplentes(client, auth_admin, auth_entrenador, torneo_id, 
     r = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_entrenador).json()
     assert len(r["jugadores"]) == 1
     assert any(s["jugador_id"] == suplente["jugador_id"] for s in r["suplentes"])
+
+
+def test_evento_sin_minuto_es_422(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1})
+    assert r.status_code == 422
+
+
+def test_evento_con_minuto_fuera_de_rango_es_422(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    for minuto in (-1, 131):
+        r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+            "tipo": "gol", "equipo_id": 1, "minuto": minuto})
+        assert r.status_code == 422

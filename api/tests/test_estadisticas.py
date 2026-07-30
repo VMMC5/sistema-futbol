@@ -90,7 +90,7 @@ def test_partido_no_finalizado_no_cuenta(client, auth_admin, auth_arbitro, arbit
         "torneo_id": torneo_id, "equipo_local_id": 1, "equipo_visitante_id": 2, "arbitro_id": arbitro_id,
     }).json()["id"]
     client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
-    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 1})
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={"tipo": "gol", "equipo_id": 1, "minuto": 10})
 
     tabla = client.get(f"/estadisticas/torneos/{torneo_id}/tabla", headers=auth_admin).json()
     assert all(fila["pj"] == 0 and fila["puntos"] == 0 for fila in tabla)
