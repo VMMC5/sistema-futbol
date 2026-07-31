@@ -13,11 +13,11 @@ Estados del partido:  programado -> en_juego -> finalizado
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import campo, eventos_resumen, models
+from app import campo, eventos_resumen, models, notificaciones_service
 from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
@@ -70,12 +70,20 @@ def _exigir_arbitraje(usuario: models.Usuario, partido: models.Partido):
         )
 
 
+def _avisar_partido(db, background_tasks, titulo: str, mensaje: str, usuario_ids) -> None:
+    """Un aviso por usuario, sin repetir: el mismo entrenador puede dirigir a
+    los dos equipos del partido. Los None se ignoran (partido sin árbitro)."""
+    for uid in dict.fromkeys(u for u in usuario_ids if u):
+        notificaciones_service.crear_notificacion(db, uid, titulo, mensaje, background_tasks)
+
+
 # ======================================================================
 #  Gestión del calendario (superadmin)
 # ======================================================================
 @router.post("", response_model=PartidoOut, status_code=status.HTTP_201_CREATED)
 def crear_partido(
     datos: PartidoCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
@@ -96,6 +104,17 @@ def crear_partido(
     db.add(partido)
     db.commit()
     db.refresh(partido)
+
+    # Avisos: al árbitro designado y a los entrenadores de ambos equipos.
+    rivales = f"{partido.equipo_local.nombre} vs {partido.equipo_visitante.nombre}"
+    cuando = f" el {partido.fecha_hora:%d/%m %H:%M}" if partido.fecha_hora else ""
+    if partido.arbitro_id:
+        _avisar_partido(db, background_tasks, "Partido asignado",
+                        f"Pitarás {rivales}{cuando}.", [partido.arbitro_id])
+    _avisar_partido(db, background_tasks, "Partido programado",
+                    f"Tu equipo juega {rivales}{cuando}.",
+                    [partido.equipo_local.entrenador_id, partido.equipo_visitante.entrenador_id])
+    db.commit()
     return partido
 
 
