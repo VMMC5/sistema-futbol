@@ -3,6 +3,8 @@ import pytest
 
 from app import models, notificaciones_service as ns
 
+pytestmark = pytest.mark.usa_push
+
 
 @pytest.fixture
 def usuario_con_token(db_session, monkeypatch):

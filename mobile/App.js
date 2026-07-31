@@ -208,6 +208,7 @@ export default function App() {
           <Stack.Screen name="InvitePlayers" component={InvitePlayersScreen} options={{ ...goldHeader, title: "INVITAR" }} />
           <Stack.Screen name="ReservarCancha" component={ReservarScreen} options={{ ...goldHeader, title: "RESERVAR CANCHA" }} />
           <Stack.Screen name="Inscribir" component={InscribirScreen} options={{ ...goldHeader, title: "INSCRIBIR EQUIPO" }} />
+          <Stack.Screen name="NotificationsCoach" component={NotificationsScreen} options={{ ...goldHeader, title: "NOTIFICACIONES" }} />
 
           {/* Cuenta / roles (tema oscuro) */}
           <Stack.Screen name="Login" component={LoginScreen} options={{ ...darkHeader, title: "Ingresar" }} />
@@ -230,6 +231,7 @@ export default function App() {
           <Stack.Screen name="RefEvent" component={RefEventScreen} options={{ ...maroonHeader, title: "EVENTO" }} />
           <Stack.Screen name="RefLineup" component={RefLineupScreen} options={{ ...maroonHeader, title: "ALINEACIONES" }} />
           <Stack.Screen name="RefSummary" component={RefSummaryScreen} options={{ ...maroonHeader, title: "RESUMEN DEL PARTIDO" }} />
+          <Stack.Screen name="NotificationsRef" component={NotificationsScreen} options={{ ...maroonHeader, title: "NOTIFICACIONES" }} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

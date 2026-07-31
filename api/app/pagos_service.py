@@ -120,6 +120,10 @@ def pagar_inscripcion(db: Session, usuario: models.Usuario, inscripcion: models.
         inscripcion.estado = "aceptada"
         _notificar(db, usuario.id, "Pago confirmado",
                    f"Tu {concepto} quedó pagada. Folio {pago.referencia}.", background_tasks)
+        if inscripcion.equipo.entrenador_id != usuario.id:
+            # Pagó otro (p. ej. el admin): el dueño del equipo no vio el pago.
+            _notificar(db, inscripcion.equipo.entrenador_id, "Inscripción aceptada",
+                       f"Tu {concepto} quedó pagada y aceptada.", background_tasks)
     elif resultado.estado == "pendiente":
         inscripcion.pago_id = pago.id
         _notificar(db, usuario.id, "Pago en revisión",
@@ -150,6 +154,10 @@ def confirmar_pago(db: Session, pago: models.Pago, background_tasks=None) -> mod
         pago.reserva.estado = "confirmada"
     if pago.inscripcion is not None:
         pago.inscripcion.estado = "aceptada"
+
+    if pago.inscripcion is not None and pago.inscripcion.equipo.entrenador_id != pago.usuario_id:
+        _notificar(db, pago.inscripcion.equipo.entrenador_id, "Inscripción aceptada",
+                   f"Tu {pago.concepto} fue confirmada.", background_tasks)
 
     _notificar(db, pago.usuario_id, "Pago confirmado",
                f"Tu pago ({pago.concepto}) fue confirmado. Folio {pago.referencia}.", background_tasks)

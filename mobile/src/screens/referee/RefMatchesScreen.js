@@ -1,9 +1,10 @@
 // Pestaña PARTIDOS del árbitro: partidos asignados (programados y en juego).
 // El botón "Iniciar" se desbloquea solo cuando llega la fecha/hora.
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet, apiPost } from "../../api";
+import Campanita from "../../components/Campanita";
 import { fechaHora } from "../../format";
 import { lp, ls } from "../../publicTheme";
 
@@ -17,6 +18,14 @@ export default function RefMatchesScreen({ navigation }) {
   const [partidos, setPartidos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
+  const [hayNuevas, setHayNuevas] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <Campanita hayNuevas={hayNuevas}
+        onPress={() => navigation.navigate("NotificationsRef")} />,
+    });
+  }, [navigation, hayNuevas]);
 
   const cargar = useCallback(async () => {
     try {
@@ -32,6 +41,8 @@ export default function RefMatchesScreen({ navigation }) {
       setCargando(false);
       setRefrescando(false);
     }
+    // La campana es cosmética: su fallo no puede tumbar la lista de partidos.
+    apiGet("/notificaciones").then((n) => setHayNuevas(n.some((x) => !x.leida))).catch(() => {});
   }, []);
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));

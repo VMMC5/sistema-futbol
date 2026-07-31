@@ -8,19 +8,7 @@ import Icono from "../../components/Icono";
 import { useAuth } from "../../auth";
 import { fechaHora } from "../../format";
 import { lp, ls } from "../../publicTheme";
-
-function Campanita({ onPress, hayNuevas }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={{ paddingHorizontal: 14 }}>
-      {/* La cabecera del panel del jugador es verde, así que la campana va en blanco. */}
-      <Icono nombre="bell" size={20} color={lp.white} />
-      {/* El glifo de la campana no llena el viewBox de 24 (deja aire a los lados
-          y arriba), así que el punto va más adentro y más arriba que con el
-          <Text> de antes para apoyarse en la esquina superior derecha real. */}
-      {hayNuevas && <View style={{ position: "absolute", right: 11, top: -4, width: 10, height: 10, borderRadius: 5, backgroundColor: lp.red }} />}
-    </TouchableOpacity>
-  );
-}
+import Campanita from "../../components/Campanita";
 
 export default function PlayerHomeScreen({ navigation }) {
   const { usuario } = useAuth();

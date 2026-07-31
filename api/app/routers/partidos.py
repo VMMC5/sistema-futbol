@@ -11,13 +11,13 @@ Reglas de negocio destacadas:
 
 Estados del partido:  programado -> en_juego -> finalizado
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import campo, eventos_resumen, models
+from app import campo, eventos_resumen, models, notificaciones_service
 from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
@@ -70,12 +70,34 @@ def _exigir_arbitraje(usuario: models.Usuario, partido: models.Partido):
         )
 
 
+def _misma_fecha(a, b) -> bool:
+    """Compara fechas tolerando la mezcla naive/aware: un naive se asume UTC.
+    Sin esto, reenviar la MISMA fecha desde un cliente que no manda zona
+    dispararía 'Partido reprogramado' bajo Postgres (naive != aware siempre
+    es True en Python)."""
+    if a is None or b is None:
+        return a == b
+    if a.tzinfo is None:
+        a = a.replace(tzinfo=timezone.utc)
+    if b.tzinfo is None:
+        b = b.replace(tzinfo=timezone.utc)
+    return a == b
+
+
+def _avisar_partido(db, background_tasks, titulo: str, mensaje: str, usuario_ids) -> None:
+    """Un aviso por usuario, sin repetir: el mismo entrenador puede dirigir a
+    los dos equipos del partido. Los None se ignoran (partido sin árbitro)."""
+    for uid in dict.fromkeys(u for u in usuario_ids if u):
+        notificaciones_service.crear_notificacion(db, uid, titulo, mensaje, background_tasks)
+
+
 # ======================================================================
 #  Gestión del calendario (superadmin)
 # ======================================================================
 @router.post("", response_model=PartidoOut, status_code=status.HTTP_201_CREATED)
 def crear_partido(
     datos: PartidoCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
@@ -96,6 +118,17 @@ def crear_partido(
     db.add(partido)
     db.commit()
     db.refresh(partido)
+
+    # Avisos: al árbitro designado y a los entrenadores de ambos equipos.
+    rivales = f"{partido.equipo_local.nombre} vs {partido.equipo_visitante.nombre}"
+    cuando = f" el {partido.fecha_hora:%d/%m %H:%M}" if partido.fecha_hora else ""
+    if partido.arbitro_id:
+        _avisar_partido(db, background_tasks, "Partido asignado",
+                        f"Pitarás {rivales}{cuando}.", [partido.arbitro_id])
+    _avisar_partido(db, background_tasks, "Partido programado",
+                    f"Tu equipo juega {rivales}{cuando}.",
+                    [partido.equipo_local.entrenador_id, partido.equipo_visitante.entrenador_id])
+    db.commit()
     return partido
 
 
@@ -103,11 +136,16 @@ def crear_partido(
 def actualizar_partido(
     partido_id: int,
     datos: PartidoUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
     partido = _obtener_partido(db, partido_id)
     cambios = datos.model_dump(exclude_unset=True)
+    # El loop de abajo es un setattr ciego: sin esta foto previa no hay forma
+    # de saber qué cambió de verdad para avisar solo a quien corresponde.
+    previo = {"arbitro_id": partido.arbitro_id, "fecha_hora": partido.fecha_hora,
+              "cancha_id": partido.cancha_id}
 
     if "arbitro_id" in cambios and cambios["arbitro_id"] is not None:
         arbitro = db.get(models.Usuario, cambios["arbitro_id"])
@@ -121,17 +159,39 @@ def actualizar_partido(
         setattr(partido, campo, valor)
     db.commit()
     db.refresh(partido)
+
+    rivales = f"{partido.equipo_local.nombre} vs {partido.equipo_visitante.nombre}"
+    cuando = f" el {partido.fecha_hora:%d/%m %H:%M}" if partido.fecha_hora else ""
+    if "arbitro_id" in cambios and cambios["arbitro_id"] != previo["arbitro_id"]:
+        _avisar_partido(db, background_tasks, "Partido asignado",
+                        f"Pitarás {rivales}{cuando}.", [partido.arbitro_id])
+        _avisar_partido(db, background_tasks, "Cambio de designación",
+                        f"Ya no pitarás {rivales}.", [previo["arbitro_id"]])
+    if (("fecha_hora" in cambios and not _misma_fecha(cambios["fecha_hora"], previo["fecha_hora"]))
+            or ("cancha_id" in cambios and cambios["cancha_id"] != previo["cancha_id"])):
+        _avisar_partido(db, background_tasks, "Partido reprogramado",
+                        f"{rivales}: nueva programación{cuando}.",
+                        [partido.arbitro_id, partido.equipo_local.entrenador_id,
+                         partido.equipo_visitante.entrenador_id])
+    db.commit()
     return partido
 
 
 @router.delete("/{partido_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_partido(
     partido_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
     partido = _obtener_partido(db, partido_id)
+    # La foto va ANTES del delete: después ya no hay relaciones que leer.
+    rivales = f"{partido.equipo_local.nombre} vs {partido.equipo_visitante.nombre}"
+    avisar = [partido.arbitro_id, partido.equipo_local.entrenador_id,
+              partido.equipo_visitante.entrenador_id]
     db.delete(partido)
+    _avisar_partido(db, background_tasks, "Partido cancelado",
+                    f"Se canceló {rivales}.", avisar)
     db.commit()
 
 

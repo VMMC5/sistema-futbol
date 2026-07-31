@@ -32,6 +32,25 @@ from app.main import app  # noqa: E402
 from app.security import hash_password  # noqa: E402
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "usa_push: no anular enviar_push (tests que prueban el push real)")
+
+
+@pytest.fixture(autouse=True)
+def _sin_push(request, monkeypatch):
+    """Los avisos de negocio encolan push best-effort; bajo TestClient la tarea
+    corre síncrona y su SessionLocal real no resuelve el host, así que cada
+    destinatario cuesta ~10 s de timeout. Se anula en todos los tests salvo los
+    marcados usa_push, que prueban el push de verdad."""
+    if request.node.get_closest_marker("usa_push"):
+        yield
+        return
+    from app import notificaciones_service as ns
+    monkeypatch.setattr(ns, "enviar_push", lambda *a, **k: None)
+    yield
+
+
 @pytest.fixture
 def db_session():
     engine = create_engine(

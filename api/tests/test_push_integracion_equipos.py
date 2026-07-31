@@ -1,5 +1,9 @@
 """La invitación a equipo debe encolar un push al jugador invitado."""
+import pytest
+
 from app import models, notificaciones_service as ns
+
+pytestmark = pytest.mark.usa_push
 
 
 def _login(client, correo, password):
