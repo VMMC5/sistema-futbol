@@ -9,11 +9,11 @@ Reglas de acceso:
 - Consultar (GET): cualquier usuario autenticado.
 - Crear/editar/eliminar: solo 'superadmin'.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models
+from app import models, notificaciones_service
 from app.deps import get_current_user, require_roles
 from app.schemas import TorneoCreate, TorneoOut, TorneoUpdate
 
@@ -53,6 +53,7 @@ def ver_torneo(
 @router.post("", response_model=TorneoOut, status_code=status.HTTP_201_CREATED)
 def crear_torneo(
     datos: TorneoCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
@@ -64,6 +65,21 @@ def crear_torneo(
     db.add(torneo)
     db.commit()
     db.refresh(torneo)
+
+    # Aviso a TODOS los entrenadores: un torneo no pertenece a nadie hasta que
+    # hay inscripciones, así que no existe otra audiencia posible.
+    cierre = (f" Inscripciones hasta el {torneo.fecha_cierre_inscripciones:%d/%m/%Y}."
+              if torneo.fecha_cierre_inscripciones else "")
+    entrenadores = (
+        db.query(models.Usuario.id)
+        .join(models.Rol, models.Usuario.rol_id == models.Rol.id)
+        .filter(models.Rol.nombre == "entrenador")
+        .all()
+    )
+    for (uid,) in entrenadores:
+        notificaciones_service.crear_notificacion(
+            db, uid, "Torneo nuevo", f"Ya abrió {torneo.nombre}.{cierre}", background_tasks)
+    db.commit()
     return torneo
 
 

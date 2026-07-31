@@ -89,3 +89,21 @@ def test_eliminar_partido_avisa(client, auth_admin, auth_arbitro, auth_entrenado
     notis_arb = _notis(client, auth_arbitro)
     assert len(notis_arb) == antes_arb + 1 and notis_arb[0]["titulo"] == "Partido cancelado"
     assert len(_notis(client, auth_entrenador)) == antes_ent + 1
+
+
+def test_torneo_nuevo_avisa_a_los_entrenadores(client, auth_admin, auth_entrenador):
+    antes = len(_notis(client, auth_entrenador))
+    r = client.post("/torneos", headers=auth_admin, json={"nombre": "Copa Avisos", "sede_id": 1})
+    assert r.status_code == 201
+    notis = _notis(client, auth_entrenador)
+    assert len(notis) == antes + 1
+    assert notis[0]["titulo"] == "Torneo nuevo"
+    assert "Copa Avisos" in notis[0]["mensaje"]
+
+
+def test_torneo_nuevo_no_avisa_a_jugadores(client, auth_admin):
+    tok = client.post("/auth/login", json={"correo": "miembro@demo.com", "password": "miembropass123"}).json()["access_token"]
+    auth_miembro = {"Authorization": f"Bearer {tok}"}
+    antes = len(_notis(client, auth_miembro))
+    client.post("/torneos", headers=auth_admin, json={"nombre": "Copa Silencio", "sede_id": 1})
+    assert len(_notis(client, auth_miembro)) == antes
