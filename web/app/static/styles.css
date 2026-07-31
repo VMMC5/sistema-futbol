@@ -180,6 +180,14 @@ table { width: 100%; border-collapse: collapse; }
 .field input:focus, .field select:focus, .field textarea:focus {
   outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(198,255,0,0.12);
 }
+/* El indicador nativo del calendario (date/datetime-local) lo pinta el
+   navegador en negro, invisible sobre el fondo oscuro de los inputs.
+   Invertido queda claro. El pseudo-elemento solo existe en Chromium/WebKit;
+   Firefox pinta el suyo ya tematizado y lo ignora sin romperse. */
+.field input::-webkit-calendar-picker-indicator {
+  filter: invert(1); opacity: .75; cursor: pointer;
+}
+.field input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 .field .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .form-actions { display: flex; gap: 12px; margin-top: 26px; }
 
