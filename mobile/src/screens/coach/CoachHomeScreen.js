@@ -1,10 +1,11 @@
 // Inicio del entrenador: tarjeta de su equipo, accesos y próximo partido.
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet } from "../../api";
 import { useAuth } from "../../auth";
 import Icono from "../../components/Icono";
+import Campanita from "../../components/Campanita";
 import { fechaHora } from "../../format";
 import { cs, lp, ls } from "../../publicTheme";
 
@@ -19,6 +20,15 @@ export default function CoachHomeScreen({ navigation }) {
   const { usuario } = useAuth();
   const [resumen, setResumen] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [hayNuevas, setHayNuevas] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      // La cabecera del coach es dorada: la campana va en el tono del texto dorado.
+      headerRight: () => <Campanita hayNuevas={hayNuevas} color={lp.goldText}
+        onPress={() => navigation.navigate("NotificationsCoach")} />,
+    });
+  }, [navigation, hayNuevas]);
 
   // No se toca el título: la pestaña y la cabecera dicen "INICIO" desde App.js,
   // igual que en el panel del jugador. El saludo vive en la tarjeta de abajo.
@@ -26,7 +36,12 @@ export default function CoachHomeScreen({ navigation }) {
     useCallback(() => {
       (async () => {
         try {
-          setResumen(await apiGet("/equipos/resumen"));
+          const [res, notis] = await Promise.all([
+            apiGet("/equipos/resumen"),
+            apiGet("/notificaciones"),
+          ]);
+          setResumen(res);
+          setHayNuevas(notis.some((n) => !n.leida));
         } catch (_) {
           setResumen(null);
         } finally {

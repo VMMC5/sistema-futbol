@@ -1,9 +1,10 @@
 // Pestaña PARTIDOS del árbitro: partidos asignados (programados y en juego).
 // El botón "Iniciar" se desbloquea solo cuando llega la fecha/hora.
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { apiGet, apiPost } from "../../api";
+import Campanita from "../../components/Campanita";
 import { fechaHora } from "../../format";
 import { lp, ls } from "../../publicTheme";
 
@@ -17,15 +18,25 @@ export default function RefMatchesScreen({ navigation }) {
   const [partidos, setPartidos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
+  const [hayNuevas, setHayNuevas] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <Campanita hayNuevas={hayNuevas}
+        onPress={() => navigation.navigate("NotificationsRef")} />,
+    });
+  }, [navigation, hayNuevas]);
 
   const cargar = useCallback(async () => {
     try {
       // Asignados: programados y en juego
-      const [prog, vivo] = await Promise.all([
+      const [prog, vivo, notis] = await Promise.all([
         apiGet("/partidos?mios=true&estado=programado"),
         apiGet("/partidos?mios=true&estado=en_juego"),
+        apiGet("/notificaciones"),
       ]);
       setPartidos([...vivo, ...prog]);
+      setHayNuevas(notis.some((n) => !n.leida));
     } catch (_) {
       setPartidos([]);
     } finally {

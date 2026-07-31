@@ -13,6 +13,7 @@ const ICONO = (titulo = "") => {
   if (t.includes("pago")) return { texto: "$", bg: "#E6C84F" };
   if (t.includes("torneo")) return { icono: "cuptrophy", bg: lp.green };
   if (t.includes("convocatoria")) return { texto: "!", bg: lp.red };
+  if (t.includes("partido") || t.includes("designación")) return { icono: "football", bg: lp.maroon };
   return { icono: "bell", bg: lp.accent };
 };
 
