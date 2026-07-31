@@ -6,18 +6,21 @@ const API_PORT = 8000;
 const TIMEOUT_MS = 15000;
 
 // En desarrollo, Expo sirve el bundle desde la IP de la máquina que corre el
-// servidor, así que la reutilizamos para la API y no hay que editar app.json
+// servidor, así que la reutilizamos para la API y no hay que editar nada
 // cada vez que cambia la red. En una build de producción no hay hostUri.
 // En modo túnel hostUri es un dominio (exp.direct) que no expone la API: solo
-// se acepta una IPv4, y si no, se cae al valor de app.json.
+// se acepta una IPv4, y si no, se cae a EXPO_PUBLIC_API_URL.
 function _urlDesdeExpo() {
   const host = Constants.expoConfig?.hostUri?.split(":")[0];
   const esIPv4 = host && /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
   return esIPv4 ? `http://${host}:${API_PORT}` : null;
 }
 
+// EXPO_PUBLIC_API_URL viene del .env local (ignorado por git; ver .env.example)
+// o, en builds de producción, de la configuración del build (eas.json / secrets).
+// Metro la incrusta en tiempo de build: cambiarla exige reiniciar `expo start`.
 export const API_URL =
-  _urlDesdeExpo() || Constants.expoConfig?.extra?.apiUrl || `http://localhost:${API_PORT}`;
+  _urlDesdeExpo() || process.env.EXPO_PUBLIC_API_URL || `http://localhost:${API_PORT}`;
 
 // URL de la foto de perfil de un usuario (requiere Authorization: Bearer <token>).
 export function urlFoto(usuarioId) {

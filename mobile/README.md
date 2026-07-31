@@ -25,15 +25,19 @@ sin necesidad de iniciar sesión.
 
 ## Configurar la URL de la API (IMPORTANTE)
 
-Desde un teléfono físico, `localhost` NO apunta a tu PC. Edita `app.json` y pon la
-**IP local de la máquina** que corre la API:
+En modo LAN normal no hay que configurar nada: la app reutiliza la IP del
+servidor de Expo. Si usas **modo túnel** (`npx expo start --tunnel`, p. ej. con
+WSL2), copia la plantilla y pon la **IP local de la máquina** que corre la API:
 
-```json
-"extra": { "apiUrl": "http://192.168.1.50:8000" }
+```bash
+cp .env.example .env     # y edita EXPO_PUBLIC_API_URL
 ```
 
-Para conocer tu IP: `ipconfig` (Windows) o `ifconfig`/`ip a` (Mac/Linux). El
-teléfono y la PC deben estar en la misma red Wi-Fi.
+Desde un teléfono físico `localhost` NO apunta a tu PC; para conocer tu IP:
+`ipconfig` (Windows) o `ifconfig`/`ip a` (Mac/Linux). El teléfono y la PC deben
+estar en la misma red Wi-Fi. El `.env` está ignorado por git — la URL de la API
+ya no se versiona; en builds de producción se define en la configuración de EAS
+(env o secret), no en el repo.
 
 ## Arranque
 
