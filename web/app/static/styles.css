@@ -292,11 +292,25 @@ table { width: 100%; border-collapse: collapse; }
 .cancha-aviso span { background: rgba(7,20,13,.72); border: 1px dashed rgba(198,255,0,.35);
                      color: var(--lime); border-radius: 10px; padding: 9px 16px; font-size: 12px; font-weight: 600; }
 /* ---------- Banca ---------- */
-.banca-h { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 16px 0 6px; }
-.banca-h .c { color: var(--muted); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; }
+/* La cabecera repite la rejilla de la banca para que cada rótulo caiga sobre
+   su columna: "Local" pegado al borde izquierdo de la cancha y "Visitante" al
+   derecho. */
+.banca-h { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; align-items: center; margin: 16px 0 6px; }
+/* Los tres van con columna explícita: si alguno queda en colocación
+   automática, el grid no le encuentra hueco en la fila y le inventa una
+   columna implícita a la derecha. */
+.banca-h .c { grid-row: 1; grid-column: 1; color: var(--muted); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; }
+.banca-h .c.r { grid-column: 2; text-align: right; }
+/* Cruza las dos columnas para centrarse en el ancho completo: como el hueco
+   entre columnas está en el medio, el rótulo cae justo sobre él. */
+.banca-h .c.m { grid-column: 1 / -1; text-align: center; }
 .banca { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
-.banca-i { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.banca-i { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
 .banca-i.r { flex-direction: row-reverse; text-align: right; }
+/* .cancha-avw trae `margin: 0 auto` para centrarse en la cancha; dentro de la
+   banca es un ítem flex y ese auto se come el espacio libre, que es lo que
+   descuadraba las dos columnas. Aquí no lleva margen y no se encoge. */
+.banca-i .cancha-avw { margin: 0; flex: none; }
 /* ---------- Eventos por grupo ---------- */
 .evgrupo-titulo { display: flex; align-items: center; gap: 8px; font-size: 13px;
   letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }

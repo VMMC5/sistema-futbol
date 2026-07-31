@@ -78,8 +78,11 @@
   </div>
 
   {% if banca_local or banca_visitante %}
+  {# Los tres rótulos van en la misma fila de la rejilla: "Local" y "Visitante"
+     ocupan cada uno su columna (pegados a los bordes de la cancha) y "Banca"
+     cruza las dos para quedar centrado sobre el hueco entre ellas. #}
   <div class="banca-h">
-    <span class="c">Local</span><span class="c">Banca</span><span class="c">Visitante</span>
+    <span class="c">Local</span><span class="c m">Banca</span><span class="c r">Visitante</span>
   </div>
   <div class="banca">
     <div>

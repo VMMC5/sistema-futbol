@@ -112,6 +112,29 @@ def test_listar_eventos_ordenados(client, auth_admin, auth_arbitro, arbitro_id, 
     assert [e["minuto"] for e in eventos] == [10, 40]
 
 
+def test_borrar_partido_con_alineacion_y_eventos(client, auth_admin, auth_arbitro, auth_entrenador,
+                                                 arbitro_id, torneo_id, agregar_miembro):
+    """Borrar un partido arrastra su plan, su alineación y sus eventos.
+
+    Sin esto, la clave foránea de alineacion_planes (o de eventos_partido)
+    hacía estallar el DELETE con un 500 en cuanto el entrenador había cargado
+    la alineación, que es el caso normal.
+    """
+    titular = agregar_miembro(auth_entrenador, 1, "Se Borra", "seborra@demo.com")
+    pid = _crear_partido(client, auth_admin, torneo_id, arbitro_id).json()["id"]
+    # El plan solo se puede guardar antes de iniciar
+    assert client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
+        "equipo_id": 1, "formacion": "4-4-2",
+        "jugadores": [{"jugador_equipo_id": titular["je_id"], "posicion": "POR", "orden": 0}],
+    }).status_code == 200
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    assert client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "minuto": 12}).status_code == 201
+
+    assert client.delete(f"/partidos/{pid}", headers=auth_admin).status_code == 204
+    assert client.get(f"/partidos/{pid}", headers=auth_admin).status_code == 404
+
+
 def test_filtro_mios_arbitro(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
     # Un partido asignado al árbitro y otro sin asignar
     _crear_partido(client, auth_admin, torneo_id, arbitro_id)
