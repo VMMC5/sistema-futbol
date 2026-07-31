@@ -78,3 +78,14 @@ def test_actualizar_sin_cambios_relevantes_no_avisa(client, auth_admin, auth_arb
     antes = len(_notis(client, auth_arbitro))
     client.put(f"/partidos/{pid}", headers=auth_admin, json={"arbitro_id": arbitro_id})
     assert len(_notis(client, auth_arbitro)) == antes
+
+
+def test_eliminar_partido_avisa(client, auth_admin, auth_arbitro, auth_entrenador,
+                                arbitro_id, torneo_id):
+    pid = _crear_partido(client, auth_admin, torneo_id, arbitro_id).json()["id"]
+    antes_arb = len(_notis(client, auth_arbitro))
+    antes_ent = len(_notis(client, auth_entrenador))
+    assert client.delete(f"/partidos/{pid}", headers=auth_admin).status_code == 204
+    notis_arb = _notis(client, auth_arbitro)
+    assert len(notis_arb) == antes_arb + 1 and notis_arb[0]["titulo"] == "Partido cancelado"
+    assert len(_notis(client, auth_entrenador)) == antes_ent + 1

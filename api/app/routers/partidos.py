@@ -166,11 +166,18 @@ def actualizar_partido(
 @router.delete("/{partido_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_partido(
     partido_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
     partido = _obtener_partido(db, partido_id)
+    # La foto va ANTES del delete: después ya no hay relaciones que leer.
+    rivales = f"{partido.equipo_local.nombre} vs {partido.equipo_visitante.nombre}"
+    avisar = [partido.arbitro_id, partido.equipo_local.entrenador_id,
+              partido.equipo_visitante.entrenador_id]
     db.delete(partido)
+    _avisar_partido(db, background_tasks, "Partido cancelado",
+                    f"Se canceló {rivales}.", avisar)
     db.commit()
 
 
