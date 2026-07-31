@@ -98,3 +98,13 @@ def test_si_cancela_reserva_con_pago_fallido(client):
     client.post(f"/pagos/reserva/{rid}", headers=auth,
                 json={"metodo": "tarjeta", "tarjeta": TARJETA_RECHAZO})
     assert client.post(f"/reservas/{rid}/cancelar", headers=auth).status_code == 200
+
+
+def test_entrenador_paga_su_reserva(client, auth_entrenador):
+    """La reserva del entrenador se paga y confirma igual que la del jugador."""
+    rid = client.post("/reservas", headers=auth_entrenador, json=RESERVA_BASE).json()["id"]
+    r = client.post(f"/pagos/reserva/{rid}", headers=auth_entrenador,
+                    json={"metodo": "tarjeta", "tarjeta": TARJETA_OK})
+    assert r.status_code == 201, r.text
+    assert r.json()["estado"] == "completado"
+    assert client.get(f"/reservas/{rid}", headers=auth_entrenador).json()["estado"] == "confirmada"

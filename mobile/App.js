@@ -205,6 +205,7 @@ export default function App() {
           <Stack.Screen name="LineupMatches" component={LineupMatchesScreen} options={{ ...goldHeader, title: "ALINEACIÓN" }} />
           <Stack.Screen name="Lineup" component={LineupScreen} options={{ ...goldHeader, title: "ALINEACIÓN" }} />
           <Stack.Screen name="InvitePlayers" component={InvitePlayersScreen} options={{ ...goldHeader, title: "INVITAR" }} />
+          <Stack.Screen name="ReservarCancha" component={ReservarScreen} options={{ ...goldHeader, title: "RESERVAR CANCHA" }} />
 
           {/* Cuenta / roles (tema oscuro) */}
           <Stack.Screen name="Login" component={LoginScreen} options={{ ...darkHeader, title: "Ingresar" }} />

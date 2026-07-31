@@ -107,3 +107,13 @@ def test_solo_admin_confirma(client, auth_admin):
     assert client.post(f"/reservas/{rid}/confirmar", headers=ana).status_code == 403
     r = client.post(f"/reservas/{rid}/confirmar", headers=auth_admin)
     assert r.status_code == 200 and r.json()["estado"] == "confirmada"
+
+
+def test_entrenador_tambien_reserva(client, auth_entrenador):
+    """El flujo de reservas no es exclusivo del jugador: cualquier autenticado
+    crea y ve las suyas (docstring del router). Clavija de regresión: si mañana
+    alguien añade un require_roles al router, esto se pone rojo."""
+    r = client.post("/reservas", headers=auth_entrenador, json=RESERVA_BASE)
+    assert r.status_code == 201
+    mias = client.get("/reservas", headers=auth_entrenador).json()
+    assert any(x["id"] == r.json()["id"] for x in mias)

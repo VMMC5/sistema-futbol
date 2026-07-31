@@ -12,7 +12,7 @@ const ACCIONES = [
   { icono: "people", label: "Mis equipos", destino: "Equipos" },
   { icono: "docadd", label: "Inscribir", proximamente: true },
   { icono: "clipboardlist", label: "Alineación", destino: "LineupMatches" },
-  { icono: "calendar", label: "Reservar", proximamente: true },
+  { icono: "calendar", label: "Reservar", destino: "ReservarCancha" },
 ];
 
 export default function CoachHomeScreen({ navigation }) {
