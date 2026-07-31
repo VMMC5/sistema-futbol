@@ -11,8 +11,12 @@
       "backgroundColor": "#07140d",
       "resizeMode": "contain"
     },
-    "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
     "android": {
       "package": "com.torneos.mobile",
       "adaptiveIcon": {
@@ -20,11 +24,11 @@
         "backgroundColor": "#07140d"
       }
     },
-    "plugins": ["expo-notifications"],
+    "plugins": [
+      "expo-notifications"
+    ],
     "extra": {
-      "//": "Solo se usa en builds de produccion: en desarrollo la IP se deduce del host de Expo.",
-      "//2": "Desde un telefono fisico NO sirve 'localhost'. Usa la IP local de tu PC.",
-      "apiUrl": "http://10.133.61.227:8000",
+      "//": "La URL de la API viene de EXPO_PUBLIC_API_URL (ver .env.example). Aqui solo queda la config de EAS.",
       "eas": {
         "//": "RELLENAR con el projectId de tu proyecto EAS antes del build. Sin esto, el push no obtiene token.",
         "projectId": ""
