@@ -156,3 +156,45 @@ def test_pago_propio_no_duplica_el_aviso(client, auth_admin, auth_entrenador):
     notis = _notis(client, auth_entrenador)
     assert len(notis) == antes + 1
     assert notis[0]["titulo"] == "Pago confirmado"
+
+
+def test_transferencia_confirmada_por_admin_avisa_inscripcion(client, auth_admin, auth_entrenador):
+    """El admin paga por transferencia en nombre del equipo y luego la confirma:
+    el entrenador (que nunca fue el pagador) recibe 'Inscripción aceptada'."""
+    tid = _torneo(client, auth_admin, cuota_inscripcion=500)
+    iid = client.post("/inscripciones", headers=auth_entrenador,
+                      json={"torneo_id": tid, "equipo_id": 1}).json()["id"]
+    pago = client.post(f"/pagos/inscripcion/{iid}", headers=auth_admin,
+                       json={"metodo": "transferencia"}).json()
+    antes = len(_notis(client, auth_entrenador))
+    r = client.post(f"/pagos/{pago['id']}/confirmar", headers=auth_admin)
+    assert r.status_code == 200, r.text
+    notis = _notis(client, auth_entrenador)
+    assert len(notis) == antes + 1
+    assert notis[0]["titulo"] == "Inscripción aceptada"
+
+
+def test_transferencia_propia_confirmada_no_duplica(client, auth_admin, auth_entrenador):
+    """El entrenador pagó su propia transferencia: al confirmarla recibe el
+    'Pago confirmado' de siempre y nada más."""
+    tid = _torneo(client, auth_admin, cuota_inscripcion=500)
+    iid = client.post("/inscripciones", headers=auth_entrenador,
+                      json={"torneo_id": tid, "equipo_id": 1}).json()["id"]
+    pago = client.post(f"/pagos/inscripcion/{iid}", headers=auth_entrenador,
+                       json={"metodo": "transferencia"}).json()
+    antes = len(_notis(client, auth_entrenador))
+    client.post(f"/pagos/{pago['id']}/confirmar", headers=auth_admin)
+    notis = _notis(client, auth_entrenador)
+    assert len(notis) == antes + 1
+    assert notis[0]["titulo"] == "Pago confirmado"
+
+
+def test_reenviar_la_misma_fecha_no_avisa(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    """La misma fecha con zona explícita (Z) contra la guardada sin zona no es
+    un cambio: sin normalizar, naive != aware siempre es True y avisaría."""
+    pid = _crear_partido(client, auth_admin, torneo_id, arbitro_id,
+                         fecha_hora="2027-01-15T18:00:00").json()["id"]
+    antes = len(_notis(client, auth_arbitro))
+    r = client.put(f"/partidos/{pid}", headers=auth_admin, json={"fecha_hora": "2027-01-15T18:00:00Z"})
+    assert r.status_code == 200
+    assert len(_notis(client, auth_arbitro)) == antes

@@ -11,7 +11,7 @@ Reglas de negocio destacadas:
 
 Estados del partido:  programado -> en_juego -> finalizado
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -68,6 +68,20 @@ def _exigir_arbitraje(usuario: models.Usuario, partido: models.Partido):
             status_code=403,
             detail="Solo el árbitro asignado o un administrador puede gestionar este partido",
         )
+
+
+def _misma_fecha(a, b) -> bool:
+    """Compara fechas tolerando la mezcla naive/aware: un naive se asume UTC.
+    Sin esto, reenviar la MISMA fecha desde un cliente que no manda zona
+    dispararía 'Partido reprogramado' bajo Postgres (naive != aware siempre
+    es True en Python)."""
+    if a is None or b is None:
+        return a == b
+    if a.tzinfo is None:
+        a = a.replace(tzinfo=timezone.utc)
+    if b.tzinfo is None:
+        b = b.replace(tzinfo=timezone.utc)
+    return a == b
 
 
 def _avisar_partido(db, background_tasks, titulo: str, mensaje: str, usuario_ids) -> None:
@@ -153,7 +167,7 @@ def actualizar_partido(
                         f"Pitarás {rivales}{cuando}.", [partido.arbitro_id])
         _avisar_partido(db, background_tasks, "Cambio de designación",
                         f"Ya no pitarás {rivales}.", [previo["arbitro_id"]])
-    if (("fecha_hora" in cambios and cambios["fecha_hora"] != previo["fecha_hora"])
+    if (("fecha_hora" in cambios and not _misma_fecha(cambios["fecha_hora"], previo["fecha_hora"]))
             or ("cancha_id" in cambios and cambios["cancha_id"] != previo["cancha_id"])):
         _avisar_partido(db, background_tasks, "Partido reprogramado",
                         f"{rivales}: nueva programación{cuando}.",
