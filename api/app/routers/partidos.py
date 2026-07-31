@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import eventos_resumen, models
+from app import campo, eventos_resumen, models
 from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
@@ -249,6 +249,50 @@ def resumen_jugadores(
     return eventos_resumen.resumen_por_jugador(db, partido_id)
 
 
+def _exigir_en_campo(estado: dict, jugador_id: int):
+    """409 con el motivo concreto si el jugador no puede recibir eventos."""
+    if jugador_id in estado["en_campo"]:
+        return
+    if jugador_id in estado["expulsados"]:
+        raise HTTPException(status_code=409, detail="El jugador está expulsado")
+    if jugador_id in estado["salidos"]:
+        raise HTTPException(status_code=409, detail="El jugador ya salió de cambio")
+    raise HTTPException(status_code=409, detail="El jugador no está en el campo")
+
+
+def _validar_jugadores(estado: dict, datos: EventoCreate):
+    """
+    Un evento puede no llevar jugador y eso es legal: el autogol atribuido solo
+    al equipo va sin jugador_id, y la asistencia de un gol es opcional. Cuando
+    el campo viene vacío no hay nada que comprobar. Solo el cambio exige los dos.
+    """
+    if datos.tipo == "cambio":
+        if datos.jugador_id is None or datos.jugador_secundario_id is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Un cambio necesita el jugador que sale y el que entra",
+            )
+        _exigir_en_campo(estado, datos.jugador_id)          # el que sale
+        entra = datos.jugador_secundario_id
+        if entra in estado["expulsados"]:
+            raise HTTPException(status_code=409, detail="El jugador que entra está expulsado")
+        # Un jugador que ya salió de cambio no puede volver a entrar: el fútbol
+        # no permite reingresos, y además dejaría a DOS jugadores fuera del
+        # campo sin forma de recibir eventos (el que ya salió y el que "entraría" en su lugar).
+        if entra in estado["salidos"]:
+            raise HTTPException(status_code=409, detail="El jugador ya salió de cambio y no puede volver a entrar")
+        # Sin plan, la plantilla entera cuenta como "en el campo", así que esta
+        # comprobación no se puede aplicar: dejaría todo cambio en 409.
+        if estado["hay_plan"] and entra in estado["en_campo"]:
+            raise HTTPException(status_code=409, detail="El jugador que entra ya está en el campo")
+        return
+
+    if datos.jugador_id is not None:
+        _exigir_en_campo(estado, datos.jugador_id)
+    if datos.tipo == "gol" and datos.jugador_secundario_id is not None:
+        _exigir_en_campo(estado, datos.jugador_secundario_id)   # asistente
+
+
 @router.post("/{partido_id}/eventos", response_model=EventoOut, status_code=status.HTTP_201_CREATED)
 def registrar_evento(
     partido_id: int,
@@ -269,6 +313,9 @@ def registrar_evento(
     if datos.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
         raise HTTPException(status_code=400, detail="El equipo no participa en este partido")
 
+    estado = campo.estado_campo(db, partido_id, datos.equipo_id)
+    _validar_jugadores(estado, datos)
+
     evento = models.EventoPartido(
         partido_id=partido_id,
         equipo_id=datos.equipo_id,
@@ -280,6 +327,24 @@ def registrar_evento(
         detalle=datos.detalle,
     )
     db.add(evento)
+
+    # Segunda amarilla = expulsión. Se crea un evento de roja APARTE porque los
+    # distintivos, el acta y las estadísticas ya cuentan rojas leyendo eventos:
+    # marcar la amarilla obligaría a cambiar los cuatro consumidores.
+    # `estado` se calculó antes de añadir esta amarilla, así que cuenta las previas.
+    if (
+        datos.tipo == "tarjeta_amarilla"
+        and datos.jugador_id is not None
+        and estado["amarillas"].get(datos.jugador_id, 0) >= 1
+    ):
+        db.add(models.EventoPartido(
+            partido_id=partido_id,
+            equipo_id=datos.equipo_id,
+            jugador_id=datos.jugador_id,
+            tipo="tarjeta_roja",
+            minuto=datos.minuto,
+            detalle="Doble amarilla",
+        ))
 
     # Si es gol, actualizar el marcador. Un autogol cuenta para el rival.
     if datos.tipo == "gol":
@@ -315,6 +380,35 @@ def eliminar_evento(
             partido.goles_local -= 1
         elif anota == partido.equipo_visitante_id and partido.goles_visitante > 0:
             partido.goles_visitante -= 1
+
+    # Si se borra una amarilla y al jugador le quedan menos de dos, la roja
+    # automática de la doble amarilla (si la hay) queda huérfana: sin esto el
+    # jugador seguiría expulsado sin tener la segunda amarilla que lo justifique.
+    # No toca una roja directa: esa no tiene el detalle "Doble amarilla".
+    if evento.tipo == "tarjeta_amarilla" and evento.jugador_id is not None:
+        amarillas_restantes = (
+            db.query(models.EventoPartido)
+            .filter(
+                models.EventoPartido.partido_id == partido_id,
+                models.EventoPartido.tipo == "tarjeta_amarilla",
+                models.EventoPartido.jugador_id == evento.jugador_id,
+                models.EventoPartido.id != evento.id,
+            )
+            .count()
+        )
+        if amarillas_restantes < 2:
+            roja_automatica = (
+                db.query(models.EventoPartido)
+                .filter(
+                    models.EventoPartido.partido_id == partido_id,
+                    models.EventoPartido.tipo == "tarjeta_roja",
+                    models.EventoPartido.jugador_id == evento.jugador_id,
+                    models.EventoPartido.detalle == "Doble amarilla",
+                )
+                .first()
+            )
+            if roja_automatica is not None:
+                db.delete(roja_automatica)
 
     db.delete(evento)
     db.commit()
@@ -471,15 +565,23 @@ def _plan_a_salida(db: Session, partido_id: int, equipo_id: int, plan: models.Al
             .all()
         }
 
-    def _con_foto(d):
-        return {**d, "tiene_foto": d.get("jugador_id") in con_foto}
+    estado = campo.estado_campo(db, partido_id, equipo_id)
+
+    def _enriquecer(d):
+        jid = d.get("jugador_id")
+        return {
+            **d,
+            "tiene_foto": jid in con_foto,
+            "en_campo": jid is not None and jid in estado["en_campo"],
+            "expulsado": jid is not None and jid in estado["expulsados"],
+        }
 
     return PlanOut(
         partido_id=partido_id,
         equipo_id=equipo_id,
         formacion=plan.formacion if plan else "4-4-2",
-        jugadores=[_con_foto(j) for j in titulares],
-        suplentes=[_con_foto(s) for s in suplentes],
+        jugadores=[_enriquecer(j) for j in titulares],
+        suplentes=[_enriquecer(s) for s in suplentes],
     )
 
 

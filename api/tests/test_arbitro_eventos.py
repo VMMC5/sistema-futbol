@@ -95,3 +95,303 @@ def test_plan_incluye_suplentes(client, auth_admin, auth_entrenador, torneo_id, 
     r = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_entrenador).json()
     assert len(r["jugadores"]) == 1
     assert any(s["jugador_id"] == suplente["jugador_id"] for s in r["suplentes"])
+
+
+def test_evento_sin_minuto_es_422(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1})
+    assert r.status_code == 422
+
+
+def test_evento_con_minuto_fuera_de_rango_es_422(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    for minuto in (-1, 131):
+        r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+            "tipo": "gol", "equipo_id": 1, "minuto": minuto})
+        assert r.status_code == 422
+
+
+def _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id, torneo_id, je_ids):
+    """Partido con plan del equipo 1 y en juego. El plan se guarda ANTES de
+    iniciar: después de iniciar, PUT /plan responde 409."""
+    pid = client.post("/partidos", headers=auth_admin, json={
+        "torneo_id": torneo_id, "equipo_local_id": 1, "equipo_visitante_id": 2,
+        "arbitro_id": arbitro_id}).json()["id"]
+    r_plan = client.put(f"/partidos/{pid}/plan", headers=auth_entrenador, json={
+        "equipo_id": 1, "formacion": "4-4-2",
+        "jugadores": [{"jugador_equipo_id": je, "posicion": "DEF", "orden": i}
+                      for i, je in enumerate(je_ids)]})
+    assert r_plan.status_code == 200, r_plan.text
+    r_iniciar = client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    assert r_iniciar.status_code == 200, r_iniciar.text
+    return pid
+
+
+def test_evento_sobre_expulsado_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                       torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Expulsado", "expulsado@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_roja", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 40})
+    assert r.status_code == 409
+    assert "expulsado" in r.json()["detail"].lower()
+
+
+def test_evento_sobre_jugador_que_ya_salio_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                                  torneo_id, auth_entrenador, agregar_miembro):
+    sale = agregar_miembro(auth_entrenador, 1, "Salio Ya", "salioya@demo.com")
+    entra = agregar_miembro(auth_entrenador, 1, "Entro Ya", "entroya@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [sale["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": sale["jugador_id"],
+        "jugador_secundario_id": entra["jugador_id"], "minuto": 60})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": sale["jugador_id"], "minuto": 70})
+    assert r.status_code == 409
+
+
+def test_evento_sobre_el_que_entro_de_cambio_se_acepta(client, auth_admin, auth_arbitro, arbitro_id,
+                                                       torneo_id, auth_entrenador, agregar_miembro):
+    sale = agregar_miembro(auth_entrenador, 1, "Sale Ok", "saleok@demo.com")
+    entra = agregar_miembro(auth_entrenador, 1, "Entra Ok", "entraok@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [sale["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": sale["jugador_id"],
+        "jugador_secundario_id": entra["jugador_id"], "minuto": 60})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": entra["jugador_id"], "minuto": 70})
+    assert r.status_code == 201
+
+
+def test_cambio_con_el_que_sale_fuera_del_campo_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                                       torneo_id, auth_entrenador, agregar_miembro):
+    titular = agregar_miembro(auth_entrenador, 1, "Titular Cbio", "titcbio@demo.com")
+    banca_a = agregar_miembro(auth_entrenador, 1, "Banca A", "bancaa@demo.com")
+    banca_b = agregar_miembro(auth_entrenador, 1, "Banca B", "bancab@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [titular["je_id"]])
+    # banca_a no está en el campo: no puede "salir"
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": banca_a["jugador_id"],
+        "jugador_secundario_id": banca_b["jugador_id"], "minuto": 55})
+    assert r.status_code == 409
+
+
+def test_cambio_con_el_que_entra_ya_en_el_campo_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                                       torneo_id, auth_entrenador, agregar_miembro):
+    uno = agregar_miembro(auth_entrenador, 1, "Titular Uno", "tituno@demo.com")
+    dos = agregar_miembro(auth_entrenador, 1, "Titular Dos", "titdos@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [uno["je_id"], dos["je_id"]])
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": uno["jugador_id"],
+        "jugador_secundario_id": dos["jugador_id"], "minuto": 55})
+    assert r.status_code == 409
+
+
+def test_cambio_sin_los_dos_jugadores_es_409(client, auth_admin, auth_arbitro, arbitro_id,
+                                             torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Solo Uno", "solouno@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 55})
+    assert r.status_code == 409
+
+
+def test_evento_sin_jugador_sigue_siendo_valido(client, auth_admin, auth_arbitro, arbitro_id, torneo_id):
+    """El autogol atribuido solo al equipo no lleva jugador: no hay nada que validar."""
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "subtipo": "autogol", "minuto": 30})
+    assert r.status_code == 201
+
+
+def test_segunda_amarilla_genera_roja_automatica(client, auth_admin, auth_arbitro, arbitro_id,
+                                                 torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Doble Amarilla", "doble@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 65})
+    # El endpoint devuelve la amarilla, que es lo que se pidió crear
+    assert r.status_code == 201 and r.json()["tipo"] == "tarjeta_amarilla"
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    rojas = [e for e in eventos
+             if e["tipo"] == "tarjeta_roja" and e["jugador_id"] == m["jugador_id"]]
+    assert len(rojas) == 1
+    assert rojas[0]["minuto"] == 65
+    assert "doble" in (rojas[0]["detalle"] or "").lower()
+
+
+def test_una_sola_amarilla_no_genera_roja(client, auth_admin, auth_arbitro, arbitro_id,
+                                          torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Una Amarilla", "unaamarilla@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert not any(e["tipo"] == "tarjeta_roja" for e in eventos)
+
+
+def test_tras_la_doble_amarilla_el_jugador_no_recibe_mas_eventos(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Fuera Ya", "fuueraya@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    for minuto in (20, 65):
+        client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+            "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": minuto})
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 80})
+    assert r.status_code == 409
+
+
+def test_plan_marca_quien_esta_en_el_campo(client, auth_admin, auth_arbitro, arbitro_id,
+                                           torneo_id, auth_entrenador, agregar_miembro):
+    titular = agregar_miembro(auth_entrenador, 1, "En Campo", "encampo@demo.com")
+    banca = agregar_miembro(auth_entrenador, 1, "En Banca", "enbanca@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [titular["je_id"]])
+    plan = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_arbitro).json()
+
+    t = next(j for j in plan["jugadores"] if j["jugador_id"] == titular["jugador_id"])
+    b = next(s for s in plan["suplentes"] if s["jugador_id"] == banca["jugador_id"])
+    assert t["en_campo"] is True and t["expulsado"] is False
+    assert b["en_campo"] is False and b["expulsado"] is False
+
+
+def test_plan_marca_al_expulsado(client, auth_admin, auth_arbitro, arbitro_id,
+                                 torneo_id, auth_entrenador, agregar_miembro):
+    titular = agregar_miembro(auth_entrenador, 1, "Va Fuera", "vafuera@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [titular["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_roja", "equipo_id": 1, "jugador_id": titular["jugador_id"], "minuto": 30})
+    plan = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_arbitro).json()
+    t = next(j for j in plan["jugadores"] if j["jugador_id"] == titular["jugador_id"])
+    assert t["en_campo"] is False and t["expulsado"] is True
+
+
+def test_plan_tras_un_cambio_intercambia_las_banderas(client, auth_admin, auth_arbitro, arbitro_id,
+                                                      torneo_id, auth_entrenador, agregar_miembro):
+    sale = agregar_miembro(auth_entrenador, 1, "Sale Plan", "saleplan@demo.com")
+    entra = agregar_miembro(auth_entrenador, 1, "Entra Plan", "entraplan@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [sale["je_id"]])
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": sale["jugador_id"],
+        "jugador_secundario_id": entra["jugador_id"], "minuto": 60})
+    plan = client.get(f"/partidos/{pid}/plan?equipo_id=1", headers=auth_arbitro).json()
+    s = next(j for j in plan["jugadores"] if j["jugador_id"] == sale["jugador_id"])
+    e = next(j for j in plan["suplentes"] if j["jugador_id"] == entra["jugador_id"])
+    assert s["en_campo"] is False
+    assert e["en_campo"] is True
+
+
+def test_cambio_no_permite_reingresar_a_un_jugador_ya_salido(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    """Un jugador sustituido no puede volver a entrar (regla real de fútbol);
+    además, dejarlo entrar de nuevo deja a DOS jugadores varados fuera del campo."""
+    tit_a = agregar_miembro(auth_entrenador, 1, "Tit A", "tita@demo.com")
+    tit_b = agregar_miembro(auth_entrenador, 1, "Tit B", "titb@demo.com")
+    banca_c = agregar_miembro(auth_entrenador, 1, "Banca C", "bancac@demo.com")
+    pid = _plan_y_juego(client, auth_admin, auth_arbitro, auth_entrenador, arbitro_id,
+                        torneo_id, [tit_a["je_id"], tit_b["je_id"]])
+    # Cambio 1: Tit A sale, Banca C entra
+    r1 = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": tit_a["jugador_id"],
+        "jugador_secundario_id": banca_c["jugador_id"], "minuto": 30})
+    assert r1.status_code == 201
+    # Cambio 2: Tit B sale, Tit A (ya salió) intenta volver a entrar
+    r2 = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "cambio", "equipo_id": 1, "jugador_id": tit_b["jugador_id"],
+        "jugador_secundario_id": tit_a["jugador_id"], "minuto": 60})
+    assert r2.status_code == 409
+
+
+def test_borrar_la_segunda_amarilla_borra_la_roja_automatica(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Doble Borrada", "dobleborrada@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 65})
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    segunda_amarilla = next(e for e in eventos
+                             if e["tipo"] == "tarjeta_amarilla" and e["minuto"] == 65)
+    r = client.delete(f"/partidos/{pid}/eventos/{segunda_amarilla['id']}", headers=auth_arbitro)
+    assert r.status_code == 204
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert not any(e["tipo"] == "tarjeta_roja" and e["jugador_id"] == m["jugador_id"] for e in eventos)
+    assert sum(1 for e in eventos if e["tipo"] == "tarjeta_amarilla") == 1
+
+    # El jugador vuelve a ser elegible
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 80})
+    assert r.status_code == 201
+
+
+def test_borrar_la_primera_amarilla_tambien_borra_la_roja_automatica(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    m = agregar_miembro(auth_entrenador, 1, "Doble Borrada Primera", "dobleborradaprimera@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 65})
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    primera_amarilla = next(e for e in eventos
+                             if e["tipo"] == "tarjeta_amarilla" and e["minuto"] == 20)
+    r = client.delete(f"/partidos/{pid}/eventos/{primera_amarilla['id']}", headers=auth_arbitro)
+    assert r.status_code == 204
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert not any(e["tipo"] == "tarjeta_roja" and e["jugador_id"] == m["jugador_id"] for e in eventos)
+    assert sum(1 for e in eventos if e["tipo"] == "tarjeta_amarilla") == 1
+
+    r = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "gol", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 80})
+    assert r.status_code == 201
+
+
+def test_borrar_amarilla_no_toca_una_roja_directa(
+        client, auth_admin, auth_arbitro, arbitro_id, torneo_id, auth_entrenador, agregar_miembro):
+    """Una roja directa (sin doble amarilla) no tiene el detalle que marca la
+    roja automática, así que borrar una amarilla suelta no debe tocarla."""
+    m = agregar_miembro(auth_entrenador, 1, "Roja Directa", "rojadirecta@demo.com")
+    pid = _partido_en_juego(client, auth_admin, arbitro_id, torneo_id)
+    client.post(f"/partidos/{pid}/iniciar", headers=auth_arbitro)
+    client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_amarilla", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 20})
+    r_roja = client.post(f"/partidos/{pid}/eventos", headers=auth_arbitro, json={
+        "tipo": "tarjeta_roja", "equipo_id": 1, "jugador_id": m["jugador_id"], "minuto": 40})
+    assert r_roja.status_code == 201
+    roja_id = r_roja.json()["id"]
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    amarilla = next(e for e in eventos if e["tipo"] == "tarjeta_amarilla")
+    r = client.delete(f"/partidos/{pid}/eventos/{amarilla['id']}", headers=auth_arbitro)
+    assert r.status_code == 204
+
+    eventos = client.get(f"/partidos/{pid}/eventos", headers=auth_arbitro).json()
+    assert any(e["id"] == roja_id for e in eventos)

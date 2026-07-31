@@ -193,7 +193,7 @@ class EventoCreate(BaseModel):
     jugador_id: int | None = None
     jugador_secundario_id: int | None = None     # asistente (gol) o quien entra (cambio)
     subtipo: str | None = Field(default=None, pattern="^(normal|penal|autogol)$")
-    minuto: int | None = Field(default=None, ge=0, le=130)
+    minuto: int = Field(ge=0, le=130)   # obligatorio: un evento sin minuto no dice cuándo pasó
     detalle: str | None = Field(default=None, max_length=120)
 
 
@@ -464,6 +464,8 @@ class PlanItemOut(BaseModel):
     posicion: str | None = None
     orden: int = 0
     tiene_foto: bool = False        # el panel web solo pinta <img> si es True
+    en_campo: bool = False          # puede recibir eventos ahora mismo
+    expulsado: bool = False         # tiene al menos una roja en este partido
 
 
 class PlanOut(BaseModel):
