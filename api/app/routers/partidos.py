@@ -122,11 +122,16 @@ def crear_partido(
 def actualizar_partido(
     partido_id: int,
     datos: PartidoUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
     partido = _obtener_partido(db, partido_id)
     cambios = datos.model_dump(exclude_unset=True)
+    # El loop de abajo es un setattr ciego: sin esta foto previa no hay forma
+    # de saber qué cambió de verdad para avisar solo a quien corresponde.
+    previo = {"arbitro_id": partido.arbitro_id, "fecha_hora": partido.fecha_hora,
+              "cancha_id": partido.cancha_id}
 
     if "arbitro_id" in cambios and cambios["arbitro_id"] is not None:
         arbitro = db.get(models.Usuario, cambios["arbitro_id"])
@@ -140,6 +145,21 @@ def actualizar_partido(
         setattr(partido, campo, valor)
     db.commit()
     db.refresh(partido)
+
+    rivales = f"{partido.equipo_local.nombre} vs {partido.equipo_visitante.nombre}"
+    cuando = f" el {partido.fecha_hora:%d/%m %H:%M}" if partido.fecha_hora else ""
+    if "arbitro_id" in cambios and cambios["arbitro_id"] != previo["arbitro_id"]:
+        _avisar_partido(db, background_tasks, "Partido asignado",
+                        f"Pitarás {rivales}{cuando}.", [partido.arbitro_id])
+        _avisar_partido(db, background_tasks, "Cambio de designación",
+                        f"Ya no pitarás {rivales}.", [previo["arbitro_id"]])
+    if (("fecha_hora" in cambios and cambios["fecha_hora"] != previo["fecha_hora"])
+            or ("cancha_id" in cambios and cambios["cancha_id"] != previo["cancha_id"])):
+        _avisar_partido(db, background_tasks, "Partido reprogramado",
+                        f"{rivales}: nueva programación{cuando}.",
+                        [partido.arbitro_id, partido.equipo_local.entrenador_id,
+                         partido.equipo_visitante.entrenador_id])
+    db.commit()
     return partido
 
 
