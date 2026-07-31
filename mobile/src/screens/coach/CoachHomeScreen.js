@@ -10,7 +10,7 @@ import { cs, lp, ls } from "../../publicTheme";
 
 const ACCIONES = [
   { icono: "people", label: "Mis equipos", destino: "Equipos" },
-  { icono: "docadd", label: "Inscribir", proximamente: true },
+  { icono: "docadd", label: "Inscribir", destino: "Inscribir" },
   { icono: "clipboardlist", label: "Alineación", destino: "LineupMatches" },
   { icono: "calendar", label: "Reservar", destino: "ReservarCancha" },
 ];
