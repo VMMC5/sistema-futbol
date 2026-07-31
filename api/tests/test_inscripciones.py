@@ -71,3 +71,12 @@ def test_listar_inscripciones_por_torneo(client, auth_admin, auth_entrenador):
     client.post("/inscripciones", headers=auth_entrenador, json={"torneo_id": tid, "equipo_id": 1})
     r = client.get(f"/inscripciones?torneo_id={tid}", headers=auth_admin)
     assert r.status_code == 200 and len(r.json()) == 1
+
+
+def test_no_inscribe_tras_el_cierre(client, auth_admin, auth_entrenador):
+    """La rama del 409 por fecha_cierre_inscripciones vencida existe desde el
+    principio (inscripciones.py) pero ningún test la ejercitaba. El día del
+    cierre todavía se puede inscribir; a partir del siguiente, no."""
+    tid = _torneo(client, auth_admin, fecha_cierre_inscripciones="2020-01-01")
+    r = client.post("/inscripciones", headers=auth_entrenador, json={"torneo_id": tid, "equipo_id": 1})
+    assert r.status_code == 409

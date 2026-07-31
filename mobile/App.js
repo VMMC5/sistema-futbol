@@ -20,6 +20,7 @@ import TorneoInfoScreen from "./src/screens/public/TorneoInfoScreen";
 // Panel del entrenador (tema claro, cabecera dorada)
 import CoachHomeScreen from "./src/screens/coach/CoachHomeScreen";
 import TeamListScreen from "./src/screens/coach/TeamListScreen";
+import InscribirScreen from "./src/screens/coach/InscribirScreen";
 import TeamEditScreen from "./src/screens/coach/TeamEditScreen";
 import TeamStatsScreen from "./src/screens/coach/TeamStatsScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
@@ -206,6 +207,7 @@ export default function App() {
           <Stack.Screen name="Lineup" component={LineupScreen} options={{ ...goldHeader, title: "ALINEACIÓN" }} />
           <Stack.Screen name="InvitePlayers" component={InvitePlayersScreen} options={{ ...goldHeader, title: "INVITAR" }} />
           <Stack.Screen name="ReservarCancha" component={ReservarScreen} options={{ ...goldHeader, title: "RESERVAR CANCHA" }} />
+          <Stack.Screen name="Inscribir" component={InscribirScreen} options={{ ...goldHeader, title: "INSCRIBIR EQUIPO" }} />
 
           {/* Cuenta / roles (tema oscuro) */}
           <Stack.Screen name="Login" component={LoginScreen} options={{ ...darkHeader, title: "Ingresar" }} />
