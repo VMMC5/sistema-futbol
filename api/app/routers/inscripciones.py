@@ -11,11 +11,12 @@ equipo; se respeta el cupo máximo.
 """
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models
+from app import notificaciones_service
 from app.deps import es_admin, get_current_user
 from app.schemas import InscripcionCreate, InscripcionOut
 
@@ -25,6 +26,7 @@ router = APIRouter()
 @router.post("", response_model=InscripcionOut, status_code=status.HTTP_201_CREATED)
 def crear_inscripcion(
     datos: InscripcionCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_current_user),
 ):
@@ -75,6 +77,13 @@ def crear_inscripcion(
     db.add(inscripcion)
     db.commit()
     db.refresh(inscripcion)
+    if inscripcion.estado == "aceptada":
+        # Torneo sin cuota: se acepta al momento y hoy nadie avisa. Con cuota,
+        # el aviso sale al completarse el pago (pagos_service).
+        notificaciones_service.crear_notificacion(
+            db, equipo.entrenador_id, "Inscripción aceptada",
+            f"{equipo.nombre} quedó inscrito en {torneo.nombre}.", background_tasks)
+        db.commit()
     return inscripcion
 
 

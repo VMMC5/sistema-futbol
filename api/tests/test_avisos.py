@@ -107,3 +107,52 @@ def test_torneo_nuevo_no_avisa_a_jugadores(client, auth_admin):
     antes = len(_notis(client, auth_miembro))
     client.post("/torneos", headers=auth_admin, json={"nombre": "Copa Silencio", "sede_id": 1})
     assert len(_notis(client, auth_miembro)) == antes
+
+
+def _torneo(client, auth_admin, **over):
+    body = {"nombre": "Copa Inscripción", "sede_id": 1}
+    body.update(over)
+    return client.post("/torneos", headers=auth_admin, json=body).json()["id"]
+
+
+def test_inscripcion_gratis_avisa_aceptada(client, auth_admin, auth_entrenador):
+    tid = _torneo(client, auth_admin)  # sin cuota -> aceptada directa
+    antes = len(_notis(client, auth_entrenador))
+    r = client.post("/inscripciones", headers=auth_entrenador, json={"torneo_id": tid, "equipo_id": 1})
+    assert r.status_code == 201 and r.json()["estado"] == "aceptada"
+    notis = _notis(client, auth_entrenador)
+    assert len(notis) == antes + 1
+    assert notis[0]["titulo"] == "Inscripción aceptada"
+
+
+def test_pago_de_otro_avisa_al_entrenador(client, auth_admin, auth_entrenador):
+    """El admin paga la cuota en nombre del equipo: el entrenador (que no fue
+    el pagador) recibe el aviso de aceptación."""
+    tid = _torneo(client, auth_admin, cuota_inscripcion=500)
+    iid = client.post("/inscripciones", headers=auth_entrenador,
+                      json={"torneo_id": tid, "equipo_id": 1}).json()["id"]
+    antes = len(_notis(client, auth_entrenador))
+    r = client.post(f"/pagos/inscripcion/{iid}", headers=auth_admin, json={
+        "metodo": "tarjeta",
+        "tarjeta": {"numero": "4111111111111234", "exp_mes": 12, "exp_anio": 2999,
+                    "cvv": "123", "titular": "Admin Demo"}})
+    assert r.status_code == 201, r.text
+    notis = _notis(client, auth_entrenador)
+    assert len(notis) == antes + 1
+    assert notis[0]["titulo"] == "Inscripción aceptada"
+
+
+def test_pago_propio_no_duplica_el_aviso(client, auth_admin, auth_entrenador):
+    """El entrenador paga su propia cuota: recibe 'Pago confirmado' (existente)
+    y NADA más — un solo aviso nuevo, no dos."""
+    tid = _torneo(client, auth_admin, cuota_inscripcion=500)
+    iid = client.post("/inscripciones", headers=auth_entrenador,
+                      json={"torneo_id": tid, "equipo_id": 1}).json()["id"]
+    antes = len(_notis(client, auth_entrenador))
+    client.post(f"/pagos/inscripcion/{iid}", headers=auth_entrenador, json={
+        "metodo": "tarjeta",
+        "tarjeta": {"numero": "4111111111111234", "exp_mes": 12, "exp_anio": 2999,
+                    "cvv": "123", "titular": "Entrenador Demo"}})
+    notis = _notis(client, auth_entrenador)
+    assert len(notis) == antes + 1
+    assert notis[0]["titulo"] == "Pago confirmado"
