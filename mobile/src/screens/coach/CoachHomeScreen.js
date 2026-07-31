@@ -36,17 +36,15 @@ export default function CoachHomeScreen({ navigation }) {
     useCallback(() => {
       (async () => {
         try {
-          const [res, notis] = await Promise.all([
-            apiGet("/equipos/resumen"),
-            apiGet("/notificaciones"),
-          ]);
+          const res = await apiGet("/equipos/resumen");
           setResumen(res);
-          setHayNuevas(notis.some((n) => !n.leida));
         } catch (_) {
           setResumen(null);
         } finally {
           setCargando(false);
         }
+        // La campana es cosmética: su fallo no puede tumbar la tarjeta del equipo.
+        apiGet("/notificaciones").then((n) => setHayNuevas(n.some((x) => !x.leida))).catch(() => {});
       })();
     }, [])
   );

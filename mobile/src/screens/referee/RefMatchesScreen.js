@@ -30,19 +30,19 @@ export default function RefMatchesScreen({ navigation }) {
   const cargar = useCallback(async () => {
     try {
       // Asignados: programados y en juego
-      const [prog, vivo, notis] = await Promise.all([
+      const [prog, vivo] = await Promise.all([
         apiGet("/partidos?mios=true&estado=programado"),
         apiGet("/partidos?mios=true&estado=en_juego"),
-        apiGet("/notificaciones"),
       ]);
       setPartidos([...vivo, ...prog]);
-      setHayNuevas(notis.some((n) => !n.leida));
     } catch (_) {
       setPartidos([]);
     } finally {
       setCargando(false);
       setRefrescando(false);
     }
+    // La campana es cosmética: su fallo no puede tumbar la lista de partidos.
+    apiGet("/notificaciones").then((n) => setHayNuevas(n.some((x) => !x.leida))).catch(() => {});
   }, []);
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
