@@ -236,8 +236,15 @@ class Partido(Base):
     arbitro = relationship("Usuario", back_populates="partidos_arbitrados")
     equipo_local = relationship("Equipo", foreign_keys=[equipo_local_id])
     equipo_visitante = relationship("Equipo", foreign_keys=[equipo_visitante_id])
-    alineaciones = relationship("Alineacion", back_populates="partido")
-    eventos = relationship("EventoPartido", back_populates="partido")
+    # Los hijos se borran con el partido. Sin la cascada, borrar un partido
+    # intentaba dejar huérfanos sus eventos y su alineación (partido_id es NOT
+    # NULL) y el DELETE reventaba con un 500 en cuanto el entrenador había
+    # cargado el plan, que es el caso normal.
+    alineaciones = relationship("Alineacion", back_populates="partido",
+                                cascade="all, delete-orphan")
+    eventos = relationship("EventoPartido", back_populates="partido",
+                           cascade="all, delete-orphan")
+    planes = relationship("AlineacionPlan", cascade="all, delete-orphan")
 
     @property
     def torneo_nombre(self):
