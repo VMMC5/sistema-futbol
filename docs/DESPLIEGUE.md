@@ -21,7 +21,15 @@ Cada VM lleva además su propio firewall dentro (`ufw` + `DOCKER-USER`) y
 | VPC | `10.0.0.0/16` |
 | Subred pública | `10.0.1.0/24` — con Internet Gateway |
 | Subred privada | `10.0.2.0/24` — sin Internet Gateway |
-| NAT Gateway | En la subred pública. Deja que la EC2 privada **salga** a internet (para `docker pull`), pero impide que la alcancen desde fuera. |
+| NAT Gateway | En la subred pública (en el asistente "VPC and more" de la consola, la opción se llama **Zonal**; "Regional" es la variante multi-AZ y "None" dejaría a la privada sin `docker pull`). Deja que la EC2 privada **salga** a internet, pero impide que la alcancen desde fuera. |
+
+> ⚠️ **Si usas el asistente "VPC and more"**: los CIDR de las subredes de la tabla
+> van en el desplegable **"Customize subnets CIDR blocks"**. Si se te pasa, el
+> asistente crea `/20` por defecto (pública `10.0.0.0/20`, privada
+> `10.0.128.0/20`) y las IPs fijas de la sección 2 ya no caen en sus subredes.
+> Las subredes no se pueden redimensionar después: o adaptas las IPs, o
+> borras la VPC y la rehaces (borra también su NAT y **libera la Elastic IP
+> huérfana del NAT**, que sigue cobrando sola).
 
 ## 2. Instancias
 
@@ -35,23 +43,36 @@ Cada VM lleva además su propio firewall dentro (`ufw` + `DOCKER-USER`) y
 | Tipo sugerido | t3.small | t3.medium |
 | Software | Docker + Docker Compose | Docker + Docker Compose |
 
-**Por qué Ubuntu y no Amazon Linux:** toda la Fase 2 (firewall y monitoreo) se
-apoya en `ufw`, `fail2ban` e `iptables-persistent`, que se instalan con
-`apt-get` y vienen en los repositorios de Ubuntu. Amazon Linux no trae `ufw`
-(usa `firewalld`) ni `apt-get`, así que los scripts de `infra/firewall/` y
-`infra/fail2ban/` no correrían allí.
+> ⚠️ **Al elegir la AMI en la consola**: la de Quick Start correcta se llama
+> exactamente **"Ubuntu Server XX.04 LTS (HVM), SSD Volume Type"**, de
+> Canonical, con la etiqueta *Free tier eligible*. En el buscador aparecen
+> variantes de Marketplace tipo **"Ubuntu Server 22.04 with SQL Server"** que
+> cobran una **licencia por hora** encima de la instancia — este sistema usa
+> Postgres en Docker y no necesita nada de eso. Las "Ubuntu Pro" tampoco.
 
-Paquetes que hay que instalar en **las dos** VMs, además de Docker:
+**Por qué Ubuntu y no Amazon Linux:** toda la Fase 2 (firewall y monitoreo) se
+apoya en `ufw` y `fail2ban`, que se instalan con `apt-get` y vienen en los
+repositorios de Ubuntu. Amazon Linux no trae `ufw` (usa `firewalld`) ni
+`apt-get`, así que los scripts de `infra/firewall/` y `infra/fail2ban/` no
+correrían allí.
+
+Paquetes que hay que instalar en **las dos** VMs (verificado en Ubuntu 24.04,
+donde `ufw` ya viene preinstalado en la imagen cloud):
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y ufw iptables-persistent netfilter-persistent
+sudo apt-get install -y docker.io docker-compose-v2
+sudo usermod -aG docker ubuntu   # cerrar sesión y volver a entrar para que aplique
 ```
 
-`iptables-persistent` pregunta durante la instalación si quiere guardar las
-reglas actuales: da igual lo que se conteste, `configurar-firewall.sh` las
-guarda él al terminar. Sin ese paquete, las reglas de `DOCKER-USER` se pierden
-al reiniciar la máquina.
+> ⚠️ **NO instales `iptables-persistent` en Ubuntu 24.04.** Desde noble, el
+> paquete `ufw` se declara incompatible (`Breaks:`) con
+> `iptables-persistent`/`netfilter-persistent`: apt aborta la transacción
+> entera (y de paso no instala Docker). En 22.04 convivían y versiones
+> anteriores de esta guía lo pedían; la persistencia de las reglas de
+> `DOCKER-USER` se resuelve ahora con la unidad de systemd de la sección 8.4,
+> que además es mejor: re-corre el script idempotente en cada arranque, así
+> las reglas siempre reflejan el script y no una foto guardada.
 
 ## 3. Security Groups (el firewall de AWS)
 
@@ -60,6 +81,17 @@ que el paquete llegue siquiera a la VM. La segunda capa (`ufw` + `DOCKER-USER`,
 sección 8) va dentro de la máquina. Las dos hacen falta: si un día alguien
 relaja un Security Group "un momento para probar", el firewall de dentro sigue
 protegiendo. Es defensa en profundidad.
+
+> ⚠️ AWS **prohíbe nombres de Security Group que empiecen por `sg-`** (es el
+> prefijo de sus IDs internos). En la consola real llámalos, por ejemplo,
+> `torneos-publica` y `torneos-privada`; aquí se mantienen los nombres
+> `sg-publica`/`sg-privada` como referencia conceptual.
+>
+> ⚠️ Si tu conexión de administración sale por **CGNAT** (la IP pública cambia
+> entre conexiones dentro de un mismo bloque), una regla `/32` te dejará fuera:
+> usa el rango del ISP (p. ej. `200.68.168.0/24`). Y ojo con el botón "My IP"
+> de la consola cuando tu navegador sale por IPv6: rellenaría una IPv6 que no
+> sirve en una VPC solo-IPv4 — escribe la IPv4 a mano (`curl -4 ifconfig.me`).
 
 **`sg-publica`** — entrada:
 
@@ -206,7 +238,64 @@ Usar `exec api1 alembic upgrade head` en este compose da
 limitado (`DB_APP_USER`), que no tiene permisos de DDL.
 
 **No correr el seed**: `APP_ENV=production` hace que aborte, y así debe ser. El
-primer superadmin se crea a mano.
+primer superadmin se crea a mano — y no es lo único: **la base nace sin los
+roles** (`jugador`, `entrenador`, `arbitro`, `superadmin`), porque también los
+insertaba el seed. El guion de abajo crea ambas cosas.
+
+### El primer superadmin (y los roles)
+
+Se corre en `api1`: su usuario limitado puede INSERTar filas — lo que no puede
+es DDL, que aquí no hace falta. Primero el guion a un archivo (pegar un heredoc
+multilínea directo en la terminal SSH suele corromperse; con `nano` no):
+
+```bash
+nano /tmp/crear_admin.py
+```
+
+```python
+import os
+from app.database import SessionLocal
+from app import models
+from app.security import hash_password
+
+db = SessionLocal()
+
+for nombre in ("jugador", "entrenador", "arbitro", "superadmin"):
+    if not db.query(models.Rol).filter_by(nombre=nombre).first():
+        db.add(models.Rol(nombre=nombre))
+db.commit()
+
+rol = db.query(models.Rol).filter_by(nombre="superadmin").first()
+correo = os.environ["ADMIN_CORREO"]
+if db.query(models.Usuario).filter_by(correo=correo).first():
+    print(f"Ya existe un usuario con {correo}; no se tocó nada.")
+else:
+    db.add(models.Usuario(
+        nombre=os.environ["ADMIN_NOMBRE"],
+        correo=correo,
+        password_hash=hash_password(os.environ["ADMIN_PASSWORD"]),
+        rol_id=rol.id,
+        activo=True,
+    ))
+    db.commit()
+    print(f"Superadmin {correo} creado.")
+db.close()
+```
+
+Y ejecutarlo — **con un espacio al principio del comando**, para que bash no
+guarde la contraseña en el historial (`HISTCONTROL=ignoreboth`, el default de
+Ubuntu):
+
+```bash
+ docker compose -f docker-compose.privado.yml exec -T \
+  -e ADMIN_NOMBRE="Nombre Apellido" \
+  -e ADMIN_CORREO="admin@tudominio.com" \
+  -e ADMIN_PASSWORD="una-contraseña-fuerte" \
+  api1 python - < /tmp/crear_admin.py
+rm /tmp/crear_admin.py
+```
+
+Es idempotente: si el correo ya existe, no toca nada.
 
 ### Documentos subidos: un volumen compartido por las dos réplicas
 
@@ -401,10 +490,39 @@ Lo que deja aplicado:
   la autodetección falla, pásala a mano:
   `sudo INTERFAZ=eth0 ADMIN_IP=... ./infra/firewall/configurar-firewall.sh publica`.
 - **Persistencia**: las reglas de `iptables` viven en memoria y un reinicio de la
-  VM se las lleva. El script las guarda con `netfilter-persistent` al terminar,
-  pero eso requiere el paquete **`iptables-persistent`** (sección 2). Si no está,
-  el script avisa: `Las reglas de DOCKER-USER se PERDERÁN al reiniciar`. Instala
-  el paquete o vuelve a correr el script tras cada reinicio.
+  VM se las lleva. En Ubuntu 22.04 el script las guardaba con
+  `netfilter-persistent`; **en 24.04 ese paquete es incompatible con `ufw`**
+  (sección 2), así que el script avisará
+  `Las reglas de DOCKER-USER se PERDERÁN al reiniciar` — es esperado, y lo
+  resuelve una unidad de systemd que re-corre el script (idempotente) en cada
+  arranque, después de Docker. En **cada** VM, con su rol y su variable:
+
+  ```bash
+  # EC2 pública (con ADMIN_IP); en la privada: Environment=IP_PUBLICA_PRIVADA=10.0.1.10
+  # y ExecStart=... privada
+  sudo tee /etc/systemd/system/torneos-firewall.service > /dev/null <<'EOF'
+  [Unit]
+  Description=Reaplica el firewall de torneos tras el arranque
+  Requires=docker.service
+  After=docker.service
+
+  [Service]
+  Type=oneshot
+  Environment=ADMIN_IP=<TU_IP_PUBLICA>
+  ExecStart=/home/ubuntu/sistema-futbol/infra/firewall/configurar-firewall.sh publica
+
+  [Install]
+  WantedBy=multi-user.target
+  EOF
+  sudo systemctl daemon-reload
+  sudo systemctl enable torneos-firewall.service   # debe responder: Created symlink
+  ```
+
+  `systemctl status` la mostrará `inactive (dead)`: es normal en una `oneshot`
+  — solo corre al arrancar. Verificación: `systemctl is-enabled
+  torneos-firewall.service` → `enabled`. Ventaja sobre `netfilter-persistent`:
+  las reglas restauradas siempre reflejan el script actual, no una foto
+  guardada de otro momento.
 - Un reinicio de **Docker** sí es seguro: `DOCKER-USER` es precisamente la cadena
   que Docker respeta y nunca reescribe.
 
@@ -637,6 +755,16 @@ diferencia entre "no pasó nada" y "algo se está cayendo cada noche".
 Mientras no hay dominio, el certificado es autofirmado: **cifra de verdad**, pero
 el navegador avisa de que no puede verificar la identidad. Con un dominio
 apuntando a la Elastic IP, se sustituye por uno real y gratuito de Let's Encrypt.
+
+> **Atajo si el dominio está gestionado en Cloudflare**: un registro **A** hacia
+> la Elastic IP con el **proxy activado** (nube naranja) y el modo SSL/TLS en
+> **"Full"** da candado válido al visitante sin tocar el origen — Cloudflare
+> pone su certificado en el borde y acepta el autofirmado del origen ("Full
+> strict" no lo aceptaría). Suficiente para el navegador **y para la app móvil**
+> (React Native rechaza autofirmados). El procedimiento de Let's Encrypt de
+> abajo sigue siendo el camino sin intermediario, y el único que cifra
+> extremo a extremo con identidad verificada también entre Cloudflare y el
+> origen.
 
 ### Cómo encajan las piezas
 
