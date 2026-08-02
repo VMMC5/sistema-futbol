@@ -69,7 +69,7 @@ def test_flujo_aceptacion_completo(client, auth_admin, monkeypatch):
     # Capturar el correo (en vez de enviarlo) para extraer la contraseña temporal
     import app.routers.solicitudes as sol
     capturado = {}
-    monkeypatch.setattr(sol, "enviar_correo",
+    monkeypatch.setattr(sol, "enviar_correo_seguro",
                         lambda destinatario, asunto, cuerpo: capturado.update(cuerpo=cuerpo))
 
     sid = client.post("/solicitudes",
@@ -103,7 +103,7 @@ def test_flujo_aceptacion_completo(client, auth_admin, monkeypatch):
 
 def test_aceptar_dos_veces_falla(client, auth_admin, monkeypatch):
     import app.routers.solicitudes as sol
-    monkeypatch.setattr(sol, "enviar_correo", lambda destinatario, asunto, cuerpo: None)
+    monkeypatch.setattr(sol, "enviar_correo_seguro", lambda destinatario, asunto, cuerpo: None)
 
     sid = client.post("/solicitudes",
                       data={"nombre": "Doble", "correo": "doble@demo.com", "rol_solicitado": "entrenador"},
@@ -115,7 +115,7 @@ def test_aceptar_dos_veces_falla(client, auth_admin, monkeypatch):
 
 def test_rechazar_solicitud(client, auth_admin, monkeypatch):
     import app.routers.solicitudes as sol
-    monkeypatch.setattr(sol, "enviar_correo", lambda destinatario, asunto, cuerpo: None)
+    monkeypatch.setattr(sol, "enviar_correo_seguro", lambda destinatario, asunto, cuerpo: None)
 
     sid = client.post("/solicitudes",
                       data={"nombre": "Rechazo", "correo": "rechazo@demo.com", "rol_solicitado": "arbitro"},
