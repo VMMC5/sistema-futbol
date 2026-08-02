@@ -91,3 +91,42 @@ def test_publico_inicio_sin_token(client):
     assert r.status_code == 200
     cuerpo = r.json()
     assert "proximos_partidos" in cuerpo and "torneos_activos" in cuerpo and "goleadores_top" in cuerpo
+
+
+def test_aceptar_encola_correo_con_credenciales(client, auth_admin, monkeypatch):
+    import app.routers.solicitudes as mod
+    monkeypatch.setattr(mod.secrets, "token_urlsafe", lambda n=9: "TempCorreo789")
+    enviados = []
+    monkeypatch.setattr(
+        mod, "enviar_correo_seguro",
+        lambda destinatario, asunto, cuerpo: enviados.append((destinatario, asunto, cuerpo)),
+    )
+
+    sid = _crear_solicitud(client, correo="correo.real@demo.com").json()["id"]
+    r = client.post(f"/solicitudes/{sid}/aceptar", headers=auth_admin)
+    assert r.status_code == 200
+
+    # TestClient ejecuta los background tasks antes de devolver la respuesta
+    assert len(enviados) == 1
+    destinatario, _asunto, cuerpo = enviados[0]
+    assert destinatario == "correo.real@demo.com"
+    assert "TempCorreo789" in cuerpo
+
+
+def test_aceptar_sobrevive_a_fallo_de_correo(client, auth_admin, monkeypatch):
+    # Se rompe enviar_correo (la capa interna): enviar_correo_seguro debe atrapar
+    from app import email_utils
+
+    def _smtp_caido(*args, **kwargs):
+        raise RuntimeError("smtp caído")
+
+    monkeypatch.setattr(email_utils, "enviar_correo", _smtp_caido)
+
+    sid = _crear_solicitud(client, correo="sin.correo@demo.com").json()["id"]
+    r = client.post(f"/solicitudes/{sid}/aceptar", headers=auth_admin)
+    assert r.status_code == 200 and r.json()["estado"] == "aceptada"
+
+    # El usuario quedó creado pese al fallo del correo: una nueva solicitud
+    # con ese correo choca con "Ese correo ya tiene una cuenta".
+    r2 = _crear_solicitud(client, correo="sin.correo@demo.com")
+    assert r2.status_code == 400

@@ -14,6 +14,7 @@ import uuid
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     Form,
@@ -28,7 +29,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import audit, models
 from app.deps import require_roles
-from app.email_utils import enviar_correo
+from app.email_utils import enviar_correo_seguro
 from app.schemas import RechazoSolicitud, SolicitudOut
 from app.security import hash_password
 
@@ -122,6 +123,7 @@ def ver_documento(
 @router.post("/{solicitud_id}/aceptar", response_model=SolicitudOut)
 def aceptar_solicitud(
     solicitud_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
@@ -157,8 +159,10 @@ def aceptar_solicitud(
         detalle=f"usuario_creado={usuario.id} rol={rol.nombre}",
     )
 
-    # Correo con las credenciales temporales
-    enviar_correo(
+    # Correo con las credenciales temporales — en background y best-effort:
+    # la aceptación ya quedó firme; un SMTP caído no debe convertirla en 500.
+    background_tasks.add_task(
+        enviar_correo_seguro,
         destinatario=solicitud.correo,
         asunto="Tu cuenta en el Sistema de Torneos ha sido aprobada",
         cuerpo=(
@@ -180,6 +184,7 @@ def aceptar_solicitud(
 def rechazar_solicitud(
     solicitud_id: int,
     datos: RechazoSolicitud,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
@@ -197,7 +202,8 @@ def rechazar_solicitud(
         audit.SOLICITUD_RECHAZADA, actor_id=_admin.id, objetivo=solicitud.id,
     )
 
-    enviar_correo(
+    background_tasks.add_task(
+        enviar_correo_seguro,
         destinatario=solicitud.correo,
         asunto="Sobre tu solicitud en el Sistema de Torneos",
         cuerpo=(
