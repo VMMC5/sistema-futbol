@@ -185,6 +185,22 @@ SECRET_KEY=<generar: openssl rand -hex 32>
 `DB_NAME` ya viene con el valor por defecto (`torneos`) en `.env.example`; no
 hace falta tocarlo salvo que quieras otro nombre.
 
+El correo saliente (credenciales de entrenadores/árbitros aprobados o
+rechazados) es opcional pero recomendado: sin las `SMTP_*` los correos solo se
+imprimen en el log de la API. Con una cuenta gratuita de Brevo (300/día) y el
+dominio autenticado (Brevo da los registros de verificación y DKIM; se agregan
+en Cloudflare como **DNS only**), se añaden al mismo `.env`:
+
+    SMTP_HOST=smtp-relay.brevo.com
+    SMTP_PORT=587
+    SMTP_USER=<login SMTP de Brevo>
+    SMTP_PASSWORD=<clave SMTP de Brevo>
+    SMTP_FROM=Sistema de Torneos <no-reply@sistemafutbol.com>
+
+El envío sale de las réplicas de la API por el NAT (puerto 587): no hay que
+tocar Security Groups. Tras editar el `.env`, recrear los contenedores con
+`up -d` (no hace falta rebuild).
+
 Que las `DB_ADMIN_*` estén en el `.env` **no** significa que acaben en todos los
 contenedores: ningún servicio de `docker-compose.privado.yml` usa `env_file`, que
 volcaría el fichero entero en el entorno de cada uno. Cada servicio enumera las

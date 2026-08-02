@@ -8,9 +8,16 @@ de modo que el flujo completo funcione sin credenciales.
 Variables de entorno (opcionales):
     SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
 """
+import logging
 import os
 import smtplib
 from email.message import EmailMessage
+
+logger = logging.getLogger(__name__)
+
+# Segundos máximos esperando al servidor SMTP. Sin esto, un SMTP colgado
+# congela la petición (o el background task) indefinidamente.
+SMTP_TIMEOUT = 10
 
 
 def enviar_correo(destinatario: str, asunto: str, cuerpo: str) -> None:
@@ -34,9 +41,22 @@ def enviar_correo(destinatario: str, asunto: str, cuerpo: str) -> None:
     mensaje.set_content(cuerpo)
 
     puerto = int(os.getenv("SMTP_PORT", "587"))
-    with smtplib.SMTP(host, puerto) as servidor:
+    with smtplib.SMTP(host, puerto, timeout=SMTP_TIMEOUT) as servidor:
         servidor.starttls()
         usuario = os.getenv("SMTP_USER")
         if usuario:
             servidor.login(usuario, os.getenv("SMTP_PASSWORD", ""))
         servidor.send_message(mensaje)
+
+
+def enviar_correo_seguro(destinatario: str, asunto: str, cuerpo: str) -> None:
+    """Variante best-effort para BackgroundTasks: nunca propaga.
+
+    Si el envío falla, el error se loguea SIN el destinatario ni el cuerpo
+    (el cuerpo puede llevar una contraseña temporal); la operación que lo
+    encoló (p. ej. aceptar una solicitud) ya quedó firme en la BD.
+    """
+    try:
+        enviar_correo(destinatario, asunto, cuerpo)
+    except Exception as exc:  # consciente: best-effort, igual que enviar_push
+        logger.error("Fallo el envio de correo '%s': %s", asunto, type(exc).__name__)
