@@ -56,7 +56,7 @@ Decisiones de seguridad clave:
 
 **Programación móvil**: app de utilidad real (no copia de la web), diseño profesional, navegación clara, **validación de datos en TODAS las interfaces que escriben a la BD**, API propia con BD, y **web+API+BD en la nube**.
 
-**Seguridad informática**: hasheo y encriptación demostrables (bcrypt + JWT ✔), **dos servidores público/privado** ✔, **monitoreo** ✔ (Kuma), **firewall aplicado Y monitoreado** ✔ (ufw + fail2ban), **JWT** ✔, **certificado SSL** ✔ (autofirmado; candado real pendiente de Cloudflare), **balanceador de carga** ✔ (nginx → api1/api2).
+**Seguridad informática**: hasheo y encriptación demostrables (bcrypt + JWT ✔), **dos servidores público/privado** ✔, **monitoreo** ✔ (Kuma), **firewall aplicado Y monitoreado** ✔ (ufw + fail2ban), **JWT** ✔, **certificado SSL** ✔ (Let's Encrypt real para `sistemafutbol.com`, con renovación automática), **balanceador de carga** ✔ (nginx → api1/api2).
 
 **Los 6 requisitos están cubiertos y corriendo en la nube.**
 
@@ -66,7 +66,8 @@ Decisiones de seguridad clave:
 - EC2: `torneos-publica` t3.small `10.0.1.10` con **Elastic IP `34.233.0.157`**; `torneos-privada` t3.medium `10.0.2.10` sin IP pública. Ambas **Ubuntu 24.04**.
 - SSH vía `~/.ssh/config` con hosts `torneos-publica` y `torneos-privada` (ProxyJump por el bastión público); llave `torneos-llave.pem`.
 - Security Groups restringen 22/8443 a la IP de administración del usuario (`187.243.210.132`; si cambia de red hay que editar las 2 reglas y `ADMIN_IP`).
-- Batería final de verificación en verde: health E2E, redirección 301, HSTS única, API y Postgres inalcanzables en directo. Kuma con 4 monitores verdes en `https://34.233.0.157:8443`.
+- **Dominio: `sistemafutbol.com`** (Cloudflare Registrar; registro A `@` → Elastic IP, **DNS only** — sin proxy). Certificado **Let's Encrypt** emitido el 2026-08-02 (sección 11 de `DESPLIEGUE.md`); el 8443 sirve el mismo. Renovación: cron diario de root a las 3:00 con `infra/nginx/renovar-certificado.sh` (⚠️ el script necesita `sudo`: certbot deja `live/` como root 0700), log en `/var/log/certbot-renovacion.log`.
+- Batería final de verificación en verde: health E2E, redirección 301, HSTS única, API y Postgres inalcanzables en directo. Kuma con 4 monitores verdes en `https://sistemafutbol.com:8443`.
 - Superadmin de producción: `vikcaballero86@gmail.com` (la BD nace sin roles porque el seed aborta en producción; se creó con guion Python vía `docker compose exec api1`).
 - Costo: ~$2.5–3 USD/día (NAT + 2 EC2). Pausar = Stop de las EC2 (el NAT sigue cobrando salvo borrarlo).
 
@@ -80,9 +81,10 @@ Decisiones de seguridad clave:
 ## 6. Estado actual y pendientes
 
 ### Pendiente inmediato
-1. **Dominio + certificado real**: el profesor configurará un subdominio en Cloudflare (registro A → 34.233.0.157, proxy ON, SSL modo **"Full"**, no strict). Eso da el candado del navegador **y desbloquea la app móvil contra producción** (React Native no acepta certificados autofirmados). Alternativa: Let's Encrypt (sección 11 de DESPLIEGUE.md).
-2. **Tarea de clase ED.03.02 (JWT + SSL)**: evidencias capturadas y `ED0302-JWT-SSL.docx` generado en Downloads; solo falta la Figura 5 (candado), que llega con el subdominio.
-3. Probar la app móvil contra producción vía `EXPO_PUBLIC_API_URL` cuando exista el dominio.
+**Nada bloqueante — el sistema está completo en producción (2026-08-02).** El dominio `sistemafutbol.com` con Let's Encrypt cerró lo último que faltaba, con sus tres remates:
+- Monitor E2E de Kuma reapuntado a `https://sistemafutbol.com/api/health`, sin "Ignore TLS" y con aviso de caducidad del certificado.
+- **App móvil validada contra producción** con `EXPO_PUBLIC_API_URL=https://sistemafutbol.com/api` (con `/api` y sin barra final — nginx quita el prefijo; para builds EAS la variable va en `eas.json` o como secret, no en `.env`).
+- Candado disponible para la Figura 5 del `ED0302-JWT-SSL.docx` (tarea ED.03.02).
 
 ### Deuda técnica abierta (por prioridad)
 - **Lock de fila (`with_for_update`) en la guardia del doble pago** — con 2 réplicas de API la carrera es real (el 2º commit da 500 en vez de 409).
