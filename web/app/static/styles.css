@@ -332,3 +332,40 @@ table { width: 100%; border-collapse: collapse; }
 .evgrupo .l { text-align: right; } .evgrupo .r { text-align: left; }
 .evgrupo .i { display: flex; align-items: center; justify-content: center; }
 .evgrupo .event-min { font-family: "Bebas Neue", sans-serif; font-size: 13px; color: var(--lime); margin-left: 4px; }
+
+/* ---------- Llaves (bracket de eliminación) ---------- */
+/* Doble lado con la final al centro. Las columnas van en flex y cada pareja
+   de tarjetas lleva un conector dibujado con bordes (::after) hacia el centro:
+   variante .izq abre a la derecha y .der (espejo) a la izquierda. Cero JS. */
+.bracket-wrap { overflow-x: auto; padding-bottom: 12px; }
+.bracket { display: flex; gap: 34px; align-items: stretch; min-width: max-content; }
+.br-col { display: flex; flex-direction: column; min-width: 200px; }
+.br-titulo { text-align: center; font-size: 12px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.br-par { position: relative; flex: 1; display: flex; flex-direction: column;
+  justify-content: space-around; gap: 14px; padding: 10px 0; }
+/* Conector: abraza a la pareja y estira una guía hacia la siguiente columna. */
+.br-par.izq::after, .br-par.der::after { content: ""; position: absolute;
+  top: 25%; bottom: 25%; width: 16px; border: 2px solid var(--line); }
+.br-par.izq::after { right: -25px; border-left: none; border-radius: 0 8px 8px 0; }
+.br-par.der::after { left: -25px; border-right: none; border-radius: 8px 0 0 8px; }
+.br-par.br-solo::after { border-top: none; border-bottom: none; border-radius: 0;
+  top: 50%; bottom: auto; height: 2px; border-width: 1px; }
+.br-card { background: linear-gradient(180deg, var(--pitch-700), var(--pitch-800));
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3); }
+.br-fecha { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.br-fila { display: flex; justify-content: space-between; gap: 10px;
+  font-size: 13px; padding: 2px 0; color: var(--muted); }
+.br-jugado .br-fila.br-gana { color: var(--chalk); font-weight: 800; }
+.br-gol { font-family: "Bebas Neue", sans-serif; font-size: 16px; min-width: 14px;
+  text-align: right; }
+.br-fila.br-gana .br-gol { color: var(--lime); }
+.br-bye { border-style: dashed; opacity: 0.85; }
+.br-pase { font-size: 11px; color: var(--muted); letter-spacing: 0.08em;
+  text-transform: uppercase; margin-top: 2px; }
+.br-centro { justify-content: center; min-width: 220px; }
+.br-centro .br-card { border-color: rgba(198, 255, 0, 0.35); }
+.br-campeon { text-align: center; font-family: "Bebas Neue", sans-serif;
+  font-size: 22px; color: var(--lime); margin-bottom: 10px; letter-spacing: 0.05em; }
+.br-pendiente { text-align: center; color: var(--muted); font-size: 13px; }
