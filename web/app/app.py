@@ -349,7 +349,13 @@ def sedes():
     r = api_get("/sedes")
     if r.status_code == 401:
         return _sesion_expirada()
-    return render_template("sedes.html", sedes=r.json() if r.status_code == 200 else [])
+    lista = r.json() if r.status_code == 200 else []
+    # La API no filtra por ciudad; con ~10 sedes se filtra aquí mismo.
+    ciudades = sorted({s["ciudad"] for s in lista if s.get("ciudad")})
+    ciudad = request.args.get("ciudad", "")
+    if ciudad:
+        lista = [s for s in lista if s.get("ciudad") == ciudad]
+    return render_template("sedes.html", sedes=lista, ciudades=ciudades, ciudad=ciudad)
 
 
 @app.route("/sedes/nueva", methods=["GET", "POST"])
@@ -418,10 +424,15 @@ TIPOS_CANCHA = ["futbol 5", "futbol 7", "futbol 11"]
 @app.route("/canchas")
 @login_required
 def canchas():
-    r = api_get("/canchas")
+    sede_id = request.args.get("sede_id", "")
+    r = api_get("/canchas", **({"sede_id": sede_id} if sede_id else {}))
     if r.status_code == 401:
         return _sesion_expirada()
-    return render_template("canchas.html", canchas=r.json() if r.status_code == 200 else [])
+    rs = api_get("/sedes")
+    sedes_lista = rs.json() if rs.status_code == 200 else []
+    return render_template("canchas.html",
+                           canchas=r.json() if r.status_code == 200 else [],
+                           sedes=sedes_lista, sede_id=sede_id)
 
 
 @app.route("/canchas/nueva", methods=["GET", "POST"])
@@ -509,11 +520,20 @@ def _form_cancha():
 @app.route("/usuarios")
 @login_required
 def usuarios():
-    r = api_get("/usuarios")
+    # Filtros combinables: rol y activo (vacío = todos; el select los persiste)
+    filtros = {}
+    rol = request.args.get("rol", "")
+    activo = request.args.get("activo", "")
+    if rol:
+        filtros["rol"] = rol
+    if activo:
+        filtros["activo"] = activo
+    r = api_get("/usuarios", **filtros)
     if r.status_code == 401:
         return _sesion_expirada()
     return render_template("usuarios.html",
                            usuarios=r.json() if r.status_code == 200 else [],
+                           rol=rol, activo=activo,
                            yo_id=(session.get("usuario") or {}).get("id"))
 
 
@@ -606,10 +626,13 @@ def _listar_roles():
 @app.route("/partidos")
 @login_required
 def partidos():
-    r = api_get("/partidos")
+    estado = request.args.get("estado", "")
+    r = api_get("/partidos", **({"estado": estado} if estado else {}))
     if r.status_code == 401:
         return _sesion_expirada()
-    return render_template("partidos.html", partidos=r.json() if r.status_code == 200 else [])
+    return render_template("partidos.html",
+                           partidos=r.json() if r.status_code == 200 else [],
+                           estado=estado)
 
 
 @app.route("/partidos/<int:partido_id>")
@@ -700,7 +723,12 @@ def reservas():
     r = api_get("/reservas")
     if r.status_code == 401:
         return _sesion_expirada()
-    return render_template("reservas.html", reservas=r.json() if r.status_code == 200 else [])
+    lista = r.json() if r.status_code == 200 else []
+    # La API no filtra reservas por estado; se filtra aquí mismo.
+    estado = request.args.get("estado", "")
+    if estado:
+        lista = [x for x in lista if x.get("estado") == estado]
+    return render_template("reservas.html", reservas=lista, estado=estado)
 
 
 @app.route("/reservas/<int:reserva_id>/<accion>", methods=["POST"])

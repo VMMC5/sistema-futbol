@@ -6,6 +6,16 @@
 {% block content %}
 <div class="section-head"><h2>Listado</h2></div>
 
+<form method="get" class="filter-bar">
+  <label for="estado">Estado:</label>
+  <select id="estado" name="estado" data-autosubmit>
+    <option value="">Todos</option>
+    {% for op in ['programado', 'en_juego', 'finalizado'] %}
+    <option value="{{ op }}" {{ 'selected' if estado == op }}>{{ op | replace('_', ' ') | capitalize }}</option>
+    {% endfor %}
+  </select>
+</form>
+
 {% if partidos %}
 <div class="panel-table">
   <table>

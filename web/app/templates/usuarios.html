@@ -9,6 +9,22 @@
   <a href="{{ url_for('usuario_nuevo') }}" class="btn">+ Nuevo usuario</a>
 </div>
 
+<form method="get" class="filter-bar">
+  <label for="rol">Rol:</label>
+  <select id="rol" name="rol" data-autosubmit>
+    <option value="">Todos</option>
+    {% for op in ['superadmin', 'entrenador', 'arbitro', 'jugador'] %}
+    <option value="{{ op }}" {{ 'selected' if rol == op }}>{{ op | capitalize }}</option>
+    {% endfor %}
+  </select>
+  <label for="activo">Estado:</label>
+  <select id="activo" name="activo" data-autosubmit>
+    <option value="">Todos</option>
+    <option value="true" {{ 'selected' if activo == 'true' }}>Activos</option>
+    <option value="false" {{ 'selected' if activo == 'false' }}>Inactivos</option>
+  </select>
+</form>
+
 {% if usuarios %}
 <div class="panel-table">
   <table>

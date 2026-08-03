@@ -6,6 +6,16 @@
 {% block content %}
 <div class="section-head"><h2>Todas las reservas</h2></div>
 
+<form method="get" class="filter-bar">
+  <label for="estado">Estado:</label>
+  <select id="estado" name="estado" data-autosubmit>
+    <option value="">Todas</option>
+    {% for op in ['pendiente', 'confirmada', 'cancelada'] %}
+    <option value="{{ op }}" {{ 'selected' if estado == op }}>{{ op | capitalize }}</option>
+    {% endfor %}
+  </select>
+</form>
+
 {% if reservas %}
 <div class="panel-table">
   <table>
