@@ -9,13 +9,16 @@ Reglas de acceso:
 - Consultar (GET): cualquier usuario autenticado.
 - Crear/editar/eliminar: solo 'superadmin'.
 """
+import random
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import models, notificaciones_service
+from app import models, notificaciones_service, calendario
 from app.deps import get_current_user, require_roles
-from app.schemas import TorneoCreate, TorneoOut, TorneoUpdate
+from app.schemas import TorneoCreate, TorneoOut, TorneoUpdate, TorneoIniciar, TorneoSiguienteRonda
 
 router = APIRouter()
 
@@ -114,3 +117,74 @@ def eliminar_torneo(
     db.delete(torneo)
     db.commit()
     # 204: sin cuerpo de respuesta
+
+
+TIPOS_INICIABLES = ("liga", "eliminacion directa")
+
+
+def _canchas_de_la_sede(db: Session, torneo: models.Torneo) -> list[int]:
+    return [c.id for c in (db.query(models.Cancha)
+                           .filter_by(sede_id=torneo.sede_id)
+                           .order_by(models.Cancha.id).all())]
+
+
+def _crear_partidos(db, torneo, jornadas, base, canchas, primera_jornada=1):
+    """Inserta las jornadas; semanas consecutivas, +2h por partido de jornada."""
+    creados = 0
+    for nj, jornada in enumerate(jornadas):
+        for np_, (local, visita) in enumerate(jornada):
+            db.add(models.Partido(
+                torneo_id=torneo.id,
+                equipo_local_id=local, equipo_visitante_id=visita,
+                cancha_id=canchas[creados % len(canchas)] if canchas else None,
+                fecha_hora=base + timedelta(weeks=nj, hours=2 * np_),
+                estado="programado", jornada=primera_jornada + nj,
+            ))
+            creados += 1
+    return creados
+
+
+@router.post("/{torneo_id}/iniciar")
+def iniciar_torneo(
+    torneo_id: int,
+    datos: TorneoIniciar,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _admin: models.Usuario = Depends(require_roles("superadmin")),
+):
+    torneo = _obtener_torneo(db, torneo_id)
+    if torneo.estado != "programado":
+        raise HTTPException(status_code=409, detail="Solo se puede iniciar un torneo programado")
+    tipo = calendario.normalizar_tipo(torneo.tipo)
+    if tipo not in TIPOS_INICIABLES:
+        raise HTTPException(
+            status_code=400,
+            detail="El tipo del torneo debe ser 'liga' o 'eliminación directa'")
+    inscripciones = (db.query(models.Inscripcion)
+                     .filter_by(torneo_id=torneo.id, estado="aceptada").all())
+    equipos = [i.equipo_id for i in inscripciones]
+    if len(equipos) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Se necesitan al menos 2 equipos con inscripción aceptada")
+
+    base = datetime.combine(datos.primera_fecha, datos.hora_base, tzinfo=timezone.utc)
+    if tipo == "liga":
+        jornadas = calendario.generar_liga(equipos)
+    else:
+        # Los byes no se guardan: se derivan (aceptados que no juegan la ronda 1).
+        _byes, parejas = calendario.generar_ronda_eliminacion(equipos, random.Random())
+        jornadas = [parejas]
+
+    creados = _crear_partidos(db, torneo, jornadas, base, _canchas_de_la_sede(db, torneo))
+    torneo.estado = "en_curso"
+    db.commit()
+
+    # UNA notificación por entrenador (no por partido: serían cientos).
+    entrenadores = {db.get(models.Equipo, eid).entrenador_id for eid in equipos}
+    for uid in entrenadores:
+        notificaciones_service.crear_notificacion(
+            db, uid, "Torneo iniciado",
+            f"{torneo.nombre} comenzó: revisa tu calendario.", background_tasks)
+    db.commit()
+    return {"torneo_id": torneo.id, "estado": torneo.estado, "partidos_creados": creados}
