@@ -142,6 +142,9 @@ def _tipo_normalizado(tipo):
 # ----------------------------------------------------------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # Las credenciales demo del seed solo se muestran en desarrollo: en
+    # producción el seed ni corre y enseñarlas es mala señal.
+    mostrar_hint = os.getenv("FLASK_ENV") == "development"
     if request.method == "POST":
         correo = request.form.get("correo", "").strip()
         password = request.form.get("password", "")
@@ -153,11 +156,11 @@ def login():
             )
         except requests.RequestException:
             flash("No se pudo conectar con la API. ¿Está corriendo?", "error")
-            return render_template("login.html")
+            return render_template("login.html", mostrar_hint=mostrar_hint)
 
         if r.status_code != 200:
             flash("Correo o contraseña incorrectos.", "error")
-            return render_template("login.html")
+            return render_template("login.html", mostrar_hint=mostrar_hint)
 
         token = r.json()["access_token"]
         me = requests.get(
@@ -169,13 +172,13 @@ def login():
         # El panel es solo para administradores
         if me.get("rol") != "superadmin":
             flash("Este panel es solo para administradores.", "error")
-            return render_template("login.html")
+            return render_template("login.html", mostrar_hint=mostrar_hint)
 
         session["token"] = token
         session["usuario"] = me
         return redirect(url_for("dashboard"))
 
-    return render_template("login.html")
+    return render_template("login.html", mostrar_hint=mostrar_hint)
 
 
 @app.route("/logout")
