@@ -220,6 +220,9 @@ class Partido(Base):
     goles_local = Column(Integer, default=0)
     goles_visitante = Column(Integer, default=0)
     estado = Column(String(20), default="programado")  # programado, en_juego, finalizado
+    # Nº de jornada (liga) o de ronda (eliminación). NULL en partidos creados
+    # a mano o anteriores a esta columna.
+    jornada = Column(Integer)
     acta_firmada = Column(Boolean, default=False, nullable=False)
     acta_firmada_en = Column(DateTime(timezone=True))
 

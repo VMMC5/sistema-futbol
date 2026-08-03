@@ -3,7 +3,8 @@ Esquemas Pydantic: definen y validan la forma de los datos que entran y
 salen de la API. La validación en el servidor es la barrera real de seguridad
 (la del cliente solo mejora la experiencia).
 """
-from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime, date, time
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 # ---------- Registro ----------
@@ -43,8 +44,6 @@ class Token(BaseModel):
 # ======================================================================
 #  TORNEOS  (plantilla de CRUD para replicar en otros modulos)
 # ======================================================================
-from datetime import datetime, date
-from pydantic import model_validator
 
 _ESTADOS_TORNEO = "^(programado|en_curso|finalizado)$"
 
@@ -95,10 +94,19 @@ class TorneoOut(TorneoBase):
     model_config = {"from_attributes": True}
 
 
+class TorneoIniciar(BaseModel):
+    primera_fecha: date
+    hora_base: time
+
+
+class TorneoSiguienteRonda(BaseModel):
+    fecha: date
+    hora_base: time
+
+
 # ======================================================================
 #  RESERVAS  (incluye la regla de no solapar horarios en una cancha)
 # ======================================================================
-from datetime import date, time
 
 _ESTADOS_RESERVA = "^(pendiente|confirmada|cancelada)$"
 
@@ -182,6 +190,7 @@ class PartidoOut(BaseModel):
     goles_local: int
     goles_visitante: int
     estado: str
+    jornada: int | None = None
     acta_firmada: bool = False
 
     model_config = {"from_attributes": True}

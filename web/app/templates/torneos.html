@@ -29,6 +29,11 @@
         <td>{{ t.sede_nombre or ('Sede #' ~ t.sede_id) }}</td>
         <td class="num">{{ t.cupo_maximo if t.cupo_maximo else '—' }}</td>
         <td style="text-align:right;">
+          {% if t.estado == 'programado' %}
+          <a href="{{ url_for('torneo_iniciar', torneo_id=t.id) }}" class="btn" style="padding:7px 14px;">Iniciar torneo</a>
+          {% elif t.estado == 'en_curso' and t.es_eliminacion %}
+          <a href="{{ url_for('torneo_siguiente_ronda', torneo_id=t.id) }}" class="btn" style="padding:7px 14px;">Siguiente ronda</a>
+          {% endif %}
           <a href="{{ url_for('tabla', torneo_id=t.id) }}" class="btn ghost" style="padding:7px 14px;">Tabla</a>
         </td>
       </tr>

@@ -17,7 +17,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app import campo, eventos_resumen, models, notificaciones_service
+from app import calendario, campo, eventos_resumen, models, notificaciones_service
 from app.deps import es_admin, get_current_user, require_roles
 from app.schemas import (
     AlineacionCreate,
@@ -91,6 +91,24 @@ def _avisar_partido(db, background_tasks, titulo: str, mensaje: str, usuario_ids
         notificaciones_service.crear_notificacion(db, uid, titulo, mensaje, background_tasks)
 
 
+def _arbitro_ocupado(db, arbitro_id, fecha_hora, excluir_id=None) -> bool:
+    """True si el árbitro ya tiene OTRO partido no finalizado a esa hora exacta."""
+    if not arbitro_id or not fecha_hora:
+        return False
+    if fecha_hora.tzinfo is None:
+        # Mismo criterio que _misma_fecha: un naive se asume UTC, para no
+        # comparar en falso contra fechas guardadas con zona.
+        fecha_hora = fecha_hora.replace(tzinfo=timezone.utc)
+    q = db.query(models.Partido).filter(
+        models.Partido.arbitro_id == arbitro_id,
+        models.Partido.fecha_hora == fecha_hora,
+        models.Partido.estado != "finalizado",
+    )
+    if excluir_id is not None:
+        q = q.filter(models.Partido.id != excluir_id)
+    return db.query(q.exists()).scalar()
+
+
 # ======================================================================
 #  Gestión del calendario (superadmin)
 # ======================================================================
@@ -113,6 +131,10 @@ def crear_partido(
         arbitro = db.get(models.Usuario, datos.arbitro_id)
         if arbitro is None or arbitro.rol.nombre != "arbitro":
             raise HTTPException(status_code=400, detail="El árbitro indicado no es válido")
+
+    if _arbitro_ocupado(db, datos.arbitro_id, datos.fecha_hora):
+        raise HTTPException(status_code=409,
+                            detail="El árbitro ya tiene un partido a esa hora")
 
     partido = models.Partido(**datos.model_dump(), estado="programado")
     db.add(partido)
@@ -154,6 +176,13 @@ def actualizar_partido(
     if "cancha_id" in cambios and cambios["cancha_id"] is not None:
         if db.get(models.Cancha, cambios["cancha_id"]) is None:
             raise HTTPException(status_code=400, detail="La cancha no existe")
+
+    arbitro_final = cambios.get("arbitro_id", partido.arbitro_id)
+    fecha_final = cambios.get("fecha_hora", partido.fecha_hora)
+    if ("arbitro_id" in cambios or "fecha_hora" in cambios) and _arbitro_ocupado(
+            db, arbitro_final, fecha_final, excluir_id=partido.id):
+        raise HTTPException(status_code=409,
+                            detail="El árbitro ya tiene un partido a esa hora")
 
     for campo, valor in cambios.items():
         setattr(partido, campo, valor)
@@ -226,6 +255,33 @@ def ver_partido(
     return _obtener_partido(db, partido_id)
 
 
+@router.get("/{partido_id}/arbitros-disponibles")
+def arbitros_disponibles(
+    partido_id: int,
+    db: Session = Depends(get_db),
+    _admin: models.Usuario = Depends(require_roles("superadmin")),
+):
+    """Árbitros activos sin choque con la fecha/hora de este partido.
+    El propio árbitro asignado siempre aparece (para mostrarlo elegido)."""
+    partido = _obtener_partido(db, partido_id)
+    arbitros = (db.query(models.Usuario)
+                .join(models.Rol, models.Usuario.rol_id == models.Rol.id)
+                .filter(models.Rol.nombre == "arbitro",
+                        models.Usuario.activo.is_(True))
+                .order_by(models.Usuario.nombre).all())
+    # El filtro activo=True excluye a un árbitro asignado que luego se
+    # desactivó: sin este añadido, el propio docstring de arriba mentiría y el
+    # panel mostraría el partido sin árbitro elegido.
+    if partido.arbitro_id and not any(a.id == partido.arbitro_id for a in arbitros):
+        asignado = db.get(models.Usuario, partido.arbitro_id)
+        if asignado is not None:
+            arbitros = [asignado] + arbitros
+    return [{"id": a.id, "nombre": a.nombre} for a in arbitros
+            if a.id == partido.arbitro_id
+            or not _arbitro_ocupado(db, a.id, partido.fecha_hora,
+                                    excluir_id=partido.id)]
+
+
 # ======================================================================
 #  Acciones del árbitro en vivo
 # ======================================================================
@@ -258,6 +314,14 @@ def finalizar_partido(
     _exigir_arbitraje(usuario, partido)
     if partido.estado != "en_juego":
         raise HTTPException(status_code=409, detail="Solo se puede finalizar un partido en juego")
+
+    # partido.torneo puede ser None si el torneo se borró y la FK quedó nula
+    # (ON DELETE SET NULL): sin este chequeo, `.tipo` sobre None sería un 500.
+    if (partido.torneo and calendario.normalizar_tipo(partido.torneo.tipo) == "eliminacion directa"
+            and partido.goles_local == partido.goles_visitante):
+        raise HTTPException(
+            status_code=409,
+            detail="En eliminación directa el partido no puede terminar empatado")
 
     partido.estado = "finalizado"
     db.commit()

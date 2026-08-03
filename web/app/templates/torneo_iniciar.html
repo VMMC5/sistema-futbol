@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set active = 'torneos' %}
+{% block title %}{{ 'Iniciar torneo' if modo == 'iniciar' else 'Siguiente ronda' }}{% endblock %}
+{% block heading %}{{ 'Iniciar torneo' if modo == 'iniciar' else 'Siguiente ronda' }}{% endblock %}
+
+{% block content %}
+<div class="card form-card">
+  <h2 style="margin-bottom:6px;">{{ torneo.nombre }}</h2>
+  <p class="sub" style="margin-bottom:18px;">
+    {% if modo == 'iniciar' %}
+    Se generará el calendario completo ({{ torneo.tipo or 'tipo sin definir' }}) y el torneo pasará a "en curso".
+    {% else %}
+    Se crearán los cruces de la siguiente ronda con los ganadores.
+    {% endif %}
+  </p>
+  <form method="post">
+    <div class="field">
+      <label for="fecha">{{ 'Fecha de la primera jornada' if modo == 'iniciar' else 'Fecha de la ronda' }}</label>
+      <input type="date" id="fecha" name="fecha" required>
+    </div>
+    <div class="field">
+      <label for="hora">Hora del primer partido (los demás van cada 2 horas)</label>
+      <input type="time" id="hora" name="hora" value="16:00" required>
+    </div>
+    <button class="btn" type="submit">{{ 'Iniciar torneo' if modo == 'iniciar' else 'Generar ronda' }}</button>
+    <a class="btn ghost" href="{{ url_for('torneos') }}">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
