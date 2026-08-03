@@ -30,10 +30,18 @@
 {%- endmacro %}
 
 {% macro _banca_item(j, lado) -%}
+{# Mismos distintivos que _avatar: un suplente que entró y anotó (o vio
+   tarjeta) también los muestra — la app móvil ya lo hacía; la web no. #}
 <div class="banca-i{{ ' r' if lado == 'visitante' else '' }}">
   <div class="cancha-avw">
     {% if j.id and j.tiene_foto %}<img class="cancha-avatar" src="{{ url_for('usuario_foto', usuario_id=j.id) }}" alt="">{% endif %}
     <span class="cancha-inicial">{{ (j.nombre or '?')[0] }}</span>
+    {% if j.ev %}
+      {% if j.ev.goles %}<span class="bg bg-gol">{{ j.ev.goles }}</span>{% endif %}
+      {% if j.ev.asistencias %}<span class="bg bg-asis">A</span>{% endif %}
+      {% if j.ev.rojas %}<span class="bg bg-tar bg-roja"></span>{% elif j.ev.amarillas %}<span class="bg bg-tar bg-amarilla"></span>{% endif %}
+      {% if j.ev.salio %}<span class="bg bg-out">↓</span>{% elif j.ev.entro %}<span class="bg bg-in">↑</span>{% endif %}
+    {% endif %}
   </div>
   <span>{{ j.dorsal or '' }} {{ j.nombre or '' }}</span>
 </div>
