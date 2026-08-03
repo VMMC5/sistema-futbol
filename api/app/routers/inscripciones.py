@@ -40,9 +40,12 @@ def crear_inscripcion(
     if not es_admin(usuario) and equipo.entrenador_id != usuario.id:
         raise HTTPException(status_code=403, detail="Solo el entrenador del equipo puede inscribirlo")
 
-    # Inscripciones abiertas
-    if torneo.estado == "finalizado":
-        raise HTTPException(status_code=409, detail="El torneo está finalizado")
+    # Inscripciones abiertas: solo mientras el torneo sigue 'programado'. Una vez
+    # que arranca (en_curso) o termina (finalizado) los byes derivados se
+    # calculan sobre los aceptados al momento de iniciar; aceptar tarde a un
+    # equipo lo dejaría fantasma, inscrito pero sin lugar en el calendario.
+    if torneo.estado != "programado":
+        raise HTTPException(status_code=409, detail="Las inscripciones se cerraron: el torneo ya comenzó")
     if torneo.fecha_cierre_inscripciones and date.today() > torneo.fecha_cierre_inscripciones:
         raise HTTPException(status_code=409, detail="Las inscripciones están cerradas")
 

@@ -181,3 +181,64 @@ def test_siguiente_ronda_rechaza_liga(client, db_session, auth_admin):
     r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
                     json={"fecha": "2026-09-12", "hora_base": "16:00"})
     assert r.status_code == 400
+
+
+def test_siguiente_ronda_rechaza_empate_sin_cerrar(client, db_session, auth_admin):
+    """Un partido finalizado y empatado en la ronda no debería poder existir
+    (lo bloquea /finalizar), pero puede colarse por datos legacy, por borrar el
+    evento de gol que desempataba, o por cambiar el tipo del torneo a mitad de
+    camino. Sin este guardia, siguiente-ronda coronaría al visitante en silencio."""
+    from app import models
+    tid = _torneo(client, auth_admin, tipo="Eliminación directa")
+    _inscribir_aceptados(db_session, tid, [1, 2])
+    client.post(f"/torneos/{tid}/iniciar", headers=auth_admin,
+                json={"primera_fecha": "2026-09-05", "hora_base": "10:00"})
+
+    db = db_session()
+    p = (db.query(models.Partido).filter_by(torneo_id=tid, jornada=1).first())
+    p.goles_local, p.goles_visitante = (1, 1)
+    p.estado = "finalizado"
+    db.commit()
+    db.close()
+
+    r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
+                    json={"fecha": "2026-09-12", "hora_base": "10:00"})
+    assert r.status_code == 409
+    assert "empatad" in r.json()["detail"].lower()
+
+
+def test_siguiente_ronda_sin_calendario_no_500(client, db_session, auth_admin):
+    """Un torneo de eliminación puesto 'en_curso' a mano (sin pasar por
+    /iniciar) no tiene partidos: max() sobre una lista vacía explotaría con
+    ValueError si no se le da un default."""
+    from app import models
+    db = db_session()
+    torneo = models.Torneo(nombre="Sin calendario", sede_id=1,
+                           tipo="eliminacion directa", estado="en_curso")
+    db.add(torneo)
+    db.commit()
+    tid = torneo.id
+    db.close()
+
+    r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
+                    json={"fecha": "2026-09-12", "hora_base": "10:00"})
+    assert r.status_code == 409
+    assert "calendario" in r.json()["detail"].lower()
+
+
+def test_iniciar_no_es_idempotente(client, db_session, auth_admin):
+    """El estado puede volver a 'programado' vía PUT /torneos/{id}: iniciar
+    de nuevo no debe duplicar el calendario ya generado."""
+    tid = _torneo(client, auth_admin, tipo="Liga")
+    _inscribir_aceptados(db_session, tid, [1, 2])
+    r = client.post(f"/torneos/{tid}/iniciar", headers=auth_admin,
+                    json={"primera_fecha": "2026-09-05", "hora_base": "16:00"})
+    assert r.status_code == 200, r.text
+
+    r = client.put(f"/torneos/{tid}", headers=auth_admin, json={"estado": "programado"})
+    assert r.status_code == 200, r.text
+
+    r = client.post(f"/torneos/{tid}/iniciar", headers=auth_admin,
+                    json={"primera_fecha": "2026-09-12", "hora_base": "16:00"})
+    assert r.status_code == 409
+    assert "calendario" in r.json()["detail"].lower()

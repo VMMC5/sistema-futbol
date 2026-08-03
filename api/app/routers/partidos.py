@@ -95,6 +95,10 @@ def _arbitro_ocupado(db, arbitro_id, fecha_hora, excluir_id=None) -> bool:
     """True si el árbitro ya tiene OTRO partido no finalizado a esa hora exacta."""
     if not arbitro_id or not fecha_hora:
         return False
+    if fecha_hora.tzinfo is None:
+        # Mismo criterio que _misma_fecha: un naive se asume UTC, para no
+        # comparar en falso contra fechas guardadas con zona.
+        fecha_hora = fecha_hora.replace(tzinfo=timezone.utc)
     q = db.query(models.Partido).filter(
         models.Partido.arbitro_id == arbitro_id,
         models.Partido.fecha_hora == fecha_hora,
@@ -265,6 +269,13 @@ def arbitros_disponibles(
                 .filter(models.Rol.nombre == "arbitro",
                         models.Usuario.activo.is_(True))
                 .order_by(models.Usuario.nombre).all())
+    # El filtro activo=True excluye a un árbitro asignado que luego se
+    # desactivó: sin este añadido, el propio docstring de arriba mentiría y el
+    # panel mostraría el partido sin árbitro elegido.
+    if partido.arbitro_id and not any(a.id == partido.arbitro_id for a in arbitros):
+        asignado = db.get(models.Usuario, partido.arbitro_id)
+        if asignado is not None:
+            arbitros = [asignado] + arbitros
     return [{"id": a.id, "nombre": a.nombre} for a in arbitros
             if a.id == partido.arbitro_id
             or not _arbitro_ocupado(db, a.id, partido.fecha_hora,
@@ -304,7 +315,9 @@ def finalizar_partido(
     if partido.estado != "en_juego":
         raise HTTPException(status_code=409, detail="Solo se puede finalizar un partido en juego")
 
-    if (calendario.normalizar_tipo(partido.torneo.tipo) == "eliminacion directa"
+    # partido.torneo puede ser None si el torneo se borró y la FK quedó nula
+    # (ON DELETE SET NULL): sin este chequeo, `.tipo` sobre None sería un 500.
+    if (partido.torneo and calendario.normalizar_tipo(partido.torneo.tipo) == "eliminacion directa"
             and partido.goles_local == partido.goles_visitante):
         raise HTTPException(
             status_code=409,

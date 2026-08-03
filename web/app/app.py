@@ -312,7 +312,12 @@ def torneo_siguiente_ronda(torneo_id):
 @app.route("/partidos/<int:partido_id>/arbitro", methods=["POST"])
 @login_required
 def partido_asignar_arbitro(partido_id):
-    r = api_put(f"/partidos/{partido_id}", {"arbitro_id": int(request.form.get("arbitro_id", 0))})
+    try:
+        arbitro_id = int(request.form.get("arbitro_id", 0))
+    except ValueError:
+        flash("Árbitro inválido.", "error")
+        return redirect(url_for("partido_detalle", partido_id=partido_id))
+    r = api_put(f"/partidos/{partido_id}", {"arbitro_id": arbitro_id})
     if r.status_code == 401:
         return _sesion_expirada()
     if r.status_code == 200:

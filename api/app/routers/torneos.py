@@ -155,6 +155,13 @@ def iniciar_torneo(
     torneo = _obtener_torneo(db, torneo_id)
     if torneo.estado != "programado":
         raise HTTPException(status_code=409, detail="Solo se puede iniciar un torneo programado")
+    ya_tiene_calendario = (
+        db.query(models.Partido)
+        .filter(models.Partido.torneo_id == torneo.id, models.Partido.jornada.isnot(None))
+        .first()
+    )
+    if ya_tiene_calendario is not None:
+        raise HTTPException(status_code=409, detail="El torneo ya tiene calendario generado")
     tipo = calendario.normalizar_tipo(torneo.tipo)
     if tipo not in TIPOS_INICIABLES:
         raise HTTPException(
@@ -205,7 +212,9 @@ def siguiente_ronda(
         raise HTTPException(status_code=409, detail="El torneo no está en curso")
 
     partidos = db.query(models.Partido).filter_by(torneo_id=torneo.id).all()
-    ronda_actual = max((p.jornada or 0) for p in partidos)
+    ronda_actual = max(((p.jornada or 0) for p in partidos), default=0)
+    if ronda_actual == 0:
+        raise HTTPException(status_code=409, detail="El torneo no tiene calendario generado")
     de_ronda = [p for p in partidos if (p.jornada or 0) == ronda_actual]
     pendientes = [p for p in de_ronda if p.estado != "finalizado"]
     if pendientes:
@@ -213,7 +222,16 @@ def siguiente_ronda(
             status_code=409,
             detail=f"Faltan {len(pendientes)} partidos de la ronda {ronda_actual} por finalizar")
 
-    # El empate es imposible en eliminación (lo bloquea /finalizar).
+    # En teoría el empate es imposible en eliminación (lo bloquea /finalizar),
+    # pero datos legacy o un cambio de tipo del torneo a mitad de camino pueden
+    # dejar un partido finalizado y empatado: sin este guardia se coronaría al
+    # visitante en silencio.
+    empatados = [p for p in de_ronda if p.goles_local == p.goles_visitante]
+    if empatados:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Hay partidos empatados en la ronda {ronda_actual}; corrige el marcador antes de generar la siguiente")
+
     ganadores = [p.equipo_local_id if p.goles_local > p.goles_visitante
                  else p.equipo_visitante_id for p in de_ronda]
     if ronda_actual == 1:
@@ -231,6 +249,14 @@ def siguiente_ronda(
         campeon = db.get(models.Equipo, ganadores[0])
         return {"campeon_id": campeon.id, "campeon": campeon.nombre,
                 "estado": "finalizado", "partidos_creados": 0}
+
+    # ganadores + byes deben sumar potencia de 2: si no, generar_ronda_eliminacion
+    # daría byes nuevos que se descartan en silencio (equipos que desaparecen
+    # del torneo sin jugar ni ser eliminados).
+    if calendario.siguiente_potencia_de_2(len(ganadores)) != len(ganadores):
+        raise HTTPException(
+            status_code=409,
+            detail="El número de equipos de la ronda no es potencia de 2; revisa el calendario")
 
     # ganadores + byes suman potencia de 2 -> aquí ya no hay byes nuevos.
     _byes, parejas = calendario.generar_ronda_eliminacion(ganadores, random.Random())

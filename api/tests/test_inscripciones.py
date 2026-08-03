@@ -73,6 +73,15 @@ def test_listar_inscripciones_por_torneo(client, auth_admin, auth_entrenador):
     assert r.status_code == 200 and len(r.json()) == 1
 
 
+def test_no_inscribe_en_torneo_en_curso(client, auth_admin, auth_entrenador):
+    """Antes solo se bloqueaba 'finalizado': un torneo 'en_curso' (ya arrancó,
+    los byes derivados ya se calcularon) seguía aceptando inscripciones tarde,
+    dejando al equipo inscrito pero sin lugar en el calendario."""
+    tid = _torneo(client, auth_admin, estado="en_curso")
+    r = client.post("/inscripciones", headers=auth_entrenador, json={"torneo_id": tid, "equipo_id": 1})
+    assert r.status_code == 409
+
+
 def test_no_inscribe_tras_el_cierre(client, auth_admin, auth_entrenador):
     """La rama del 409 por fecha_cierre_inscripciones vencida existe desde el
     principio (inscripciones.py) pero ningún test la ejercitaba. El día del
