@@ -188,3 +188,56 @@ def iniciar_torneo(
             f"{torneo.nombre} comenzó: revisa tu calendario.", background_tasks)
     db.commit()
     return {"torneo_id": torneo.id, "estado": torneo.estado, "partidos_creados": creados}
+
+
+@router.post("/{torneo_id}/siguiente-ronda")
+def siguiente_ronda(
+    torneo_id: int,
+    datos: TorneoSiguienteRonda,
+    db: Session = Depends(get_db),
+    _admin: models.Usuario = Depends(require_roles("superadmin")),
+):
+    torneo = _obtener_torneo(db, torneo_id)
+    if calendario.normalizar_tipo(torneo.tipo) != "eliminacion directa":
+        raise HTTPException(status_code=400,
+                            detail="Solo aplica a torneos de eliminación directa")
+    if torneo.estado != "en_curso":
+        raise HTTPException(status_code=409, detail="El torneo no está en curso")
+
+    partidos = db.query(models.Partido).filter_by(torneo_id=torneo.id).all()
+    ronda_actual = max((p.jornada or 0) for p in partidos)
+    de_ronda = [p for p in partidos if (p.jornada or 0) == ronda_actual]
+    pendientes = [p for p in de_ronda if p.estado != "finalizado"]
+    if pendientes:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Faltan {len(pendientes)} partidos de la ronda {ronda_actual} por finalizar")
+
+    # El empate es imposible en eliminación (lo bloquea /finalizar).
+    ganadores = [p.equipo_local_id if p.goles_local > p.goles_visitante
+                 else p.equipo_visitante_id for p in de_ronda]
+    if ronda_actual == 1:
+        # Byes derivados: aceptados que no jugaron la ronda 1.
+        jugaron = ({p.equipo_local_id for p in de_ronda}
+                   | {p.equipo_visitante_id for p in de_ronda})
+        aceptados = [i.equipo_id for i in
+                     db.query(models.Inscripcion)
+                     .filter_by(torneo_id=torneo.id, estado="aceptada").all()]
+        ganadores += [e for e in aceptados if e not in jugaron]
+
+    if len(ganadores) == 1:
+        torneo.estado = "finalizado"
+        db.commit()
+        campeon = db.get(models.Equipo, ganadores[0])
+        return {"campeon_id": campeon.id, "campeon": campeon.nombre,
+                "estado": "finalizado", "partidos_creados": 0}
+
+    # ganadores + byes suman potencia de 2 -> aquí ya no hay byes nuevos.
+    _byes, parejas = calendario.generar_ronda_eliminacion(ganadores, random.Random())
+    base = datetime.combine(datos.fecha, datos.hora_base, tzinfo=timezone.utc)
+    creados = _crear_partidos(db, torneo, [parejas], base,
+                              _canchas_de_la_sede(db, torneo),
+                              primera_jornada=ronda_actual + 1)
+    db.commit()
+    return {"ronda": ronda_actual + 1, "partidos_creados": creados,
+            "estado": torneo.estado}

@@ -120,3 +120,64 @@ def test_iniciar_notifica_una_vez_por_entrenador(client, db_session, auth_admin)
               .filter(models.Notificacion.titulo == "Torneo iniciado").count())
     db.close()
     assert avisos == 1   # dos equipos, un entrenador -> UNA notificación
+
+
+# ---------- siguiente-ronda ----------
+def _finalizar_ronda(db_session, torneo_id, ronda):
+    """Marca finalizados los partidos de la ronda con marcadores SIN empate."""
+    from app import models
+    db = db_session()
+    partidos = (db.query(models.Partido)
+                .filter_by(torneo_id=torneo_id, jornada=ronda).all())
+    for i, p in enumerate(partidos):
+        p.goles_local, p.goles_visitante = (2, 1) if i % 2 == 0 else (0, 3)
+        p.estado = "finalizado"
+    db.commit()
+    db.close()
+    return len(partidos)
+
+
+def test_siguiente_ronda_flujo_completo_seis_equipos(client, db_session, auth_admin):
+    extras = _equipos_extra(db_session, 4)
+    tid = _torneo(client, auth_admin, tipo="Eliminación directa")
+    _inscribir_aceptados(db_session, tid, [1, 2] + extras)
+    client.post(f"/torneos/{tid}/iniciar", headers=auth_admin,
+                json={"primera_fecha": "2026-09-05", "hora_base": "10:00"})
+
+    # ronda 1 incompleta -> 409
+    r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
+                    json={"fecha": "2026-09-12", "hora_base": "10:00"})
+    assert r.status_code == 409
+
+    # ronda 2 = 2 ganadores + 2 byes = 4 equipos -> 2 partidos
+    _finalizar_ronda(db_session, tid, 1)
+    r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
+                    json={"fecha": "2026-09-12", "hora_base": "10:00"})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"ronda": 2, "partidos_creados": 2, "estado": "en_curso"}
+
+    # ronda 3: la final
+    _finalizar_ronda(db_session, tid, 2)
+    r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
+                    json={"fecha": "2026-09-19", "hora_base": "10:00"})
+    assert r.status_code == 200 and r.json()["partidos_creados"] == 1
+
+    # campeón: el torneo finaliza
+    _finalizar_ronda(db_session, tid, 3)
+    r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
+                    json={"fecha": "2026-09-26", "hora_base": "10:00"})
+    assert r.status_code == 200
+    assert r.json()["estado"] == "finalizado" and r.json()["partidos_creados"] == 0
+    assert "campeon" in r.json()
+    torneo = client.get(f"/torneos/{tid}", headers=auth_admin).json()
+    assert torneo["estado"] == "finalizado"
+
+
+def test_siguiente_ronda_rechaza_liga(client, db_session, auth_admin):
+    tid = _torneo(client, auth_admin, tipo="Liga")
+    _inscribir_aceptados(db_session, tid, [1, 2])
+    client.post(f"/torneos/{tid}/iniciar", headers=auth_admin,
+                json={"primera_fecha": "2026-09-05", "hora_base": "16:00"})
+    r = client.post(f"/torneos/{tid}/siguiente-ronda", headers=auth_admin,
+                    json={"fecha": "2026-09-12", "hora_base": "16:00"})
+    assert r.status_code == 400
