@@ -182,6 +182,7 @@ class PartidoOut(BaseModel):
     goles_local: int
     goles_visitante: int
     estado: str
+    jornada: int | None = None
     acta_firmada: bool = False
 
     model_config = {"from_attributes": True}
