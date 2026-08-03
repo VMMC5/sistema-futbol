@@ -47,3 +47,32 @@ def test_tabla_y_goleadores_publicos(client, auth_admin):
 
 def test_torneo_inexistente(client):
     assert client.get("/publico/torneos/999").status_code == 404
+
+
+def test_publico_inicio_trae_ultimos_resultados(client, db_session):
+    """/publico/inicio expone los últimos partidos finalizados (para el ticker
+    del login del panel): más recientes primero, máximo 5, sin token."""
+    from datetime import datetime, timedelta, timezone
+    from app import models
+
+    db = db_session()
+    torneo = models.Torneo(nombre="Público Ticker", sede_id=1)
+    db.add(torneo)
+    db.commit()
+    base = datetime(2026, 7, 1, 16, 0, tzinfo=timezone.utc)
+    for i in range(6):
+        db.add(models.Partido(
+            torneo_id=torneo.id, equipo_local_id=1, equipo_visitante_id=2,
+            estado="finalizado", goles_local=i, goles_visitante=1,
+            fecha_hora=base + timedelta(days=i)))
+    db.commit()
+    db.close()
+
+    r = client.get("/publico/inicio")
+    assert r.status_code == 200
+    resultados = r.json()["ultimos_resultados"]
+    assert len(resultados) == 5                     # tope de 5
+    fechas = [x["fecha_hora"] for x in resultados]
+    assert fechas == sorted(fechas, reverse=True)   # más recientes primero
+    assert all(x["estado"] == "finalizado" for x in resultados)
+    assert {"equipo_local_nombre", "goles_local", "torneo_nombre"} <= set(resultados[0])

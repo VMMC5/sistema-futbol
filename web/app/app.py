@@ -145,6 +145,16 @@ def login():
     # Las credenciales demo del seed solo se muestran en desarrollo: en
     # producción el seed ni corre y enseñarlas es mala señal.
     mostrar_hint = os.getenv("FLASK_ENV") == "development"
+    # Ticker con marcadores reales (endpoint público, sin token). Timeout corto
+    # y best-effort: si la API no responde o no hay datos, la plantilla cae al
+    # contenido ficticio — el login no debe romperse ni tardar jamás.
+    resultados = []
+    try:
+        rt = requests.get(f"{API_URL}/publico/inicio", timeout=2)
+        if rt.status_code == 200:
+            resultados = rt.json().get("ultimos_resultados", [])[:5]
+    except requests.RequestException:
+        pass
     if request.method == "POST":
         correo = request.form.get("correo", "").strip()
         password = request.form.get("password", "")
@@ -156,11 +166,11 @@ def login():
             )
         except requests.RequestException:
             flash("No se pudo conectar con la API. ¿Está corriendo?", "error")
-            return render_template("login.html", mostrar_hint=mostrar_hint)
+            return render_template("login.html", mostrar_hint=mostrar_hint, resultados=resultados)
 
         if r.status_code != 200:
             flash("Correo o contraseña incorrectos.", "error")
-            return render_template("login.html", mostrar_hint=mostrar_hint)
+            return render_template("login.html", mostrar_hint=mostrar_hint, resultados=resultados)
 
         token = r.json()["access_token"]
         me = requests.get(
@@ -172,13 +182,13 @@ def login():
         # El panel es solo para administradores
         if me.get("rol") != "superadmin":
             flash("Este panel es solo para administradores.", "error")
-            return render_template("login.html", mostrar_hint=mostrar_hint)
+            return render_template("login.html", mostrar_hint=mostrar_hint, resultados=resultados)
 
         session["token"] = token
         session["usuario"] = me
         return redirect(url_for("dashboard"))
 
-    return render_template("login.html", mostrar_hint=mostrar_hint)
+    return render_template("login.html", mostrar_hint=mostrar_hint, resultados=resultados)
 
 
 @app.route("/logout")

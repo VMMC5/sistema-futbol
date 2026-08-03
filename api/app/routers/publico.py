@@ -58,8 +58,19 @@ def inicio(db: Session = Depends(get_db)):
             .all()
         )
     ]
+    # Últimos marcadores (los consume el ticker del login del panel, que no
+    # tiene token: por eso viven aquí y no en /partidos).
+    recientes = (
+        db.query(models.Partido)
+        .options(*models.CARGA_PARTIDO)
+        .filter(models.Partido.estado == "finalizado")
+        .order_by(models.Partido.fecha_hora.desc().nulls_last())
+        .limit(5)
+        .all()
+    )
     return {
         "proximos_partidos": [PartidoOut.model_validate(p) for p in proximos],
+        "ultimos_resultados": [PartidoOut.model_validate(p) for p in recientes],
         "torneos_activos": torneos_activos,
         "goleadores_top": [GoleadorOut(**g) for g in stats.goleadores(db, limit=5)],
     }

@@ -20,9 +20,20 @@
 
     {# Marquesina decorativa: marcadores ficticios, duplicados para el bucle. #}
     <div class="lg-ticker" aria-hidden="true">
+      {# El contenido va DUPLICADO (range(2)): la animación corre -50% y las
+         dos mitades idénticas hacen el bucle perfecto. Con resultados reales
+         del sistema (vía /publico/inicio); sin datos o sin API, ficticio. #}
       <div class="lg-ticker-c">
-        <span>APERTURA 2026 · J7</span><span class="hi">HALCONES 3 – 2 UNIÓN</span><span>CANCHA 4 · 20:00</span><span>LOBOS 1 – 1 DEPORTIVO SUR</span>
-        <span>APERTURA 2026 · J7</span><span class="hi">HALCONES 3 – 2 UNIÓN</span><span>CANCHA 4 · 20:00</span><span>LOBOS 1 – 1 DEPORTIVO SUR</span>
+        {% for _ in range(2) %}
+          {% if resultados %}
+            {% for p in resultados %}
+            <span>{{ (p.torneo_nombre or 'TORNEO') | upper }}</span>
+            <span class="hi">{{ (p.equipo_local_nombre or '¿?') | upper }} {{ p.goles_local }} – {{ p.goles_visitante }} {{ (p.equipo_visitante_nombre or '¿?') | upper }}</span>
+            {% endfor %}
+          {% else %}
+            <span>APERTURA 2026 · J7</span><span class="hi">HALCONES 3 – 2 UNIÓN</span><span>CANCHA 4 · 20:00</span><span>LOBOS 1 – 1 DEPORTIVO SUR</span>
+          {% endif %}
+        {% endfor %}
       </div>
     </div>
 
