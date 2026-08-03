@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set active = 'torneos' %}
+{% block title %}Llaves — {{ torneo.nombre }}{% endblock %}
+{% block heading %}Llaves · {{ torneo.nombre }}{% endblock %}
+
+{# Tarjeta de un hueco del bracket: partido, pase directo (bye) o vacío. #}
+{% macro tarjeta(s) -%}
+  {% if s.tipo == 'partido' %}
+  <div class="br-card{{ ' br-jugado' if s.estado == 'finalizado' }}">
+    <div class="br-fecha">{{ s.fecha }}</div>
+    <div class="br-fila{{ ' br-gana' if s.ganador == 'local' }}">
+      <span class="br-eq">{{ s.local }}</span><span class="br-gol">{{ s.gl if s.estado != 'programado' else '' }}</span>
+    </div>
+    <div class="br-fila{{ ' br-gana' if s.ganador == 'visitante' }}">
+      <span class="br-eq">{{ s.visitante }}</span><span class="br-gol">{{ s.gv if s.estado != 'programado' else '' }}</span>
+    </div>
+  </div>
+  {% elif s.tipo == 'bye' %}
+  <div class="br-card br-bye">
+    <div class="br-fila br-gana"><span class="br-eq">{{ s.nombre }}</span></div>
+    <div class="br-pase">Pase directo</div>
+  </div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro columna(col, lado) -%}
+  <div class="br-col">
+    <div class="br-titulo">{{ col.titulo }}</div>
+    {% for pareja in col.slots | batch(2) %}
+    <div class="br-par {{ lado }}{{ ' br-solo' if pareja | length == 1 }}">
+      {% for s in pareja %}{{ tarjeta(s) }}{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% block content %}
+<div class="section-head">
+  <h2>Cuadro de eliminación</h2>
+  <a href="{{ url_for('torneos') }}" class="btn ghost" style="padding:7px 14px;">Volver</a>
+</div>
+
+{% if llaves %}
+<div class="bracket-wrap">
+  <div class="bracket">
+    {% for col in llaves.lados.izquierda %}{{ columna(col, 'izq') }}{% endfor %}
+
+    <div class="br-col br-centro">
+      <div class="br-titulo">Final</div>
+      {% if llaves.campeon %}
+      <div class="br-campeon">🏆 {{ llaves.campeon }}</div>
+      {% endif %}
+      {% if llaves.final %}
+      {{ tarjeta(llaves.final) }}
+      {% else %}
+      <div class="br-card br-pendiente">Final por definir</div>
+      {% endif %}
+    </div>
+
+    {% for col in llaves.lados.derecha | reverse %}{{ columna(col, 'der') }}{% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="panel-table"><div class="empty">Este torneo aún no tiene calendario de eliminación. Genera las llaves con “Iniciar torneo”.</div></div>
+{% endif %}
+{% endblock %}

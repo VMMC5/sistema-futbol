@@ -21,6 +21,7 @@ from flask import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from app.llaves import construir_llaves
 from app.posiciones import filas_desde_plan
 
 app = Flask(__name__)
@@ -325,6 +326,25 @@ def partido_asignar_arbitro(partido_id):
     else:
         flash(_detalle_error(r, "No se pudo asignar el árbitro."), "error")
     return redirect(url_for("partido_detalle", partido_id=partido_id))
+
+
+@app.route("/torneos/<int:torneo_id>/llaves")
+@login_required
+def torneo_llaves(torneo_id):
+    rt = api_get(f"/torneos/{torneo_id}")
+    if rt.status_code == 401:
+        return _sesion_expirada()
+    if rt.status_code != 200:
+        flash("Torneo no encontrado.", "error")
+        return redirect(url_for("torneos"))
+    torneo = rt.json()
+    if _tipo_normalizado(torneo.get("tipo")) != "eliminacion directa":
+        return redirect(url_for("tabla", torneo_id=torneo_id))
+
+    rp = api_get("/partidos", torneo_id=torneo_id)
+    partidos = rp.json() if rp.status_code == 200 else []
+    return render_template("llaves.html", torneo=torneo,
+                           llaves=construir_llaves(partidos))
 
 
 @app.route("/torneos/<int:torneo_id>/tabla")

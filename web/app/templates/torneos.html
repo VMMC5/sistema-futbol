@@ -34,7 +34,11 @@
           {% elif t.estado == 'en_curso' and t.es_eliminacion %}
           <a href="{{ url_for('torneo_siguiente_ronda', torneo_id=t.id) }}" class="btn" style="padding:7px 14px;">Siguiente ronda</a>
           {% endif %}
+          {% if t.es_eliminacion %}
+          <a href="{{ url_for('torneo_llaves', torneo_id=t.id) }}" class="btn ghost" style="padding:7px 14px;">Llaves</a>
+          {% else %}
           <a href="{{ url_for('tabla', torneo_id=t.id) }}" class="btn ghost" style="padding:7px 14px;">Tabla</a>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
