@@ -1,6 +1,6 @@
 # Contexto del proyecto — Sistema-Futbol
 
-> Documento de contexto integral del proyecto al **2026-07-31**.
+> Documento de contexto integral del proyecto al **2026-08-02**.
 > Sirve para poner al día a cualquier persona (o agente) que se incorpore al proyecto.
 
 ---
@@ -9,7 +9,7 @@
 
 **Sistema Integral de Administración de Canchas y Torneos de Fútbol**: plataforma web y móvil para administrar canchas, sedes, torneos, partidos, horarios, pagos y usuarios. Es el **Proyecto Integrador (PI) del Tercer Ciclo**, evaluado contra requerimientos formales de programación móvil y seguridad informática (ver §4).
 
-Repositorio: `~/sistema-torneos/sistema-futbol` (rama principal: `main`, HEAD `fd184e5`, **cero PRs abiertos**, 31 PRs mergeados).
+Repositorio: `~/sistema-torneos/sistema-futbol` (rama principal: `main`; el historial de PRs está resumido en §6).
 
 ## 2. Stack y componentes
 
@@ -69,6 +69,7 @@ Decisiones de seguridad clave:
 - **Dominio: `sistemafutbol.com`** (Cloudflare Registrar; registro A `@` → Elastic IP, **DNS only** — sin proxy). Certificado **Let's Encrypt** emitido el 2026-08-02 (sección 11 de `DESPLIEGUE.md`); el 8443 sirve el mismo. Renovación: cron diario de root a las 3:00 con `infra/nginx/renovar-certificado.sh` (⚠️ el script necesita `sudo`: certbot deja `live/` como root 0700), log en `/var/log/certbot-renovacion.log`.
 - Batería final de verificación en verde: health E2E, redirección 301, HSTS única, API y Postgres inalcanzables en directo. Kuma con 4 monitores verdes en `https://sistemafutbol.com:8443`.
 - Superadmin de producción: `vikcaballero86@gmail.com` (la BD nace sin roles porque el seed aborta en producción; se creó con guion Python vía `docker compose exec api1`).
+- **Correo transaccional ACTIVO (2026-08-02)**: al aceptar/rechazar solicitudes de entrenador/árbitro sale un correo real con la contraseña temporal (cambio forzado al primer login). SMTP configurado en el `.env` del servidor privado — hoy con **Gmail + contraseña de aplicación** como interino (`smtp.gmail.com`, remitente `vikcaballero86@gmail.com`), porque la cuenta de **Brevo** quedó autenticada (dominio con DKIM verificado, remitente `no-reply@sistemafutbol.com`, clave SMTP generada) pero **pendiente de que Brevo active el envío SMTP** (error `502 not yet activated`; ticket enviado; además el alta por SMS bloqueó al agotar intentos). Cuando activen: intercambiar los dos bloques `SMTP_*` en el `.env` + `up -d`, sin rebuild. ⚠️ Desplegar código nuevo en la privada SÍ requiere `git pull` + `up -d --build api1 api2`.
 - Costo: ~$2.5–3 USD/día (NAT + 2 EC2). Pausar = Stop de las EC2 (el NAT sigue cobrando salvo borrarlo).
 
 **Trampas reales de Ubuntu 24.04 / consola AWS** (documentadas en `docs/DESPLIEGUE.md`, PR #31):
@@ -86,10 +87,14 @@ Decisiones de seguridad clave:
 - **App móvil validada contra producción** con `EXPO_PUBLIC_API_URL=https://sistemafutbol.com/api` (con `/api` y sin barra final — nginx quita el prefijo; para builds EAS la variable va en `eas.json` o como secret, no en `.env`).
 - Candado disponible para la Figura 5 del `ED0302-JWT-SSL.docx` (tarea ED.03.02).
 
+Y el **correo real de credenciales quedó activo y validado de punta a punta** (solicitud desde la app → aceptar en el panel → correo con contraseña temporal → login → cambio forzado). Único cabo suelto no bloqueante: migrar el SMTP del interino de Gmail a Brevo cuando Brevo active la cuenta (ver §5).
+
 ### Deuda técnica abierta (por prioridad)
 - **Lock de fila (`with_for_update`) en la guardia del doble pago** — con 2 réplicas de API la carrera es real (el 2º commit da 500 en vez de 409).
 - **Refresh token real** — los 720 min del access token son un parche; al implementarlo, bajar el valor también en el `.env` de producción.
 - `subirFoto` móvil usa `fetch` crudo sin timeout.
+- **Warning si producción arranca sin `SMTP_HOST`**: el modo simulado imprime el correo entero (contraseña temporal incluida) en los logs del contenedor; un aviso `APP_ENV=production` + sin SMTP haría visible la mala configuración sin filtrar la contraseña (hallazgo de la revisión final del PR #34).
+- Migrar el SMTP de Gmail (interino) a Brevo cuando activen la cuenta; opcionalmente activar entonces el bloqueo de IPs de claves SMTP en Brevo (autorizando la IP del NAT, no la Elastic IP).
 - Ampliar `mobile/scripts/verificar-nombres-iconos.cjs` para reconocer la prop `icono` (2 puntos de render ciegos) y acotar la regex al componente `<Icono>`.
 - `guardar_plan` no valida `len(jugadores) <= suma(formación)`.
 - Higiene menor: autogol acredita asistencia, `UsuarioOut` duplicado, `LineupScreen` acepta 0 jugadores, cupo de inscripción cuenta todos los estados (TOCTOU), etc.
@@ -110,8 +115,10 @@ Decisiones de seguridad clave:
 | #29 | Icono de calendario invisible en inputs oscuros (filtro CSS) |
 | #30 | `apiUrl` móvil → `EXPO_PUBLIC_API_URL` (la IP local vive en `mobile/.env`, ignorado) |
 | #31 | `docs/DESPLIEGUE.md` corregido con las lecciones del despliegue real |
+| #32–#33 | Este documento (`CONTEXTO.md`) y su actualización con dominio propio + Let's Encrypt |
+| #34 | Correo de credenciales endurecido: timeout SMTP, envío en background best-effort, docs `SMTP_*` |
 
-**Suite de tests: 279/279 en verde (~7 min)** gracias al fixture `_sin_push` (los tests de push real optan con el marker `usa_push`).
+**Suite de tests: 284/284 en verde (~7 min)** gracias al fixture `_sin_push` (los tests de push real optan con el marker `usa_push`).
 
 ## 7. Desarrollo local
 
