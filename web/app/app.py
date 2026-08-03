@@ -126,6 +126,16 @@ def _detalle_error(respuesta, por_defecto="Ocurrió un error"):
         return por_defecto
 
 
+def _tipo_normalizado(tipo):
+    """Espejo de calendario.normalizar_tipo (el panel no importa el paquete api)."""
+    import unicodedata
+    if not tipo:
+        return ""
+    plano = "".join(c for c in unicodedata.normalize("NFD", tipo)
+                    if unicodedata.category(c) != "Mn")
+    return " ".join(plano.lower().split())
+
+
 # ----------------------------------------------------------------------
 # Autenticación
 # ----------------------------------------------------------------------
@@ -204,7 +214,10 @@ def torneos():
     r = api_get("/torneos")
     if r.status_code == 401:
         return _sesion_expirada()
-    return render_template("torneos.html", torneos=r.json() if r.status_code == 200 else [])
+    lista = r.json() if r.status_code == 200 else []
+    for t in lista:
+        t["es_eliminacion"] = _tipo_normalizado(t.get("tipo")) == "eliminacion directa"
+    return render_template("torneos.html", torneos=lista)
 
 
 @app.route("/torneos/nuevo", methods=["GET", "POST"])
@@ -242,6 +255,71 @@ def torneo_nuevo():
         flash(_detalle_error(r, "No se pudo crear el torneo."), "error")
 
     return render_template("torneo_nuevo.html", sedes=sedes)
+
+
+@app.route("/torneos/<int:torneo_id>/iniciar", methods=["GET", "POST"])
+@login_required
+def torneo_iniciar(torneo_id):
+    if request.method == "POST":
+        r = api_post(f"/torneos/{torneo_id}/iniciar", {
+            "primera_fecha": request.form.get("fecha", "").strip(),
+            "hora_base": request.form.get("hora", "").strip(),
+        })
+        if r.status_code == 401:
+            return _sesion_expirada()
+        if r.status_code == 200:
+            flash(f"Torneo iniciado: {r.json().get('partidos_creados', 0)} partidos creados.", "ok")
+        else:
+            flash(_detalle_error(r, "No se pudo iniciar el torneo."), "error")
+        return redirect(url_for("torneos"))
+    rt = api_get(f"/torneos/{torneo_id}")
+    if rt.status_code == 401:
+        return _sesion_expirada()
+    if rt.status_code != 200:
+        flash("Torneo no encontrado.", "error")
+        return redirect(url_for("torneos"))
+    return render_template("torneo_iniciar.html", torneo=rt.json(), modo="iniciar")
+
+
+@app.route("/torneos/<int:torneo_id>/siguiente-ronda", methods=["GET", "POST"])
+@login_required
+def torneo_siguiente_ronda(torneo_id):
+    if request.method == "POST":
+        r = api_post(f"/torneos/{torneo_id}/siguiente-ronda", {
+            "fecha": request.form.get("fecha", "").strip(),
+            "hora_base": request.form.get("hora", "").strip(),
+        })
+        if r.status_code == 401:
+            return _sesion_expirada()
+        if r.status_code == 200:
+            cuerpo = r.json()
+            if cuerpo.get("estado") == "finalizado":
+                flash(f"¡Campeón: {cuerpo.get('campeon', '?')}! Torneo finalizado.", "ok")
+            else:
+                flash(f"Ronda {cuerpo.get('ronda')}: {cuerpo.get('partidos_creados')} partidos creados.", "ok")
+        else:
+            flash(_detalle_error(r, "No se pudo generar la siguiente ronda."), "error")
+        return redirect(url_for("torneos"))
+    rt = api_get(f"/torneos/{torneo_id}")
+    if rt.status_code == 401:
+        return _sesion_expirada()
+    if rt.status_code != 200:
+        flash("Torneo no encontrado.", "error")
+        return redirect(url_for("torneos"))
+    return render_template("torneo_iniciar.html", torneo=rt.json(), modo="siguiente-ronda")
+
+
+@app.route("/partidos/<int:partido_id>/arbitro", methods=["POST"])
+@login_required
+def partido_asignar_arbitro(partido_id):
+    r = api_put(f"/partidos/{partido_id}", {"arbitro_id": int(request.form.get("arbitro_id", 0))})
+    if r.status_code == 401:
+        return _sesion_expirada()
+    if r.status_code == 200:
+        flash("Árbitro asignado.", "ok")
+    else:
+        flash(_detalle_error(r, "No se pudo asignar el árbitro."), "error")
+    return redirect(url_for("partido_detalle", partido_id=partido_id))
 
 
 @app.route("/torneos/<int:torneo_id>/tabla")
@@ -575,6 +653,11 @@ def partido_detalle(partido_id):
     banca_local = plan_local.get("suplentes") if plan_local else None
     banca_visitante = plan_visitante.get("suplentes") if plan_visitante else None
 
+    disponibles = []
+    if partido.get("estado") == "programado":
+        ra = api_get(f"/partidos/{partido_id}/arbitros-disponibles")
+        disponibles = ra.json() if ra.status_code == 200 else []
+
     return render_template(
         "partido_detalle.html",
         partido=partido,
@@ -583,6 +666,7 @@ def partido_detalle(partido_id):
         filas_visitante=filas_visitante,
         banca_local=banca_local,
         banca_visitante=banca_visitante,
+        disponibles=disponibles,
     )
 
 
