@@ -95,7 +95,9 @@
   <div class="label">Árbitro</div>
   <p style="margin:10px 0;">{{ partido.arbitro_nombre or 'Sin asignar' }}</p>
   {% if disponibles %}
-  <form method="post" action="{{ url_for('partido_asignar_arbitro', partido_id=partido.id) }}" style="display:flex; gap:10px; align-items:center;">
+  {# filter-bar: mismo estilo de selects que los filtros del panel (no es un
+     filtro, pero asi el control no queda con el look nativo del navegador) #}
+  <form method="post" action="{{ url_for('partido_asignar_arbitro', partido_id=partido.id) }}" class="filter-bar" style="margin-bottom:0;">
     <select name="arbitro_id" required>
       {% for a in disponibles %}
       <option value="{{ a.id }}" {{ 'selected' if a.id == partido.arbitro_id else '' }}>{{ a.nombre }}</option>
