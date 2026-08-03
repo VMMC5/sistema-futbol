@@ -6,45 +6,69 @@
   <title>Iniciar sesión · Torneos</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  {# Fuentes propias del login (mockup): el panel interno sigue con Bebas/Manrope. #}
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Expanded:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="{{ url_for('static', filename='panel.js') }}" defer></script>
 </head>
-<body>
-  <div class="login-wrap">
-    <div class="login-card">
-      <div class="brand">
-        <img class="brand-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Torneos">
-        <div class="name">TORNEOS<small>PANEL ADMIN</small></div>
+<body class="lg-body">
+  <div class="lg-wrap">
+    <div class="lg-rayas"></div>
+    <div class="lg-glow"></div>
+    <div class="lg-circulo"></div>
+    <div class="lg-media"></div>
+
+    {# Marquesina decorativa: marcadores ficticios, duplicados para el bucle. #}
+    <div class="lg-ticker" aria-hidden="true">
+      <div class="lg-ticker-c">
+        <span>APERTURA 2026 · J7</span><span class="hi">HALCONES 3 – 2 UNIÓN</span><span>CANCHA 4 · 20:00</span><span>LOBOS 1 – 1 DEPORTIVO SUR</span>
+        <span>APERTURA 2026 · J7</span><span class="hi">HALCONES 3 – 2 UNIÓN</span><span>CANCHA 4 · 20:00</span><span>LOBOS 1 – 1 DEPORTIVO SUR</span>
       </div>
-      <h1>Bienvenido</h1>
-      <p class="tagline">Acceso al panel de administración</p>
+    </div>
+
+    <div class="lg-card">
+      <div class="lg-brand">
+        <div class="lg-logo">
+          <img src="{{ url_for('static', filename='logo.png') }}" alt="Torneos">
+        </div>
+        <div>
+          <div class="lg-brand-t">TORNEOS</div>
+          <div class="lg-brand-s">PANEL ADMIN</div>
+        </div>
+      </div>
+
+      <div class="lg-titulo">
+        <h1>BIENVENIDO</h1>
+        <p>Acceso al panel de administración</p>
+      </div>
 
       {% with mensajes = get_flashed_messages(with_categories=true) %}
-        {% if mensajes %}
-          <div class="flashes">
-            {% for categoria, texto in mensajes %}
-              <div class="flash {{ categoria }}">{{ texto }}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
+        {% for categoria, texto in mensajes %}
+          <div class="lg-flash {{ categoria }}">{{ texto }}</div>
+        {% endfor %}
       {% endwith %}
 
-      <form method="post">
-        <div class="field">
-          <label for="correo">Correo</label>
-          <input type="email" id="correo" name="correo" placeholder="superadmin@demo.com" required autofocus>
-        </div>
-        <div class="field">
-          <label for="password">Contraseña</label>
-          <input type="password" id="password" name="password" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="btn">Entrar</button>
+      <form method="post" class="lg-form">
+        <label>
+          <span>CORREO</span>
+          <input type="email" id="correo" name="correo" placeholder="admin@sistemafutbol.com" required autofocus>
+        </label>
+        <label>
+          <span>CONTRASEÑA</span>
+          <div class="lg-pw">
+            <input type="password" id="password" name="password" placeholder="••••••••" required>
+            <button type="button" class="lg-ver" data-toggle-password="password">VER</button>
+          </div>
+        </label>
+        <button type="submit" class="lg-entrar">ENTRAR<span class="swp"></span></button>
       </form>
 
-      <p class="login-hint">
-        Usuario de prueba (tras correr el seed):<br>
-        <code>superadmin@demo.com</code> / <code>admin1234</code>
-      </p>
+      {% if mostrar_hint %}
+      <div class="lg-hint">
+        <div class="q">Usuario de prueba (tras correr el seed)</div>
+        <div class="c">superadmin@demo.com<span class="sep"> / </span>admin1234</div>
+      </div>
+      {% endif %}
     </div>
   </div>
 </body>

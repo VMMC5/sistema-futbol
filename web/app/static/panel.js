@@ -18,3 +18,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 });
+
+// Toggle VER/OCULTAR de la contraseña del login (CSP: nada de onClick inline).
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("button[data-toggle-password]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var input = document.getElementById(btn.getAttribute("data-toggle-password"));
+      if (!input) return;
+      var oculta = input.type === "password";
+      input.type = oculta ? "text" : "password";
+      btn.textContent = oculta ? "OCULTAR" : "VER";
+    });
+  });
+});

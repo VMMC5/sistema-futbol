@@ -369,3 +369,88 @@ table { width: 100%; border-collapse: collapse; }
 .br-campeon { text-align: center; font-family: "Bebas Neue", sans-serif;
   font-size: 22px; color: var(--lime); margin-bottom: 10px; letter-spacing: 0.05em; }
 .br-pendiente { text-align: center; color: var(--muted); font-size: 13px; }
+/* ---------- Login (rediseño 2026-08: mockup del usuario) ----------
+   Página independiente con sus propias fuentes (Archivo Expanded / Barlow /
+   JetBrains Mono). Todo el estilo del mockup vive aquí como clases porque la
+   CSP bloquea handlers inline; las animaciones son puro CSS. */
+@keyframes lg-swp { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+@keyframes lg-flt { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes lg-pls { 0%, 100% { opacity: .35; transform: scale(1); } 50% { opacity: .7; transform: scale(1.06); } }
+@keyframes lg-mrq { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+.lg-body { margin: 0; background: #0a140c; font-family: Barlow, system-ui, sans-serif; }
+.lg-wrap { min-height: 100vh; position: relative; display: flex; align-items: center;
+  justify-content: center; overflow: hidden; }
+.lg-rayas { position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, rgba(200,242,77,.035) 0 46px, transparent 46px 92px); }
+.lg-glow { position: absolute; left: 50%; top: -140px; width: 520px; height: 520px;
+  transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,242,77,.22), transparent 65%);
+  filter: blur(10px); animation: lg-pls 7s ease-in-out infinite; }
+.lg-circulo { position: absolute; left: 50%; top: 50%; width: 260px; height: 260px;
+  margin: -130px 0 0 -130px; border: 1px solid rgba(200,242,77,.10); border-radius: 50%; }
+.lg-media { position: absolute; left: 0; right: 0; top: 50%; height: 1px;
+  background: rgba(200,242,77,.10); }
+
+.lg-ticker { position: absolute; top: 0; left: 0; right: 0; height: 36px; background: #0f1c12;
+  border-bottom: 1px solid rgba(200,242,77,.16); display: flex; align-items: center; overflow: hidden; }
+.lg-ticker-c { display: flex; gap: 36px; white-space: nowrap; animation: lg-mrq 22s linear infinite;
+  font: 500 11px "JetBrains Mono", monospace; color: rgba(255,255,255,.45); padding-left: 24px; }
+.lg-ticker-c .hi { color: #c8f24d; }
+
+.lg-card { position: relative; width: 400px; max-width: calc(100vw - 32px); margin-top: 36px;
+  padding: 34px 32px 26px; border-radius: 20px;
+  background: linear-gradient(160deg, rgba(19,40,23,.96), rgba(10,20,12,.96));
+  border: 1px solid rgba(200,242,77,.18);
+  box-shadow: 0 30px 70px -20px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05);
+  overflow: hidden; }
+.lg-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, #c8f24d, transparent); opacity: .9; }
+
+.lg-brand { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.lg-logo { width: 46px; height: 46px; border-radius: 14px; background: #c8f24d;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 26px rgba(200,242,77,.45); animation: lg-flt 4.5s ease-in-out infinite; }
+.lg-logo img { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; }
+.lg-brand-t { font: 800 24px/1 "Archivo Expanded", Barlow, sans-serif; letter-spacing: .02em; color: #f2f7ea; }
+.lg-brand-s { font: 500 10px/1.6 "JetBrains Mono", monospace; letter-spacing: .28em; color: rgba(200,242,77,.75); }
+
+.lg-titulo { margin-top: 26px; text-align: center; }
+.lg-titulo h1 { margin: 0; font: 700 30px/1 "Archivo Expanded", sans-serif; color: #fff; letter-spacing: -.01em; }
+.lg-titulo p { margin: 8px 0 0; font: 400 13.5px/1.4 Barlow, sans-serif; color: rgba(255,255,255,.55); }
+
+.lg-flash { margin-top: 18px; padding: 10px 14px; border-radius: 10px; font-size: 13px;
+  background: rgba(255,90,90,.12); border: 1px solid rgba(255,90,90,.3); color: #ff8a8a; }
+.lg-flash.ok { background: rgba(200,242,77,.10); border-color: rgba(200,242,77,.3); color: #c8f24d; }
+
+.lg-form { margin-top: 26px; display: flex; flex-direction: column; gap: 16px; }
+.lg-form label { display: flex; flex-direction: column; gap: 7px; }
+.lg-form label > span { font: 600 11px/1 "JetBrains Mono", monospace; letter-spacing: .14em;
+  color: rgba(255,255,255,.5); }
+.lg-form input { width: 100%; box-sizing: border-box; padding: 13px 15px; border-radius: 11px;
+  background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.12); color: #f2f7ea;
+  font: 400 14.5px Barlow, sans-serif; outline: none; transition: all .18s; }
+.lg-form input:focus { border-color: #c8f24d; box-shadow: 0 0 0 3px rgba(200,242,77,.16);
+  background: rgba(200,242,77,.06); }
+.lg-pw { position: relative; display: flex; align-items: center; }
+.lg-pw input { padding-right: 66px; }
+.lg-ver { position: absolute; right: 8px; padding: 6px 10px; border: none; border-radius: 8px;
+  background: rgba(200,242,77,.12); color: #c8f24d; font: 600 10px "JetBrains Mono", monospace;
+  letter-spacing: .1em; cursor: pointer; }
+.lg-ver:hover { background: rgba(200,242,77,.24); }
+
+.lg-entrar { position: relative; overflow: hidden; margin-top: 24px; width: 100%; padding: 15px;
+  border: none; border-radius: 12px; background: #c8f24d; color: #0a140c;
+  font: 700 15px "Archivo Expanded", sans-serif; letter-spacing: .04em; cursor: pointer;
+  box-shadow: 0 10px 30px -8px rgba(200,242,77,.55); transition: transform .15s, box-shadow .15s; }
+.lg-entrar:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -8px rgba(200,242,77,.7); }
+.lg-entrar:active { transform: translateY(0); }
+.lg-entrar .swp { position: absolute; top: 0; left: 0; width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  animation: lg-swp 3.2s ease-in-out infinite; }
+
+.lg-hint { margin-top: 20px; padding-top: 16px; border-top: 1px dashed rgba(255,255,255,.10);
+  text-align: center; }
+.lg-hint .q { font: 400 11.5px Barlow, sans-serif; color: rgba(255,255,255,.4); }
+.lg-hint .c { margin-top: 6px; font: 500 12px "JetBrains Mono", monospace; color: #c8f24d; }
+.lg-hint .c .sep { color: rgba(255,255,255,.3); }
