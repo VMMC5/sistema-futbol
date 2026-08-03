@@ -9,6 +9,16 @@
   <a href="{{ url_for('sede_nueva') }}" class="btn">+ Nueva sede</a>
 </div>
 
+<form method="get" class="filter-bar">
+  <label for="ciudad">Ciudad:</label>
+  <select id="ciudad" name="ciudad" data-autosubmit>
+    <option value="">Todas</option>
+    {% for c in ciudades %}
+    <option value="{{ c }}" {{ 'selected' if ciudad == c }}>{{ c }}</option>
+    {% endfor %}
+  </select>
+</form>
+
 {% if sedes %}
 <div class="panel-table">
   <table>

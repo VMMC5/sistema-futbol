@@ -78,3 +78,24 @@ def test_reset_password(client, auth_admin):
     }).json()["id"]
     client.put(f"/usuarios/{uid}", headers=auth_admin, json={"password": "nuevaClave456"})
     assert client.post("/auth/login", json={"correo": "reset@demo.com", "password": "nuevaClave456"}).status_code == 200
+
+
+def test_filtro_por_activo_y_rol(client, auth_admin):
+    """?activo filtra, y combina con ?rol (para el filtro del panel)."""
+    usuarios = client.get("/usuarios", headers=auth_admin).json()
+    miembro = next(u for u in usuarios if u["rol"] == "jugador")
+    r = client.put(f"/usuarios/{miembro['id']}", headers=auth_admin, json={"activo": False})
+    assert r.status_code == 200
+
+    inactivos = client.get("/usuarios?activo=false", headers=auth_admin).json()
+    assert [u["id"] for u in inactivos] == [miembro["id"]]
+
+    activos = client.get("/usuarios?activo=true", headers=auth_admin).json()
+    assert miembro["id"] not in [u["id"] for u in activos]
+
+    combinado = client.get("/usuarios?rol=jugador&activo=true", headers=auth_admin).json()
+    assert all(u["rol"] == "jugador" and u["activo"] for u in combinado)
+    assert miembro["id"] not in [u["id"] for u in combinado]
+
+    todos = client.get("/usuarios", headers=auth_admin).json()
+    assert len(todos) == len(activos) + len(inactivos)

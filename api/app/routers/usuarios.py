@@ -60,12 +60,15 @@ def listar_roles(
 @router.get("", response_model=list[UsuarioAdminOut])
 def listar_usuarios(
     rol: str | None = None,
+    activo: bool | None = None,
     db: Session = Depends(get_db),
     _admin: models.Usuario = Depends(require_roles("superadmin")),
 ):
     consulta = db.query(models.Usuario)
     if rol:
         consulta = consulta.join(models.Rol).filter(models.Rol.nombre == rol)
+    if activo is not None:
+        consulta = consulta.filter(models.Usuario.activo == activo)
     return [_to_out(u) for u in consulta.order_by(models.Usuario.nombre).all()]
 
 

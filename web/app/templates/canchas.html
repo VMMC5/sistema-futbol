@@ -9,6 +9,16 @@
   <a href="{{ url_for('cancha_nueva') }}" class="btn">+ Nueva cancha</a>
 </div>
 
+<form method="get" class="filter-bar">
+  <label for="sede_id">Sede:</label>
+  <select id="sede_id" name="sede_id" data-autosubmit>
+    <option value="">Todas</option>
+    {% for s in sedes %}
+    <option value="{{ s.id }}" {{ 'selected' if sede_id == s.id|string }}>{{ s.nombre }}</option>
+    {% endfor %}
+  </select>
+</form>
+
 {% if canchas %}
 <div class="panel-table">
   <table>
