@@ -263,7 +263,7 @@ table { width: 100%; border-collapse: collapse; }
 
 /* ---------- Alineación en cancha ---------- */
 .cancha-wrap { max-width: 520px; margin: 0 auto; }
-.cancha { position: relative; width: 100%; aspect-ratio: 2/3; background: #1d4a30;
+.cancha { position: relative; width: 100%; aspect-ratio: 3/5; background: #1d4a30;
           border-radius: 10px; overflow: hidden; }
 .cancha-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cancha-fila { position: absolute; left: 0; right: 0; display: flex;
@@ -271,13 +271,14 @@ table { width: 100%; border-collapse: collapse; }
 /* Posiciones fijas por línea: las 3 formaciones del sistema (4-4-2, 4-3-3,
    3-5-2) siempre producen 4 filas (arquero + 3 líneas), así que el reparto
    vertical es estático -> sin cálculos ni atributos de estilo inline.
-   El top es el CENTRO de la fila (translateY(-50%)) y una ficha mide ~8% de
-   alto: los delanteros van en 44%/56% para que, con AMBAS alineaciones
-   cargadas, ninguna fila cruce la media cancha (en 49%/51% se encimaban). */
-.cancha-fila-l0 { top: 94%; } .cancha-fila-l1 { top: 79%; }
-.cancha-fila-l2 { top: 64%; } .cancha-fila-l3 { top: 56%; }
-.cancha-fila-v0 { top: 6%; }  .cancha-fila-v1 { top: 21%; }
-.cancha-fila-v2 { top: 36%; } .cancha-fila-v3 { top: 44%; }
+   El top es el CENTRO de la fila (translateY(-50%)). Restricción con AMBAS
+   alineaciones cargadas: ninguna fila puede cruzar la media cancha (50%) —
+   en 49%/51% los delanteros se encimaban. La cancha es 3:5 (no 2:3) para
+   que las 4 líneas de cada mitad respiren sin juntar medios y delanteros. */
+.cancha-fila-l0 { top: 94%; } .cancha-fila-l1 { top: 80%; }
+.cancha-fila-l2 { top: 67%; } .cancha-fila-l3 { top: 55%; }
+.cancha-fila-v0 { top: 6%; }  .cancha-fila-v1 { top: 20%; }
+.cancha-fila-v2 { top: 33%; } .cancha-fila-v3 { top: 45%; }
 .cancha-pl { text-align: center; width: 60px; }
 .cancha-avw { position: relative; width: 36px; height: 36px; margin: 0 auto 4px; }
 /* La inicial es el fondo (z-index base); la foto va encima cuando existe, y los
